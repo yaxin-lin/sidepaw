@@ -16,7 +16,9 @@ agent-pet and pets-driven. Each item ships on its own.
    session; sessions that need input first, icon tinted.
 3. Allow / Deny in the bubble while waiting, answered through the hook
    response (L4, per host).
-4. Idle behaviour: blinking, short walks, sleeping, looking at the cursor.
+4. Done: idle behaviour: short walks, dozing, a hop on click. Looking
+   at the cursor needs art the Codex sheet does not have; revisit with
+   Pack v2.
 5. Chinese UI and bilingual placeholder lines, following `language`.
 6. Model provider, persona editor, generated `lines.json`.
 7. Codex adapter and `sidepaw run -- <cmd>`.

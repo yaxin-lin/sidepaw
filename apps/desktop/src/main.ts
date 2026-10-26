@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Snapshot } from "./generated/Snapshot";
 import { Bubble } from "./bubble";
 import { HitMaskSource } from "./hitmask";
+import { IdleBehaviour } from "./idle";
 import { loadPack } from "./pack";
 import { SpriteRenderer } from "./renderer";
 
@@ -23,6 +24,7 @@ async function main() {
   const pack = await loadPack("placeholder");
   const renderer = new SpriteRenderer(canvas, pack.sheet);
   const bubble = new Bubble(bubbleEl, pack.lines);
+  const idle = new IdleBehaviour(renderer, canvas);
   // Transparent parts of the window let clicks through; see src-tauri/src/hit.rs.
   // The bubble is solid while shown, so its box joins the mask.
   const mask = new HitMaskSource(canvas, (ctx, w, h) => renderer.drawCurrentInto(ctx, w, h));
@@ -48,7 +50,10 @@ async function main() {
     void getCurrentWindow().startDragging();
   });
   canvas.addEventListener("mouseup", (e) => {
-    if (e.button === 0 && Date.now() - pressedAt < 250) bubble.onInteraction("click");
+    if (e.button === 0 && Date.now() - pressedAt < 250) {
+      bubble.onInteraction("click");
+      idle.onClick();
+    }
   });
   canvas.addEventListener("contextmenu", (e) => {
     e.preventDefault();
@@ -60,7 +65,9 @@ async function main() {
       const snap = await invoke<Snapshot>("snapshot");
       renderer.setState(snap.overall);
       bubble.onState(snap.overall);
+      idle.onState(snap.overall);
       label.textContent = describe(snap);
+      void idle.tick();
     } catch (err) {
       label.textContent = `error: ${String(err)}`;
     }

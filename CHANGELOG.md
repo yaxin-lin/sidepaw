@@ -50,6 +50,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - `raw` payloads above 64 KB are not stored.
 - Menu bar / tray icon with Setup, Show/Hide pet and Quit. On macOS the
   app runs as an accessory, so no dock icon.
+- Idle behaviour: every 20 to 60 s of idleness the pet walks a short
+  way on the running rows, staying inside the monitor's work area and
+  stopping the moment an agent does anything; it dozes (half speed,
+  slightly faded) while asleep; a click gets a hop on the jumping row.
 - Tray session monitor: the menu lists every live session with host,
   project folder (when the level keeps `cwd`), state and duration,
   sessions needing input first; the icon turns orange and shows a count

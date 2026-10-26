@@ -17,6 +17,7 @@ built in is in [roadmap.md](roadmap.md).
 | `config.toml`, per-host and per-project permission levels, `raw` size cap | built (0.3) |
 | SSE state stream | not needed in-process; `GET /v1/state` snapshot stays for the headless path |
 | System notifications (level 3+), level picker in the setup window | built |
+| Idle behaviour: walks, dozing, click hop | built |
 | Speech bubble with local lines from the pack | built (0.4) |
 | Persona compiler (sliders, tags, free text to system prompt) | built (0.4), no UI yet |
 | Brain: LLM client, line generation, chat, context, proactive, memory | planned |
@@ -137,6 +138,10 @@ the setup window (`setup.html`), which calls the `host_*` commands.
 
 The tray icon (`tray.rs`) is the way back in once the pet is hidden;
 the app has no dock icon on macOS.
+
+`idle.ts` moves the window for short walks on the running rows while
+idle, slows and fades the loop while asleep, and plays the jumping row
+on click; any agent activity cancels a walk.
 
 `lines.ts` picks pack lines (uniform, avoiding the last three) and
 `bubble.ts` decides when to speak: states that need the user or close a

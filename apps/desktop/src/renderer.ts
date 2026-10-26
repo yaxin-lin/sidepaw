@@ -25,6 +25,11 @@ export class SpriteRenderer {
   private row: number = ROW.idle;
   private raf = 0;
   private lastDrawn = -1;
+  /** A row that takes precedence over the state's row until `until`
+   *  (performance.now ms); used for walks and the click hop. */
+  private override: { row: number; until: number } | null = null;
+  /** Animation speed factor; 0.5 while dozing. */
+  speed = 1;
   /** Called after a frame that differs from the previous one was drawn. */
   onFrame: (() => void) | null = null;
 
@@ -43,6 +48,15 @@ export class SpriteRenderer {
     this.row = rowFor(state);
   }
 
+  /** Play `row` instead of the state's row for `ms`. */
+  play(row: number, ms: number) {
+    this.override = { row, until: performance.now() + ms };
+  }
+
+  stopOverride() {
+    this.override = null;
+  }
+
   /** Draw the frame currently on screen into another context at
    *  `w` by `h`, for callers that need its shape at low resolution. */
   drawCurrentInto(ctx: CanvasRenderingContext2D, w: number, h: number) {
@@ -55,14 +69,17 @@ export class SpriteRenderer {
 
   start() {
     const draw = (t: number) => {
-      const frame = Math.floor((t % LOOP_MS) / (LOOP_MS / FRAMES));
-      const key = this.row * FRAMES + frame;
+      if (this.override && t >= this.override.until) this.override = null;
+      const row = this.override?.row ?? this.row;
+      const loop = LOOP_MS / this.speed;
+      const frame = Math.floor((t % loop) / (loop / FRAMES));
+      const key = row * FRAMES + frame;
       if (key !== this.lastDrawn) {
         this.lastDrawn = key;
         this.ctx.clearRect(0, 0, CELL_W, CELL_H);
         this.ctx.drawImage(
           this.sheet,
-          frame * CELL_W, this.row * CELL_H, CELL_W, CELL_H,
+          frame * CELL_W, row * CELL_H, CELL_W, CELL_H,
           0, 0, CELL_W, CELL_H,
         );
         this.onFrame?.();
