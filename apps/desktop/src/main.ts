@@ -86,8 +86,13 @@ async function main() {
   setInterval(() => void poll(), POLL_MS);
 }
 
-main().catch((err) => {
+main().catch((err: unknown) => {
   const label = document.getElementById("label");
   if (label) label.textContent = `failed: ${String(err)}`;
-  console.error(err);
+  // The dev log only shows the message; the stack says where.
+  console.error(err instanceof Error ? `${err.message}\n${err.stack ?? ""}` : String(err));
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const r: unknown = e.reason;
+  console.error(`unhandled: ${r instanceof Error ? `${r.message}\n${r.stack ?? ""}` : String(r)}`);
 });

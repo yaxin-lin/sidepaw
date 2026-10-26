@@ -359,8 +359,7 @@ fn decision_body(allow: bool) -> serde_json::Value {
 }
 
 async fn get_state(State(shared): State<Shared>) -> Json<Snapshot> {
-    let app = shared.app.lock().unwrap();
-    Json(app.registry.snapshot(now_ms()))
+    Json(shared.snapshot())
 }
 
 async fn get_report_today(State(shared): State<Shared>) -> Response {

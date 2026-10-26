@@ -36,9 +36,17 @@ export interface Pack {
   lines: Lines;
 }
 
+/** A missing optional file is null. The Vite dev server answers unknown
+ *  paths with index.html and status 200, so the content type is checked
+ *  and a parse failure also reads as absent. */
 async function optionalJson<T>(url: string): Promise<T | null> {
   const res = await fetch(url);
-  return res.ok ? ((await res.json()) as T) : null;
+  if (!res.ok || !(res.headers.get("content-type") ?? "").includes("json")) return null;
+  try {
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
 }
 
 export async function loadPack(id: string): Promise<Pack> {
