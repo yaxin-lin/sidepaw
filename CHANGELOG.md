@@ -50,6 +50,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - `raw` payloads above 64 KB are not stored.
 - Menu bar / tray icon with Setup, Show/Hide pet and Quit. On macOS the
   app runs as an accessory, so no dock icon.
+- System notifications with sound when an agent waits for approval,
+  errors or finishes a turn, at permission level 3 and up, at most once
+  per session and state per minute. The setup window gains a permission
+  level picker that writes `[pet] level` back to `config.toml` without
+  touching the rest of the file, and a test button.
 - Speech bubble: the pet says a line from the pack's `lines.json` on
   state changes and clicks, picking uniformly while avoiding the last
   three, throttled so tool calls and thinking do not become a ticker.

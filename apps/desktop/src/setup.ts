@@ -60,11 +60,69 @@ async function renderToday() {
   }
 }
 
+const LEVELS: Array<[number, string, string]> = [
+  [0, "Observe", "Only the state: thinking, tool, waiting, done. Animation and local lines."],
+  [1, "Record", "Plus tool names, error types, token counts. Daily report and counters."],
+  [2, "Read", "Plus file paths, command text, error messages (secrets redacted). Needed to answer \"why did that fail\"."],
+  [3, "Notify", "Same as Read, plus system notifications when an agent waits for you, errors or finishes."],
+  [4, "Act", "Same as Read, plus answering agents (approve, deny, send a message), each confirmed."],
+];
+
+async function renderLevels() {
+  const box = el("levels");
+  const current = await invoke<number>("get_level");
+  box.innerHTML = "";
+  for (const [n, name, text] of LEVELS) {
+    const row = document.createElement("div");
+    row.className = "level";
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "level";
+    input.id = `level-${n}`;
+    input.checked = n === current;
+    input.addEventListener("change", () => void setLevel(n));
+    const label = document.createElement("label");
+    label.htmlFor = input.id;
+    label.textContent = `${n} ${name}`;
+    const desc = document.createElement("span");
+    desc.className = "msg";
+    desc.textContent = text;
+    row.append(input, label, desc);
+    box.append(row);
+  }
+}
+
+async function setLevel(n: number) {
+  const msg = el("level-msg");
+  try {
+    await invoke("set_level", { level: n });
+    msg.className = "msg";
+    msg.textContent = `Level ${n} saved to config.toml.`;
+  } catch (e) {
+    msg.className = "msg err";
+    msg.textContent = String(e);
+  }
+}
+
 async function main() {
   const port = await invoke<number>("server_port");
   el("server-addr").textContent = `127.0.0.1:${port}`;
   await renderToday();
   setInterval(() => void renderToday(), 10_000);
+  await renderLevels();
+  el("notify-test").addEventListener("click", () => {
+    const msg = el("level-msg");
+    invoke("test_notification").then(
+      () => {
+        msg.className = "msg";
+        msg.textContent = "Sent. Nothing shown? Notifications need level 3 for real events, and on macOS a bundled build.";
+      },
+      (e) => {
+        msg.className = "msg err";
+        msg.textContent = String(e);
+      },
+    );
+  });
   await run("host_status", "");
   el("cc-install").addEventListener("click", () => void run("host_install", "Written. A backup is next to the file."));
   el("cc-remove").addEventListener("click", () => void run("host_remove", "Removed sidepaw's hooks; everything else untouched."));

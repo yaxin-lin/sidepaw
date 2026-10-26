@@ -5,6 +5,27 @@ unknown is validated first. Versions are 0.x; minor versions may break
 compatibility until 1.0, but the event contract's `v` field is bumped
 whenever its shape changes. GitHub milestones mirror this list.
 
+## Next up, in order
+
+Decided 2026-10-26 after comparing agentpet, clawd-on-desk, UniPet,
+agent-pet and pets-driven. Each item ships on its own.
+
+1. Done: system notifications with sound on waiting, error and done
+   (L3), with a permission level picker in the setup window.
+2. Tray session monitor: host, project, state and duration per session;
+   sessions that need input first, icon tinted.
+3. Allow / Deny in the bubble while waiting, answered through the hook
+   response (L4, per host).
+4. Idle behaviour: blinking, short walks, sleeping, looking at the cursor.
+5. Chinese UI and bilingual placeholder lines, following `language`.
+6. Model provider, persona editor, generated `lines.json`.
+7. Codex adapter and `sidepaw run -- <cmd>`.
+8. One pet per project.
+9. Signing, notarization, Homebrew.
+10. Proactive chat.
+
+Not planned: token feeding, levels, achievements, leaderboards.
+
 ## 0.1 It moves
 
 One vertical slice. Tauri 2 app with a transparent, borderless,

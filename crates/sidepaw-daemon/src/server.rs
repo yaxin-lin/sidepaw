@@ -23,7 +23,7 @@ use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use sidepaw_core::{Event, Host};
+use sidepaw_core::{Event, Host, Level};
 use std::future::IntoFuture;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -61,6 +61,18 @@ impl Shared {
 
     pub fn token(&self) -> &str {
         &self.token
+    }
+
+    pub fn level(&self) -> Level {
+        self.app.lock().unwrap().config.pet.level
+    }
+
+    /// Persist and apply a new global level. Per-host and per-project
+    /// overrides in the file stay as they are.
+    pub fn set_level(&self, level: Level) -> Result<()> {
+        Config::write_level(&home::dir()?, level)?;
+        self.app.lock().unwrap().config.pet.level = level;
+        Ok(())
     }
 
     pub fn report_today(&self) -> Result<DayReport> {

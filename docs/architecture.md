@@ -16,6 +16,7 @@ built in is in [roadmap.md](roadmap.md).
 | Other host adapters | planned |
 | `config.toml`, per-host and per-project permission levels, `raw` size cap | built (0.3) |
 | SSE state stream | not needed in-process; `GET /v1/state` snapshot stays for the headless path |
+| System notifications (level 3+), level picker in the setup window | built |
 | Speech bubble with local lines from the pack | built (0.4) |
 | Persona compiler (sliders, tags, free text to system prompt) | built (0.4), no UI yet |
 | Brain: LLM client, line generation, chat, context, proactive, memory | planned |
@@ -248,6 +249,10 @@ adds optional files for animation layers and personality. See
 - Planned: every request to a remote model is logged to the `audit`
   table with the byte count and a hash of the payload. The chat panel
   shows what will be sent before it is sent.
+- Level 3 and up: `notify.rs` in the desktop app watches session states
+  and posts a system notification for waiting, error and done, naming
+  only the host. The level is changed from the setup window and written
+  to `config.toml` with comments preserved (`toml_edit`).
 - Planned: level 4 (messaging an agent) is off by default, per host, and
   every message is confirmed unless it matches an explicit allow list.
 

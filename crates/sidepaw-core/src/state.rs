@@ -24,7 +24,7 @@ pub const THINKING_STALE_MS: u64 = 180_000;
 pub const TOOL_STALE_MS: u64 = 900_000;
 pub const ERROR_STALE_MS: u64 = 120_000;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "state", content = "detail")]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub enum State {

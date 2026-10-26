@@ -3,12 +3,13 @@
 //! renderer never touches HTTP.
 
 mod hit;
+mod notify;
 mod tray;
 mod update;
 
 use hit::{HitMask, Mask};
 use sidepaw_core::event::UnknownHost;
-use sidepaw_core::Host;
+use sidepaw_core::{Host, Level};
 use sidepaw_daemon::install::{self, Report, Status};
 use sidepaw_daemon::registry::Snapshot;
 use sidepaw_daemon::server::{self, Running};
@@ -29,6 +30,27 @@ fn server_port(server: State<'_, Running>) -> u16 {
 #[tauri::command]
 fn set_hit_mask(mask: State<'_, HitMask>, cell: u32, rows: Vec<u64>) {
     *mask.0.lock().unwrap() = Mask { cell, rows };
+}
+
+#[tauri::command]
+fn get_level(server: State<'_, Running>) -> u8 {
+    server.shared.level().into()
+}
+
+#[tauri::command]
+fn set_level(server: State<'_, Running>, level: u8) -> Result<(), String> {
+    let level = Level::try_from(level).map_err(|e| e.to_string())?;
+    server.shared.set_level(level).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn test_notification(app: AppHandle) -> Result<(), String> {
+    notify::send(
+        &app,
+        "sidepaw",
+        "Notifications work. Claude Code needs your approval would look like this.",
+    )
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -83,6 +105,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             // `start` spawns onto the runtime it is called from; Tauri's
             // async runtime is tokio, so the server lives as long as the app.
@@ -97,6 +120,7 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             tray::install(app.handle())?;
+            notify::spawn_watcher(app.handle().clone());
             update::check_in_background(app.handle().clone());
 
             // First run: nothing is hooked up yet, so show the setup window
@@ -114,6 +138,9 @@ pub fn run() {
             snapshot,
             server_port,
             report_today,
+            get_level,
+            set_level,
+            test_notification,
             set_hit_mask,
             host_status,
             host_install,

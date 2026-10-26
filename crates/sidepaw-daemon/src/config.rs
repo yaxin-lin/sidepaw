@@ -106,6 +106,26 @@ impl Config {
         }
     }
 
+    /// Set `[pet] level` in `<dir>/config.toml`, creating the file if
+    /// needed and keeping everything else in it, comments included.
+    pub fn write_level(dir: &Path, level: Level) -> Result<()> {
+        let path = dir.join("config.toml");
+        let text = match std::fs::read_to_string(&path) {
+            Ok(t) => t,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(e) => return Err(e).with_context(|| path.display().to_string()),
+        };
+        let mut doc: toml_edit::DocumentMut = text
+            .parse()
+            .with_context(|| format!("{} is not valid TOML", path.display()))?;
+        if !doc.contains_table("pet") {
+            doc["pet"] = toml_edit::table();
+        }
+        doc["pet"]["level"] = toml_edit::value(i64::from(u8::from(level)));
+        std::fs::create_dir_all(dir)?;
+        std::fs::write(&path, doc.to_string()).with_context(|| path.display().to_string())
+    }
+
     pub fn host_enabled(&self, host: Host) -> bool {
         self.hosts
             .get(host.as_str())
@@ -224,6 +244,29 @@ port = 4242
             Level::Record,
             "host override still caps it"
         );
+    }
+
+    #[test]
+    fn write_level_keeps_the_rest_of_the_file() {
+        let dir = std::env::temp_dir().join(format!("sidepaw-config-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        Config::write_level(&dir, Level::Notify).unwrap();
+        assert_eq!(Config::load(&dir).unwrap().pet.level, Level::Notify);
+
+        std::fs::write(
+            dir.join("config.toml"),
+            "# my notes\n[pet]\nactive = \"cat\" # keep\nlevel = 1\n\n[daemon]\nport = 4242\n",
+        )
+        .unwrap();
+        Config::write_level(&dir, Level::Observe).unwrap();
+        let text = std::fs::read_to_string(dir.join("config.toml")).unwrap();
+        assert!(text.contains("# my notes"), "{text}");
+        assert!(text.contains("active = \"cat\" # keep"), "{text}");
+        assert!(text.contains("level = 0"), "{text}");
+        let c = Config::load(&dir).unwrap();
+        assert_eq!(c.daemon.port, 4242);
+        assert_eq!(c.pet.level, Level::Observe);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
