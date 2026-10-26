@@ -14,7 +14,7 @@ built in is in [roadmap.md](roadmap.md).
 | `sidepaw-daemon`: HTTP ingest, SQLite store, redactor, `hook` shim | built, tested |
 | Claude Code adapter | built, hand-written fixtures |
 | Other host adapters | planned |
-| Per-host and per-project permission levels | planned (one global level today) |
+| `config.toml`, per-host and per-project permission levels, `raw` size cap | built (0.3) |
 | SSE state stream | not needed in-process; `GET /v1/state` snapshot stays for the headless path |
 | Brain (persona, context, LLM, proactive, memory) | planned |
 | `apps/desktop`: transparent always-on-top window, spritesheet renderer, embedded server, TS types from Rust | built (0.1) |
@@ -59,8 +59,9 @@ support command hooks. The brain is planned for the desktop side
 2. The adapter for that host turns it into a `sidepaw_core::Event`
    (see `contracts/events.md`) and posts it to the daemon.
 3. The redactor replaces secrets in any free-text field.
-4. The permission gate drops fields the current level does not allow
-   (see `contracts/permissions.md`).
+4. The permission gate resolves the level from the host and `cwd`
+   (`config.toml`) and drops fields that level does not allow (see
+   `contracts/permissions.md`).
 5. The store appends the event to SQLite.
 6. The state machine for that session consumes the event and may emit a
    state change.
@@ -236,12 +237,7 @@ adds optional files for animation layers and personality. See
 
 ## Known gaps
 
-- `raw` is stored whole at level 2. Claude Code's `Edit` and `Write`
-  payloads carry entire file contents, so this will need a size cap or
-  an opt-in before level 2 is the default for anyone.
-- `permissions.md` says the lowest of the global, per-host and
-  per-project level wins. The project is identified by `cwd`, which the
-  filter removes below level 2, so the effective level must be resolved
-  from the full event before the filter runs.
+- `raw` above 64 KB is dropped rather than stored (Claude Code's `Edit`
+  and `Write` payloads carry whole files). The rest of the event stays.
 - `schema.sql` mentions a `migrations/` directory that does not exist
   yet; the schema is applied once with `IF NOT EXISTS`.

@@ -9,6 +9,7 @@
 //! All `/v1` routes require `Authorization: Bearer <token>`.
 
 use crate::adapters::{self, now_ms};
+use crate::config::Config;
 use crate::home::{self, DaemonState};
 use crate::redact;
 use crate::registry::{Registry, Snapshot};
@@ -20,7 +21,7 @@ use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use sidepaw_core::{Event, Host, Level};
+use sidepaw_core::{Event, Host};
 use std::future::IntoFuture;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -28,8 +29,13 @@ use std::time::Duration;
 pub struct App {
     pub store: Store,
     pub registry: Registry,
-    pub level: Level,
+    pub config: Config,
 }
+
+/// `raw` carries whole file contents for edit tools; above this the
+/// payload is dropped rather than stored. Everything else in the event
+/// survives.
+pub const RAW_MAX_BYTES: usize = 64 * 1024;
 
 #[derive(Clone)]
 pub struct Shared {
@@ -69,23 +75,24 @@ pub struct Running {
 /// runtime does.
 pub async fn start(port: u16) -> Result<Running> {
     let dir = home::dir()?;
+    let config = Config::load(&dir)?;
     let store = Store::open(&dir.join("sidepaw.sqlite"))?;
     let previous = DaemonState::load().ok();
     let token = previous
         .as_ref()
         .map(|s| s.token.clone())
         .unwrap_or_else(DaemonState::new_token);
+    // Precedence for the port: the caller, then config.toml, then the
+    // port from last run (hook configs embed it), then any free one.
+    let port = if port == 0 { config.daemon.port } else { port };
     let shared = Shared::new(
         App {
             store,
             registry: Registry::default(),
-            level: Level::DEFAULT,
+            config,
         },
         token.clone(),
     );
-
-    // Hook configs embed the port, so keep the one from last run when the
-    // caller does not insist on a specific one.
     let wanted = match (port, previous.as_ref()) {
         (0, Some(s)) if s.port != 0 => s.port,
         _ => port,
@@ -169,11 +176,23 @@ async fn get_state(State(shared): State<Shared>) -> Json<Snapshot> {
 }
 
 /// Redact, filter, store, advance the state machine. The order matters:
+/// the level is resolved from the full event (it needs `cwd`), and
 /// nothing reaches the store before redaction and the level filter.
 fn ingest(shared: &Shared, mut event: Event) -> StatusCode {
     let mut app = shared.app.lock().unwrap();
+    if !app.config.host_enabled(event.host) {
+        return StatusCode::NO_CONTENT;
+    }
+    let level = app.config.effective_level(event.host, event.cwd.as_deref());
     redact::event(&mut event);
-    app.level.filter(&mut event);
+    level.filter(&mut event);
+    if event
+        .raw
+        .as_ref()
+        .is_some_and(|r| r.to_string().len() > RAW_MAX_BYTES)
+    {
+        event.raw = None;
+    }
     if let Err(e) = app.store.insert_event(&event) {
         tracing::error!("store: {e}");
         return StatusCode::INTERNAL_SERVER_ERROR;
@@ -211,14 +230,22 @@ mod tests {
     use tower::ServiceExt;
 
     fn test_shared() -> Shared {
+        shared_with(Config::default())
+    }
+
+    fn shared_with(config: Config) -> Shared {
         Shared::new(
             App {
                 store: Store::in_memory().unwrap(),
                 registry: Registry::default(),
-                level: Level::DEFAULT,
+                config,
             },
             "t0k3n".into(),
         )
+    }
+
+    fn stored_text(shared: &Shared) -> Option<String> {
+        shared.app.lock().unwrap().store.last_event_text().unwrap()
     }
 
     fn req(method: &str, path: &str, token: Option<&str>, body: &str) -> Request<Body> {
@@ -301,6 +328,106 @@ mod tests {
             .unwrap();
         let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(v["overall"]["state"], "thinking");
+    }
+
+    #[tokio::test]
+    async fn level_is_resolved_from_host_and_project_before_filtering() {
+        let config = Config::parse(
+            r#"
+[pet]
+level = 2
+[projects."/work/secret"]
+level = 0
+"#,
+        )
+        .unwrap();
+        let shared = shared_with(config);
+        let r = router(shared.clone());
+        let payload = |cwd: &str| {
+            format!(
+                r#"{{"hook_event_name":"PreToolUse","session_id":"s","cwd":"{cwd}",
+                     "tool_name":"Bash","tool_input":{{"command":"make"}}}}"#
+            )
+        };
+        r.clone()
+            .oneshot(req(
+                "POST",
+                "/v1/native/claude-code",
+                Some("t0k3n"),
+                &payload("/home/me/toy"),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(
+            stored_text(&shared).as_deref(),
+            Some("make"),
+            "level 2 keeps text"
+        );
+
+        r.oneshot(req(
+            "POST",
+            "/v1/native/claude-code",
+            Some("t0k3n"),
+            &payload("/work/secret/src"),
+        ))
+        .await
+        .unwrap();
+        assert_eq!(stored_text(&shared), None, "project at level 0 drops text");
+    }
+
+    #[tokio::test]
+    async fn disabled_host_is_ignored() {
+        let shared = shared_with(
+            Config::parse(
+                "[hosts.claude-code]
+enabled = false
+",
+            )
+            .unwrap(),
+        );
+        let r = router(shared.clone());
+        let res = r
+            .oneshot(req(
+                "POST",
+                "/v1/native/claude-code",
+                Some("t0k3n"),
+                r#"{"hook_event_name":"Stop","session_id":"s","cwd":"/"}"#,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::NO_CONTENT);
+        assert_eq!(shared.app.lock().unwrap().store.session_count().unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn oversized_raw_is_dropped_not_the_event() {
+        let shared = shared_with(
+            Config::parse(
+                "[pet]
+level = 2
+",
+            )
+            .unwrap(),
+        );
+        let r = router(shared.clone());
+        let big = "x".repeat(RAW_MAX_BYTES + 1);
+        let payload = format!(
+            r#"{{"hook_event_name":"PreToolUse","session_id":"s","cwd":"/p",
+                 "tool_name":"Write","tool_input":{{"file_path":"/p/a","content":"{big}"}}}}"#
+        );
+        let res = r
+            .oneshot(req(
+                "POST",
+                "/v1/native/claude-code",
+                Some("t0k3n"),
+                &payload,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::ACCEPTED);
+        let app = shared.app.lock().unwrap();
+        assert_eq!(app.store.session_count().unwrap(), 1);
+        assert!(app.store.last_event_raw().unwrap().is_none());
     }
 
     #[tokio::test]

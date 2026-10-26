@@ -99,6 +99,24 @@ impl Store {
     }
 
     #[cfg(test)]
+    pub fn last_event_text(&self) -> Result<Option<String>> {
+        Ok(self.conn.query_row(
+            "SELECT text FROM events ORDER BY id DESC LIMIT 1",
+            [],
+            |r| r.get::<_, Option<String>>(0),
+        )?)
+    }
+
+    #[cfg(test)]
+    pub fn last_event_raw(&self) -> Result<Option<String>> {
+        Ok(self
+            .conn
+            .query_row("SELECT raw FROM events ORDER BY id DESC LIMIT 1", [], |r| {
+                r.get::<_, Option<String>>(0)
+            })?)
+    }
+
+    #[cfg(test)]
     pub fn session_count(&self) -> Result<u64> {
         Ok(self
             .conn

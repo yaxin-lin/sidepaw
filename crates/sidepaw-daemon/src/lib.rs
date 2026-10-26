@@ -5,6 +5,7 @@
 //! exposes the same code as a headless daemon and as the hook shim.
 
 pub mod adapters;
+pub mod config;
 pub mod home;
 pub mod hook;
 pub mod install;

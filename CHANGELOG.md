@@ -44,6 +44,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   idempotent and remove leaves other hooks alone.
 - The server reuses its previous port across restarts so installed hook
   configs stay valid.
+- `~/.sidepaw/config.toml` is read: global level, per-host `enabled`
+  and `level`, per-project `level` by `cwd` prefix, and the daemon port.
+  Unknown keys are rejected. Events from disabled hosts are dropped.
+- `raw` payloads above 64 KB are not stored.
 - Installing Claude Code hooks also exempts loopback from proxies via
   `env.NO_PROXY` in `settings.json`; a global-mode system proxy would
   otherwise swallow every hook request ("socket hang up").
