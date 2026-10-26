@@ -5,6 +5,12 @@ all-features = true
 
 [advisories]
 yanked = "deny"
+ignore = [
+    # proc-macro-error 1.x is unmaintained. It reaches us only through
+    # Tauri's Linux GTK bindings (gtk -> glib-macros); nothing to switch
+    # to until upstream moves. Revisit when bumping tauri.
+    { id = "RUSTSEC-2024-0370", reason = "transitive via tauri/gtk on Linux" },
+]
 
 [licenses]
 allow = [
