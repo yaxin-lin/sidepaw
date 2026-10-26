@@ -1,3 +1,5 @@
+import { Lines, type LinesFile } from "./lines";
+
 // Codex spritesheet layout, mirrored from crates/sidepaw-core/src/pack.rs
 // and docs/contracts/pet-pack.md.
 export const CELL_W = 192;
@@ -24,9 +26,21 @@ export interface Manifest {
   displayName: string;
   description?: string;
   spritesheetPath: string;
+  "x-sidepaw"?: { persona?: string; personaText?: string; lines?: string; voice?: string };
 }
 
-export async function loadPack(id: string): Promise<{ manifest: Manifest; sheet: HTMLImageElement }> {
+export interface Pack {
+  manifest: Manifest;
+  sheet: HTMLImageElement;
+  lines: Lines;
+}
+
+async function optionalJson<T>(url: string): Promise<T | null> {
+  const res = await fetch(url);
+  return res.ok ? ((await res.json()) as T) : null;
+}
+
+export async function loadPack(id: string): Promise<Pack> {
   const res = await fetch(`/${id}/pet.json`);
   if (!res.ok) throw new Error(`pack ${id}: ${res.status}`);
   const manifest = (await res.json()) as Manifest;
@@ -36,5 +50,8 @@ export async function loadPack(id: string): Promise<{ manifest: Manifest; sheet:
   if (sheet.naturalWidth !== CELL_W * COLUMNS || sheet.naturalHeight !== CELL_H * ROWS) {
     throw new Error(`pack ${id}: sheet is ${sheet.naturalWidth}x${sheet.naturalHeight}`);
   }
-  return { manifest, sheet };
+  // A pack without lines is a valid Codex pack; the pet is just quiet.
+  const linesPath = manifest["x-sidepaw"]?.lines;
+  const file = linesPath ? await optionalJson<LinesFile>(`/${id}/${linesPath}`) : null;
+  return { manifest, sheet, lines: file ? new Lines(file) : Lines.empty() };
 }

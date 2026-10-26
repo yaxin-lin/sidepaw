@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Snapshot } from "./generated/Snapshot";
+import { Bubble } from "./bubble";
 import { pushHitMask } from "./hitmask";
 import { loadPack } from "./pack";
 import { SpriteRenderer } from "./renderer";
@@ -17,17 +18,27 @@ function describe(snap: Snapshot): string {
 async function main() {
   const canvas = document.getElementById("pet") as HTMLCanvasElement;
   const label = document.getElementById("label") as HTMLDivElement;
+  const bubbleEl = document.getElementById("bubble") as HTMLDivElement;
 
-  const { sheet } = await loadPack("placeholder");
-  const renderer = new SpriteRenderer(canvas, sheet);
+  const pack = await loadPack("placeholder");
+  const renderer = new SpriteRenderer(canvas, pack.sheet);
+  const bubble = new Bubble(bubbleEl, pack.lines);
   // Transparent parts of the window let clicks through; see src-tauri/src/hit.rs.
-  renderer.onFrame = () => pushHitMask(canvas, renderer.ctx, [label]);
+  // The bubble is solid while shown, so its box joins the mask.
+  renderer.onFrame = () => pushHitMask(canvas, renderer.ctx, [label, bubbleEl]);
   renderer.start();
 
   // The window has no decorations, so the pet itself is the drag handle
-  // and right-click is the only way in to settings.
+  // and right-click is the only way in to settings. A click that does
+  // not turn into a drag gets a line.
+  let pressedAt = 0;
   canvas.addEventListener("mousedown", (e) => {
-    if (e.button === 0) void getCurrentWindow().startDragging();
+    if (e.button !== 0) return;
+    pressedAt = Date.now();
+    void getCurrentWindow().startDragging();
+  });
+  canvas.addEventListener("mouseup", (e) => {
+    if (e.button === 0 && Date.now() - pressedAt < 250) bubble.onInteraction("click");
   });
   canvas.addEventListener("contextmenu", (e) => {
     e.preventDefault();
@@ -38,6 +49,7 @@ async function main() {
     try {
       const snap = await invoke<Snapshot>("snapshot");
       renderer.setState(snap.overall);
+      bubble.onState(snap.overall);
       label.textContent = describe(snap);
     } catch (err) {
       label.textContent = `error: ${String(err)}`;

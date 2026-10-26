@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "gen:types": "cd ../.. && TS_RS_EXPORT_DIR=$PWD/apps/desktop/src/generated cargo test -p sidepaw-core -p sidepaw-daemon --features sidepaw-core/ts,sidepaw-daemon/ts export_bindings"
+    "gen:types": "cd ../.. && TS_RS_EXPORT_DIR=$PWD/apps/desktop/src/generated cargo test -p sidepaw-core -p sidepaw-daemon --features sidepaw-core/ts,sidepaw-daemon/ts export_bindings",
+    "test": "vitest run"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4"
@@ -16,6 +17,8 @@
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.4",
     "typescript": "^5.9.0",
-    "vite": "^8.3.5"
+    "vite": "^8.3.5",
+    "vitest": "^4.0.0",
+    "jsdom": "^27.0.0"
   }
 }

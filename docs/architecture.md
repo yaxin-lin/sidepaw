@@ -16,7 +16,9 @@ built in is in [roadmap.md](roadmap.md).
 | Other host adapters | planned |
 | `config.toml`, per-host and per-project permission levels, `raw` size cap | built (0.3) |
 | SSE state stream | not needed in-process; `GET /v1/state` snapshot stays for the headless path |
-| Brain (persona, context, LLM, proactive, memory) | planned |
+| Speech bubble with local lines from the pack | built (0.4) |
+| Persona compiler (sliders, tags, free text to system prompt) | built (0.4), no UI yet |
+| Brain: LLM client, line generation, chat, context, proactive, memory | planned |
 | `apps/desktop`: transparent always-on-top window, spritesheet renderer, embedded server, TS types from Rust | built (0.1) |
 | Click-through of transparent pixels, self-update, release workflow | built (0.2) |
 | Setup window: install, update, remove Claude Code hooks | built (0.2) |
@@ -134,6 +136,13 @@ the setup window (`setup.html`), which calls the `host_*` commands.
 
 The tray icon (`tray.rs`) is the way back in once the pet is hidden;
 the app has no dock icon on macOS.
+
+`lines.ts` picks pack lines (uniform, avoiding the last three) and
+`bubble.ts` decides when to speak: states that need the user or close a
+turn always do, thinking and tool calls at most once per 30 and 60 s.
+`brain/persona.ts` compiles `persona.json` plus `persona.md` into the
+system prompt that chat and line generation will share; `personaDigest`
+is the `generatedFrom` cache key for `lines.json`.
 
 Planned here: the chat panel, the studio, and the brain (ADR 7).
 

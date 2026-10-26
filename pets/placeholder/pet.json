@@ -7,7 +7,13 @@
     "version": 1,
     "license": "CC0-1.0",
     "attribution": [
-      { "role": "character", "name": "sidepaw contributors", "url": "https://github.com/yaxin-lin/sidepaw" }
-    ]
+      {
+        "role": "character",
+        "name": "sidepaw contributors",
+        "url": "https://github.com/yaxin-lin/sidepaw"
+      }
+    ],
+    "persona": "persona.json",
+    "lines": "lines.json"
   }
 }

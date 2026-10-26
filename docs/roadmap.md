@@ -34,9 +34,11 @@ notarization in CI. Exit criterion: fully usable with no API key.
 
 ## 0.4 It talks
 
-Brain in TypeScript (ADR 7): one provider, streamed chat, persona
-compiler producing `lines.json`, preview before send, audit rows.
-Server gains read-only query endpoints.
+Brain in TypeScript (ADR 7). Done: speech bubble with pack lines,
+persona compiler. Remaining: one provider (config and key), line
+generation into `lines.json` with the digest as cache key, persona
+editor in the setup window, streamed chat, context builder, preview
+before send, audit rows. Server gains read-only query endpoints.
 
 ## 0.5 It speaks first
 

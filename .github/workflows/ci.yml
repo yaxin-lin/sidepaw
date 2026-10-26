@@ -38,6 +38,7 @@ jobs:
       # The desktop crate embeds `frontendDist` at compile time, so the
       # web build has to exist before cargo touches it.
       - run: pnpm --filter sidepaw-desktop build
+      - run: pnpm --filter sidepaw-desktop test
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace

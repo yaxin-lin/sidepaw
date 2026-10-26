@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "generatedFrom": "hand-written",
+  "idle": ["Nothing running. Suspicious.", "I could nap. You could too.", "Waiting for you to type something."],
+  "thinking": ["Thinking noises.", "Give it a second.", "It's planning something."],
+  "tool": ["Running stuff.", "Hands busy.", "Doing the thing."],
+  "tool.shell": ["Shell time.", "Running a command. Fingers crossed.", "I hope that command was a good idea."],
+  "tool.edit": ["Editing files.", "Rewriting your code. Again?", "Changes incoming."],
+  "tool.read": ["Reading.", "Looking around.", "Just browsing."],
+  "tool.search": ["Searching.", "Where did that go?", "Grep, grep, grep."],
+  "waiting": ["It needs you.", "Approve or deny. Your call, boss.", "Hey. Hey. It's asking."],
+  "done": ["Done!", "That one's finished.", "Turn over. Go look."],
+  "error": ["That broke.", "Something went wrong.", "Oops. Not my fault."],
+  "click": ["Yes?", "Poke me again and see what happens.", "I'm working. Sort of."],
+  "drag": ["Careful!", "Where are we going?"],
+  "morning": ["Morning, boss.", "Coffee first."],
+  "night": ["It's late.", "Sleep is a feature too."]
+}

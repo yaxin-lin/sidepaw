@@ -50,6 +50,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - `raw` payloads above 64 KB are not stored.
 - Menu bar / tray icon with Setup, Show/Hide pet and Quit. On macOS the
   app runs as an accessory, so no dock icon.
+- Speech bubble: the pet says a line from the pack's `lines.json` on
+  state changes and clicks, picking uniformly while avoiding the last
+  three, throttled so tool calls and thinking do not become a ticker.
+  `pets/placeholder` gained hand-written lines and a `persona.json`.
+- Persona compiler (TypeScript, ADR 7): sliders, trait tags and free
+  text become one system prompt; tags map to behaviour rules. No model
+  is called yet; this is the input for chat and line generation.
+- Vitest for the desktop app, run in CI.
 - Daily report from counters alone: sessions, turns, tool calls,
   errors, tokens, time spent waiting on the user, most used tools. In
   the setup window and at `GET /v1/report/today`. Works at every
