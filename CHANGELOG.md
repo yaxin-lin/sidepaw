@@ -53,6 +53,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - A session that went silent while `Thinking`, in a `Tool` or in `Error`
   (interrupted turn, closed terminal) kept the pet busy forever, since
   hosts send no event for that. Those states now expire to `Idle`.
+- With several terminals open, the pet showed the highest-priority
+  state across all sessions, so an interrupted terminal masked the one
+  being used. It now follows the most recently active session, except
+  that a session waiting for approval always wins.
 
 - Approving a Claude Code permission prompt left the pet in `Waiting`
   until the turn ended, because Claude Code sends no event on approve.

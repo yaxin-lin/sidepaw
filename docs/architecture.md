@@ -181,9 +181,13 @@ Waiting > Error > Tool > Thinking > Done > Idle > Sleeping
   the tool name so the renderer can pick a sub-animation.
 - A multi-turn goal task only emits `Done` on its final turn.
 
-When several sessions are active the desktop app shows either the
-highest-priority state or one pet per session; that is a renderer
-choice, not a daemon one.
+When several sessions are active, the snapshot's `overall` is `Waiting`
+if any session waits for the user, otherwise the state of the session
+the host reported on most recently. Recency beats priority because
+several terminals are usually one person switching between them, and a
+turn interrupted with Esc in one terminal (no event for that) must not
+mask the live one. One pet per session remains a possible renderer
+choice.
 
 ## Brain (planned)
 

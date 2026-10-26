@@ -57,6 +57,7 @@ impl State {
 pub struct Session {
     state: State,
     since_ms: u64,
+    last_event_ms: u64,
     open_tools: u32,
     last_tool: Option<ToolCategory>,
     waiting: bool,
@@ -67,6 +68,7 @@ impl Session {
         Session {
             state: State::Idle,
             since_ms: now_ms,
+            last_event_ms: now_ms,
             open_tools: 0,
             last_tool: None,
             waiting: false,
@@ -82,8 +84,14 @@ impl Session {
         now_ms.saturating_sub(self.since_ms)
     }
 
+    /// When the host last said anything about this session.
+    pub fn last_event_ms(&self) -> u64 {
+        self.last_event_ms
+    }
+
     /// Apply an event. Returns the new state when it changed.
     pub fn apply(&mut self, event: &Event, now_ms: u64) -> Option<State> {
+        self.last_event_ms = now_ms;
         let next = match event.kind {
             Kind::SessionStart | Kind::Interrupt | Kind::SessionEnd => {
                 self.open_tools = 0;

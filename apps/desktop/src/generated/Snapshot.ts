@@ -4,6 +4,14 @@ import type { State } from "./State";
 
 export type Snapshot = { 
 /**
- * Highest-priority state across sessions, `sleeping` when none.
+ * What the pet shows: `Waiting` if any session waits for the user,
+ * otherwise the state of the session the host spoke about most
+ * recently, `Sleeping` when there are none. Recency beats priority
+ * because several terminals are usually one person switching
+ * between them, and an interrupted one must not mask the live one.
  */
-overall: State, sessions: Array<SessionView>, };
+overall: State, 
+/**
+ * Sorted the same way: waiting first, then most recent activity.
+ */
+sessions: Array<SessionView>, };
