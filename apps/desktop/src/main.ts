@@ -26,7 +26,16 @@ async function main() {
   // Transparent parts of the window let clicks through; see src-tauri/src/hit.rs.
   // The bubble is solid while shown, so its box joins the mask.
   const mask = new HitMaskSource(canvas, (ctx, w, h) => renderer.drawCurrentInto(ctx, w, h));
-  renderer.onFrame = () => mask.push([label, bubbleEl]);
+  // The bubble sits just above the pet's top edge. Idle animations
+  // bob a few pixels, so only follow moves larger than that.
+  let anchor = -1;
+  renderer.onFrame = () => {
+    const top = mask.push([label, bubbleEl]);
+    if (top !== null && Math.abs(top - anchor) > 12) {
+      anchor = top;
+      bubbleEl.style.bottom = `${window.innerHeight - top + 6}px`;
+    }
+  };
   renderer.start();
 
   // The window has no decorations, so the pet itself is the drag handle

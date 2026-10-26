@@ -73,15 +73,18 @@ export class HitMaskSource {
   }
 
   /** Build the window's opacity mask from the pet plus any solid
-   *  elements, and hand it to the Rust poller. */
-  push(solid: HTMLElement[]) {
+   *  elements, hand it to the Rust poller, and return where the pet's
+   *  top edge is in window coordinates (null for an empty frame) so
+   *  the bubble can sit on its head whatever the pack draws. */
+  push(solid: HTMLElement[]): number | null {
     const { width, height } = this.small;
     this.draw(this.ctx, width, height);
     const img = this.ctx.getImageData(0, 0, width, height).data;
+    const canvas = rectOf(this.canvas);
     const rows = buildMask({
       width: window.innerWidth,
       height: window.innerHeight,
-      canvas: rectOf(this.canvas),
+      canvas,
       opaqueAt: (x, y) => {
         const px = Math.min(width - 1, Math.floor(x / CELL));
         const py = Math.min(height - 1, Math.floor(y / CELL));
@@ -90,5 +93,16 @@ export class HitMaskSource {
       solid: solid.filter((el) => !el.hidden).map(rectOf),
     });
     void invoke("set_hit_mask", { cell: CELL, rows });
+    const row = topOpaqueRow(img, width, height);
+    return row === null ? null : canvas.top + row * CELL;
   }
+}
+
+function topOpaqueRow(img: Uint8ClampedArray, width: number, height: number): number | null {
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (img[(y * width + x) * 4 + 3] > ALPHA_MIN) return y;
+    }
+  }
+  return null;
 }
