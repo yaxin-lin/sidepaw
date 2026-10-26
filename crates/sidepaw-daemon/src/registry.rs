@@ -7,7 +7,21 @@ use std::collections::HashMap;
 
 #[derive(Default)]
 pub struct Registry {
-    sessions: HashMap<String, Session>,
+    sessions: HashMap<String, Entry>,
+}
+
+struct Entry {
+    session: Session,
+    /// Last path segment of `cwd`, present only when the level kept `cwd`.
+    project: Option<String>,
+}
+
+fn project_name(cwd: &str) -> Option<String> {
+    cwd.trim_end_matches(['/', '\\'])
+        .rsplit(['/', '\\'])
+        .next()
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -27,6 +41,9 @@ pub struct Snapshot {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct SessionView {
     pub key: String,
+    /// Project folder name, when the permission level keeps `cwd`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
     #[serde(flatten)]
     pub state: State,
     // serde writes u64 as a JSON number, so the TS side must not see bigint.
@@ -37,6 +54,16 @@ pub struct SessionView {
     pub quiet_ms: u64,
 }
 
+impl Snapshot {
+    /// What the UI shows before the first poll.
+    pub fn default_empty() -> Self {
+        Snapshot {
+            overall: State::Sleeping,
+            sessions: Vec::new(),
+        }
+    }
+}
+
 impl Registry {
     /// Feed an event. Returns the session key and new state if it changed.
     pub fn apply(&mut self, event: &Event, now_ms: u64) -> Option<(String, State)> {
@@ -45,18 +72,21 @@ impl Registry {
             self.sessions.remove(&key);
             return Some((key, State::Idle));
         }
-        let session = self
-            .sessions
-            .entry(key.clone())
-            .or_insert_with(|| Session::new(now_ms));
-        session.apply(event, now_ms).map(|s| (key, s))
+        let entry = self.sessions.entry(key.clone()).or_insert_with(|| Entry {
+            session: Session::new(now_ms),
+            project: None,
+        });
+        if let Some(name) = event.cwd.as_deref().and_then(project_name) {
+            entry.project = Some(name);
+        }
+        entry.session.apply(event, now_ms).map(|s| (key, s))
     }
 
     /// Advance decay timers. Returns every change.
     pub fn tick(&mut self, now_ms: u64) -> Vec<(String, State)> {
         self.sessions
             .iter_mut()
-            .filter_map(|(k, s)| s.tick(now_ms).map(|st| (k.clone(), st)))
+            .filter_map(|(k, e)| e.session.tick(now_ms).map(|st| (k.clone(), st)))
             .collect()
     }
 
@@ -64,11 +94,12 @@ impl Registry {
         let mut sessions: Vec<SessionView> = self
             .sessions
             .iter()
-            .map(|(k, s)| SessionView {
+            .map(|(k, e)| SessionView {
                 key: k.clone(),
-                state: s.state(),
-                for_ms: s.in_state_for(now_ms),
-                quiet_ms: now_ms.saturating_sub(s.last_event_ms()),
+                project: e.project.clone(),
+                state: e.session.state(),
+                for_ms: e.session.in_state_for(now_ms),
+                quiet_ms: now_ms.saturating_sub(e.session.last_event_ms()),
             })
             .collect();
         sessions.sort_by_key(|s| (s.state != State::Waiting, s.quiet_ms, s.key.clone()));
@@ -126,6 +157,26 @@ mod tests {
         // Touching terminal 1 again makes it current.
         r.apply(&ev(Host::ClaudeCode, "t1", Kind::ToolStart), 3_000);
         assert_eq!(r.snapshot(3_100).overall, State::Tool(ToolCategory::Shell));
+    }
+
+    #[test]
+    fn project_is_the_last_cwd_segment_when_present() {
+        let mut r = Registry::default();
+        let mut e = ev(Host::ClaudeCode, "p", Kind::Prompt);
+        e.cwd = Some("/Users/me/work/sidepaw/".into());
+        r.apply(&e, 0);
+        assert_eq!(
+            r.snapshot(1).sessions[0].project.as_deref(),
+            Some("sidepaw")
+        );
+        // A later event without cwd (filtered) keeps the name.
+        r.apply(&ev(Host::ClaudeCode, "p", Kind::ToolStart), 2);
+        assert_eq!(
+            r.snapshot(3).sessions[0].project.as_deref(),
+            Some("sidepaw")
+        );
+        assert_eq!(project_name("C:\\work\\app"), Some("app".into()));
+        assert_eq!(project_name("/"), None);
     }
 
     #[test]

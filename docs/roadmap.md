@@ -12,8 +12,8 @@ agent-pet and pets-driven. Each item ships on its own.
 
 1. Done: system notifications with sound on waiting, error and done
    (L3), with a permission level picker in the setup window.
-2. Tray session monitor: host, project, state and duration per session;
-   sessions that need input first, icon tinted.
+2. Done: tray session monitor: host, project, state and duration per
+   session; sessions that need input first, icon tinted.
 3. Allow / Deny in the bubble while waiting, answered through the hook
    response (L4, per host).
 4. Idle behaviour: blinking, short walks, sleeping, looking at the cursor.

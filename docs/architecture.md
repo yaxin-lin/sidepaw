@@ -23,7 +23,7 @@ built in is in [roadmap.md](roadmap.md).
 | `apps/desktop`: transparent always-on-top window, spritesheet renderer, embedded server, TS types from Rust | built (0.1) |
 | Click-through of transparent pixels, self-update, release workflow | built (0.2) |
 | Setup window: install, update, remove Claude Code hooks | built (0.2) |
-| Tray icon (setup, show/hide, quit) | built (0.3) |
+| Tray icon: session monitor, attention icon and count, setup, show/hide, quit | built |
 | Daily report from counters (`GET /v1/report/today`, setup window) | built (0.3) |
 | Bundled pet packs | `pets/placeholder`, a generated stand-in until a real pack lands |
 
