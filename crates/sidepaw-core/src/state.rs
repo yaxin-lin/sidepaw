@@ -149,9 +149,11 @@ impl Session {
             State::Tool(_) => elapsed >= TOOL_STALE_MS,
             State::Error => elapsed >= ERROR_STALE_MS,
             State::Idle => {
-                return (elapsed >= IDLE_MS)
-                    .then(|| self.transition(State::Sleeping, now_ms))
-                    .flatten()
+                return if elapsed >= IDLE_MS {
+                    self.transition(State::Sleeping, now_ms)
+                } else {
+                    None
+                };
             }
             State::Waiting | State::Sleeping => false,
         };
