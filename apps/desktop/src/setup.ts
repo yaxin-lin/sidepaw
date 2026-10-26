@@ -1,27 +1,20 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { DayReport } from "./generated/DayReport";
 import type { Report } from "./generated/Report";
-import type { Status } from "./generated/Status";
+import { applyToDom, t } from "./i18n";
 
 const HOST = "claude-code";
-
-const EXPLAIN: Record<Status, string> = {
-  installed: "Hooks are installed and point at this server. Start a Claude Code session and the pet reacts.",
-  stale: "Hooks are installed but point at an old port or token. Install again to update them.",
-  absent: "Claude Code has a settings file but no sidepaw hooks yet.",
-  no_file: "No Claude Code settings file yet; installing will create it.",
-};
 
 const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 function render(r: Report) {
   const badge = el<HTMLSpanElement>("cc-badge");
-  badge.textContent = r.status.replace("_", " ");
+  badge.textContent = t(`status.${r.status}`);
   badge.className = `badge ${r.status}`;
   el("cc-path").textContent = r.path;
-  el("cc-explain").textContent = EXPLAIN[r.status];
+  el("cc-explain").textContent = t(`cc.${r.status}`);
   el<HTMLPreElement>("cc-preview").textContent = r.preview;
-  el<HTMLButtonElement>("cc-install").textContent = r.status === "stale" ? "Update hooks" : "Install hooks";
+  el<HTMLButtonElement>("cc-install").textContent = r.status === "stale" ? t("cc.update") : t("cc.install");
   el<HTMLButtonElement>("cc-remove").disabled = r.status === "absent" || r.status === "no_file";
 }
 
@@ -60,19 +53,15 @@ async function renderToday() {
   }
 }
 
-const LEVELS: Array<[number, string, string]> = [
-  [0, "Observe", "Only the state: thinking, tool, waiting, done. Animation and local lines."],
-  [1, "Record", "Plus tool names, error types, token counts. Daily report and counters."],
-  [2, "Read", "Plus file paths, command text, error messages (secrets redacted). Needed to answer \"why did that fail\"."],
-  [3, "Notify", "Same as Read, plus system notifications when an agent waits for you, errors or finishes."],
-  [4, "Act", "Same as Read, plus answering agents (approve, deny, send a message), each confirmed."],
-];
+const LEVELS = [0, 1, 2, 3, 4] as const;
 
 async function renderLevels() {
   const box = el("levels");
   const current = await invoke<number>("get_level");
   box.innerHTML = "";
-  for (const [n, name, text] of LEVELS) {
+  for (const n of LEVELS) {
+    const name = t(`level.${n}`);
+    const text = t(`level.${n}.text`);
     const row = document.createElement("div");
     row.className = "level";
     const input = document.createElement("input");
@@ -97,7 +86,7 @@ async function setLevel(n: number) {
   try {
     await invoke("set_level", { level: n });
     msg.className = "msg";
-    msg.textContent = `Level ${n} saved to config.toml.`;
+    msg.textContent = t("level.saved", { n });
   } catch (e) {
     msg.className = "msg err";
     msg.textContent = String(e);
@@ -105,6 +94,8 @@ async function setLevel(n: number) {
 }
 
 async function main() {
+  applyToDom();
+  document.title = t("setup.title");
   const port = await invoke<number>("server_port");
   el("server-addr").textContent = `127.0.0.1:${port}`;
   await renderToday();
@@ -115,7 +106,7 @@ async function main() {
     invoke("test_notification").then(
       () => {
         msg.className = "msg";
-        msg.textContent = "Sent. Nothing shown? Notifications need level 3 for real events, and on macOS a bundled build.";
+        msg.textContent = t("notify.sent");
       },
       (e) => {
         msg.className = "msg err";
@@ -124,8 +115,8 @@ async function main() {
     );
   });
   await run("host_status", "");
-  el("cc-install").addEventListener("click", () => void run("host_install", "Written. A backup is next to the file."));
-  el("cc-remove").addEventListener("click", () => void run("host_remove", "Removed sidepaw's hooks; everything else untouched."));
+  el("cc-install").addEventListener("click", () => void run("host_install", t("cc.written")));
+  el("cc-remove").addEventListener("click", () => void run("host_remove", t("cc.removed")));
 }
 
 void main();

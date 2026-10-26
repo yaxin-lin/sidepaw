@@ -33,35 +33,35 @@
   </head>
   <body>
     <main>
-      <h1>sidepaw setup</h1>
-      <p class="sub">Connect your coding agents. Nothing is sent anywhere but this machine.</p>
+      <h1 data-i18n="setup.title">sidepaw setup</h1>
+      <p class="sub" data-i18n="setup.sub">Connect your coding agents. Nothing is sent anywhere but this machine.</p>
 
       <section>
-        <h2>Server</h2>
+        <h2 data-i18n="server">Server</h2>
         <dl>
-          <dt>Address</dt><dd id="server-addr">…</dd>
-          <dt>Data</dt><dd>~/.sidepaw</dd>
+          <dt data-i18n="server.address">Address</dt><dd id="server-addr">…</dd>
+          <dt data-i18n="server.data">Data</dt><dd>~/.sidepaw</dd>
         </dl>
       </section>
 
       <section>
-        <h2>Today</h2>
+        <h2 data-i18n="today">Today</h2>
         <dl id="today">
-          <dt>Sessions</dt><dd id="t-sessions">…</dd>
-          <dt>Turns</dt><dd id="t-turns">…</dd>
-          <dt>Tool calls</dt><dd id="t-tools">…</dd>
-          <dt>Errors</dt><dd id="t-errors">…</dd>
-          <dt>Waited on you</dt><dd id="t-waiting">…</dd>
-          <dt>Most used</dt><dd id="t-top">…</dd>
+          <dt data-i18n="today.sessions">Sessions</dt><dd id="t-sessions">…</dd>
+          <dt data-i18n="today.turns">Turns</dt><dd id="t-turns">…</dd>
+          <dt data-i18n="today.tools">Tool calls</dt><dd id="t-tools">…</dd>
+          <dt data-i18n="today.errors">Errors</dt><dd id="t-errors">…</dd>
+          <dt data-i18n="today.waiting">Waited on you</dt><dd id="t-waiting">…</dd>
+          <dt data-i18n="today.top">Most used</dt><dd id="t-top">…</dd>
         </dl>
       </section>
 
       <section>
-        <h2>Permission level</h2>
-        <p class="msg">What the pet may see and do. Lower is safer; the default is 1. Per-host and per-project overrides live in <code>~/.sidepaw/config.toml</code>.</p>
+        <h2 data-i18n="level">Permission level</h2>
+        <p class="msg" data-i18n="level.sub">What the pet may see and do.</p>
         <div id="levels"></div>
         <div class="row" style="margin-top:8px">
-          <button id="notify-test">Test notification</button>
+          <button id="notify-test" data-i18n="notify.test">Test notification</button>
           <span class="msg" id="level-msg"></span>
         </div>
       </section>
@@ -71,20 +71,20 @@
         <div class="path" id="cc-path"></div>
         <p class="msg" id="cc-explain"></p>
         <details>
-          <summary>What will be written</summary>
+          <summary data-i18n="cc.preview">What will be written</summary>
           <pre id="cc-preview"></pre>
-          <p class="msg"><code>env.NO_PROXY</code> gets <code>127.0.0.1,localhost</code> appended so a system proxy (Clash, Surge, ...) cannot swallow the loopback request. Other values in it are kept.</p>
+          <p class="msg" data-i18n="cc.proxy">env.NO_PROXY gets 127.0.0.1,localhost appended.</p>
         </details>
         <div class="row">
-          <button class="primary" id="cc-install">Install hooks</button>
-          <button id="cc-remove">Remove</button>
+          <button class="primary" id="cc-install" data-i18n="cc.install">Install hooks</button>
+          <button id="cc-remove" data-i18n="cc.remove">Remove</button>
           <span class="msg" id="cc-msg"></span>
         </div>
       </section>
 
       <section>
-        <h2>Other hosts</h2>
-        <p class="msg">Codex, OpenCode, DeepSeek Harness and Kimi Code are on the roadmap. See docs/roadmap.md.</p>
+        <h2 data-i18n="others">Other hosts</h2>
+        <p class="msg" data-i18n="others.text">Codex, OpenCode, DeepSeek Harness and Kimi Code are on the roadmap.</p>
       </section>
     </main>
     <script type="module" src="/src/setup.ts"></script>

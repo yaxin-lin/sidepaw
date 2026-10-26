@@ -125,6 +125,10 @@ uniformly at random, avoiding the last three used.
 When `generatedFrom` no longer matches the persona files, the app
 offers to regenerate.
 
+Optional: `lines.<lang>.json` next to `lines.json` (for example
+`lines.zh-CN.json`) is used instead when the UI language matches. The
+`lang` tag follows the same form as `persona.json`'s `language`.
+
 ## voice/
 
 Optional MP3 or OGG files named after the same keys as `lines.json`

@@ -1,3 +1,4 @@
+import { detectLang } from "./i18n";
 import { Lines, type LinesFile } from "./lines";
 
 // Codex spritesheet layout, mirrored from crates/sidepaw-core/src/pack.rs
@@ -51,7 +52,12 @@ export async function loadPack(id: string): Promise<Pack> {
     throw new Error(`pack ${id}: sheet is ${sheet.naturalWidth}x${sheet.naturalHeight}`);
   }
   // A pack without lines is a valid Codex pack; the pet is just quiet.
+  // `lines.<lang>.json` next to `lines.json` wins for that UI language.
   const linesPath = manifest["x-sidepaw"]?.lines;
-  const file = linesPath ? await optionalJson<LinesFile>(`/${id}/${linesPath}`) : null;
+  let file: LinesFile | null = null;
+  if (linesPath) {
+    const localized = linesPath.replace(/\.json$/, `.${detectLang()}.json`);
+    file = (await optionalJson<LinesFile>(`/${id}/${localized}`)) ?? (await optionalJson<LinesFile>(`/${id}/${linesPath}`));
+  }
   return { manifest, sheet, lines: file ? new Lines(file) : Lines.empty() };
 }

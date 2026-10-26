@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Snapshot } from "./generated/Snapshot";
 import { Bubble } from "./bubble";
 import { HitMaskSource } from "./hitmask";
+import { t } from "./i18n";
 import { IdleBehaviour } from "./idle";
 import { loadPack } from "./pack";
 import { SpriteRenderer } from "./renderer";
@@ -13,7 +14,7 @@ function describe(snap: Snapshot): string {
   const s = snap.overall;
   const detail = s.state === "tool" ? ` ${s.detail}` : "";
   const n = snap.sessions.length;
-  return `${s.state}${detail}${n > 1 ? ` (${n})` : ""}`;
+  return `${t(`state.${s.state}`)}${detail}${n > 1 ? ` (${n})` : ""}`;
 }
 
 async function main() {
