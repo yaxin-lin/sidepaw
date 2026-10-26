@@ -58,6 +58,10 @@ something further down the list is welcome but may wait; open an issue
 first so we can agree it fits. Good first contributions: a host adapter
 with real fixtures, or a pet pack with a clear license.
 
+## Releases
+
+Maintainers only; see `docs/releasing.md`.
+
 ## Design decisions
 
 Non-trivial decisions are recorded as ADRs in `docs/adr/`. If your PR

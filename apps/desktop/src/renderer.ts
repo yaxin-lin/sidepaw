@@ -21,9 +21,12 @@ export function rowFor(state: State): number {
 }
 
 export class SpriteRenderer {
-  private ctx: CanvasRenderingContext2D;
+  readonly ctx: CanvasRenderingContext2D;
   private row: number = ROW.idle;
   private raf = 0;
+  private lastDrawn = -1;
+  /// Called after a frame that differs from the previous one was drawn.
+  onFrame: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement, private sheet: HTMLImageElement) {
     const dpr = window.devicePixelRatio || 1;
@@ -43,12 +46,17 @@ export class SpriteRenderer {
   start() {
     const draw = (t: number) => {
       const frame = Math.floor((t % LOOP_MS) / (LOOP_MS / FRAMES));
-      this.ctx.clearRect(0, 0, CELL_W, CELL_H);
-      this.ctx.drawImage(
-        this.sheet,
-        frame * CELL_W, this.row * CELL_H, CELL_W, CELL_H,
-        0, 0, CELL_W, CELL_H,
-      );
+      const key = this.row * FRAMES + frame;
+      if (key !== this.lastDrawn) {
+        this.lastDrawn = key;
+        this.ctx.clearRect(0, 0, CELL_W, CELL_H);
+        this.ctx.drawImage(
+          this.sheet,
+          frame * CELL_W, this.row * CELL_H, CELL_W, CELL_H,
+          0, 0, CELL_W, CELL_H,
+        );
+        this.onFrame?.();
+      }
       this.raf = requestAnimationFrame(draw);
     };
     this.raf = requestAnimationFrame(draw);

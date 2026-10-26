@@ -18,7 +18,8 @@ built in is in [roadmap.md](roadmap.md).
 | SSE state stream | not needed in-process; `GET /v1/state` snapshot stays for the headless path |
 | Brain (persona, context, LLM, proactive, memory) | planned |
 | `apps/desktop`: transparent always-on-top window, spritesheet renderer, embedded server, TS types from Rust | built (0.1) |
-| Click-through of transparent pixels, tray icon, setup wizard | planned |
+| Click-through of transparent pixels, self-update, release workflow | built (0.2) |
+| Tray icon, setup wizard | planned |
 | Bundled pet packs | `pets/placeholder`, a generated stand-in until a real pack lands |
 
 ## Overview
@@ -110,8 +111,19 @@ Shared types (`State`, `Snapshot`, `Event`, ...) are generated from the
 Rust definitions with ts-rs into `src/generated` (`pnpm gen:types`), so
 the renderer cannot drift from the model.
 
-Planned here: click-through of transparent pixels, a tray icon, the
-chat panel, the setup wizard, the studio, and the brain (ADR 7).
+Click-through works per pixel: after each drawn frame the renderer
+sends a 4 by 4 logical-pixel opacity mask to Rust (`hit.rs`), and a
+poller reads the OS cursor position every 40 ms and toggles
+`set_ignore_cursor_events`. The cursor has to come from the OS because
+the web view receives no mouse events while the window is ignoring
+them.
+
+Release builds check the GitHub release feed once at startup and update
+silently (`update.rs`); dev builds never do. `docs/releasing.md` has the
+release procedure.
+
+Planned here: a tray icon, the chat panel, the setup wizard, the studio,
+and the brain (ADR 7).
 
 ## Host adapters
 

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Snapshot } from "./generated/Snapshot";
+import { pushHitMask } from "./hitmask";
 import { loadPack } from "./pack";
 import { SpriteRenderer } from "./renderer";
 
@@ -19,6 +20,8 @@ async function main() {
 
   const { sheet } = await loadPack("placeholder");
   const renderer = new SpriteRenderer(canvas, sheet);
+  // Transparent parts of the window let clicks through; see src-tauri/src/hit.rs.
+  renderer.onFrame = () => pushHitMask(canvas, renderer.ctx, [label]);
   renderer.start();
 
   // The window has no decorations, so the pet itself is the drag handle.

@@ -29,6 +29,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - `pets/placeholder`: a generated stand-in pack and the stdlib-only
   scripts that produce it and the app icon (`tools/`).
 - CI builds the frontend and the Tauri crate on all three platforms.
+- Click-through: the renderer sends a coarse opacity mask of each frame
+  to Rust, which polls the cursor and toggles `set_ignore_cursor_events`,
+  so the transparent parts of the window do not block the desktop while
+  the pet stays draggable.
+- Self-update: release builds check the GitHub release feed at startup
+  and install silently (`tauri-plugin-updater`). A tag-triggered
+  `release` workflow builds installers for macOS (both architectures),
+  Linux and Windows into a draft release. See `docs/releasing.md`.
 
 ### Fixed
 

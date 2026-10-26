@@ -2,6 +2,10 @@
 //! exposes its state to the web view through Tauri commands, so the
 //! renderer never touches HTTP.
 
+mod hit;
+mod update;
+
+use hit::{HitMask, Mask};
 use sidepaw_daemon::registry::Snapshot;
 use sidepaw_daemon::server::{self, Running};
 use tauri::{Manager, State};
@@ -16,6 +20,12 @@ fn server_port(server: State<'_, Running>) -> u16 {
     server.port
 }
 
+/// The renderer calls this whenever the drawn frame changes.
+#[tauri::command]
+fn set_hit_mask(mask: State<'_, HitMask>, cell: u32, rows: Vec<u64>) {
+    *mask.0.lock().unwrap() = Mask { cell, rows };
+}
+
 pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -24,15 +34,25 @@ pub fn run() {
         .init();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // `start` spawns onto the runtime it is called from; Tauri's
             // async runtime is tokio, so the server lives as long as the app.
             let running = tauri::async_runtime::block_on(server::start(0))?;
             tracing::info!("embedded server on 127.0.0.1:{}", running.port);
             app.manage(running);
+            app.manage(HitMask::default());
+            if let Some(window) = app.get_webview_window("pet") {
+                hit::spawn_poller(app.handle().clone(), window);
+            }
+            update::check_in_background(app.handle().clone());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![snapshot, server_port])
+        .invoke_handler(tauri::generate_handler![
+            snapshot,
+            server_port,
+            set_hit_mask
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

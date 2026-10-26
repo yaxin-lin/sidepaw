@@ -20,9 +20,10 @@ while Claude Code works.
 ## 0.2 Second host
 
 Codex adapter with real captured fixtures, `sidepaw hook` shim in
-use, a minimal setup wizard that writes hook configs, Tauri updater
-wired. Exit criterion: adding a host really was one adapter module and
-one fixture directory; if not, fix the abstraction now.
+use, a minimal setup wizard that writes hook configs. Done already:
+click-through of transparent pixels, Tauri updater and the release
+workflow. Exit criterion: adding a host really was one adapter module
+and one fixture directory; if not, fix the abstraction now.
 
 ## 0.3 Trustworthy records
 
