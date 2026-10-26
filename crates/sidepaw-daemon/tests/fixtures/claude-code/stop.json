@@ -1,0 +1,9 @@
+{
+  "session_id": "abc123",
+  "transcript_path": "/home/me/.claude/projects/-home-me-project/abc123.jsonl",
+  "cwd": "/home/me/project",
+  "permission_mode": "default",
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "Done. Installed 42 packages and the tests pass."
+}

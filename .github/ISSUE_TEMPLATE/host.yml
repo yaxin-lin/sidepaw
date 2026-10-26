@@ -1,0 +1,28 @@
+name: New host adapter
+description: Ask for support for another coding agent
+labels: [host, good first issue]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Host name and link
+    validations:
+      required: true
+  - type: dropdown
+    id: mechanism
+    attributes:
+      label: How can it be observed
+      options: [command hooks, http hooks, SSE or websocket, log file, none that I know of]
+    validations:
+      required: true
+  - type: textarea
+    id: events
+    attributes:
+      label: Native event names
+      description: Which native events map to prompt, tool start, tool end, waiting for approval, turn end, error. Link the host's docs.
+  - type: textarea
+    id: payload
+    attributes:
+      label: Captured payloads
+      description: Real payloads from a session, one per event. Adapters are only merged with real fixtures. Remove anything private first.
+      render: json

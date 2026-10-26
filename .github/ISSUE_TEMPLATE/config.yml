@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/yaxin-lin/sidepaw/discussions
+    about: Not sure it is a bug or a concrete feature? Start a discussion.
+  - name: Security issue
+    url: https://github.com/yaxin-lin/sidepaw/security/advisories/new
+    about: Please report privately; see SECURITY.md.

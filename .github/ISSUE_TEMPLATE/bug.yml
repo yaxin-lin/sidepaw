@@ -1,0 +1,37 @@
+name: Bug report
+description: Something does not behave as documented
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: sidepaw version or commit
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [macOS, Windows, Linux]
+    validations:
+      required: true
+  - type: dropdown
+    id: host
+    attributes:
+      label: Host
+      options: [Claude Code, Codex, OpenCode, DeepSeek Harness, Kimi Code, other, not host related]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw.
+    validations:
+      required: true
+  - type: textarea
+    id: payload
+    attributes:
+      label: Payload or log
+      description: The native hook payload or daemon log line, if you have it. Remove anything private; redaction only runs inside the daemon.
+      render: json

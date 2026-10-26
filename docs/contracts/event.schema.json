@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/yaxin-lin/sidepaw/docs/contracts/event.schema.json",
+  "title": "sidepaw event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["v", "host", "session", "ts", "kind"],
+  "properties": {
+    "v": { "const": 1 },
+    "host": {
+      "type": "string",
+      "enum": ["claude-code", "codex", "opencode", "dsh", "kimi", "gemini", "cursor", "wrapped"]
+    },
+    "session": { "type": "string", "minLength": 1 },
+    "cwd": { "type": ["string", "null"] },
+    "ts": { "type": "string", "format": "date-time" },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "session_start", "prompt", "thinking", "tool_start", "tool_end",
+        "tool_fail", "approval_wait", "approval_done", "turn_end", "error",
+        "interrupt", "session_end", "note"
+      ]
+    },
+    "tool": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["name", "category"],
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string", "enum": ["shell", "edit", "read", "search", "web", "other"] }
+      }
+    },
+    "text": { "type": ["string", "null"] },
+    "error": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string" },
+        "message": { "type": ["string", "null"] }
+      }
+    },
+    "tokens": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "in": { "type": "integer", "minimum": 0 },
+        "out": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "raw": {}
+  }
+}

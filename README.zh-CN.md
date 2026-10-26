@@ -1,0 +1,65 @@
+# sidepaw
+
+[English](README.md)
+
+一只坐在桌面上、看着你的 AI 编程 agent 干活的桌宠。
+
+sidepaw 会对 Claude Code、Codex、OpenCode、DeepSeek Harness 和 Kimi
+Code 正在做的事做出反应：思考中、运行工具、等你批准、完成、出错。你可以
+给它任何形象（它读取 Codex 的宠物包格式）和任何性格，而且它只看你允许它
+看的那部分会话内容。
+
+状态：pre-alpha，尚未发布任何版本。设计见
+[docs/architecture.md](docs/architecture.md)，开发顺序见
+[docs/roadmap.md](docs/roadmap.md)，决策记录见 [docs/adr](docs/adr)。
+
+## 为什么再做一个
+
+已经有不少针对编程 agent 的桌宠（petdex、agentpet、CoPet、dsh-pet）。
+sidepaw 的不同点有三个：
+
+- 你自己的角色。一张参考图加一句话就能生成一个带形象和性格的宠物包，
+  对所有支持的宿主都有效，不只是 Codex。
+- 有上下文的聊天。宠物知道你的 agent 今天做了什么，所以「刚才那次为什么
+  失败」能得到真实的回答。
+- 权限分级。从「只看状态」到「可以给 agent 发消息」共五级，可按宿主和
+  按项目设置，自带脱敏和审计日志。
+
+## 支持的宿主
+
+| 宿主 | 接入方式 | 状态 |
+| --- | --- | --- |
+| Claude Code | `http` hook | 适配器已完成；`sidepaw install --host claude-code` 打印 hook 配置 |
+| Codex | 通过 `sidepaw hook` 转发 | 计划中，0.2 |
+| DeepSeek Harness | 读取会话日志 | 计划中 |
+| OpenCode | `/event` SSE | 计划中 |
+| Kimi Code | 通过 `sidepaw hook` 转发 | 计划中 |
+
+## 目录
+
+```
+crates/sidepaw-core     事件模型、状态机、宠物包格式（无 I/O）
+crates/sidepaw-daemon   库：本地接收服务、SQLite 存储、宿主适配器；
+                        另有一个很薄的 `sidepaw` 二进制
+apps/desktop            Tauri 应用（尚未搭建）
+docs/                   架构、路线图、ADR、接口契约
+pets/                   内置宠物包（暂无）
+```
+
+## 构建
+
+需要 Rust 1.80 以上；桌面端还需要 Node 22 和 Tauri CLI。
+
+```
+cargo test --workspace
+```
+
+桌面端尚未搭建，见 `apps/desktop/README.md`。
+
+## 参与贡献
+
+见 [CONTRIBUTING.md](CONTRIBUTING.md)。Issue 和 PR 用英文或中文都可以。
+
+## 许可证
+
+MIT。`pets/` 下的宠物素材各有自己的许可证，见每个包的 `pet.json`。

@@ -1,0 +1,39 @@
+[package]
+name = "sidepaw-daemon"
+description = "Local ingest server, store and host adapters for sidepaw"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "sidepaw_daemon"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sidepaw"
+path = "src/main.rs"
+
+[dependencies]
+sidepaw-core = { path = "../sidepaw-core" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow = "1"
+axum = "0.8"
+clap = { version = "4", features = ["derive"] }
+regex = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+time = { version = "0.3", features = ["formatting", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time", "signal"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+ureq = { version = "2", features = ["json"] }
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+
+[lints.clippy]
+all = "warn"
