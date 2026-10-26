@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Snapshot } from "./generated/Snapshot";
 import { Bubble } from "./bubble";
-import { pushHitMask } from "./hitmask";
+import { HitMaskSource } from "./hitmask";
 import { loadPack } from "./pack";
 import { SpriteRenderer } from "./renderer";
 
@@ -25,7 +25,8 @@ async function main() {
   const bubble = new Bubble(bubbleEl, pack.lines);
   // Transparent parts of the window let clicks through; see src-tauri/src/hit.rs.
   // The bubble is solid while shown, so its box joins the mask.
-  renderer.onFrame = () => pushHitMask(canvas, renderer.ctx, [label, bubbleEl]);
+  const mask = new HitMaskSource(canvas, (ctx, w, h) => renderer.drawCurrentInto(ctx, w, h));
+  renderer.onFrame = () => mask.push([label, bubbleEl]);
   renderer.start();
 
   // The window has no decorations, so the pet itself is the drag handle

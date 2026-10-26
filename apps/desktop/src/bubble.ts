@@ -1,10 +1,13 @@
 import type { State } from "./generated/State";
 import { keysFor, Lines } from "./lines";
 
-/** How long a line stays up, scaled a little for longer text. */
+/** How long a line stays up, scaled a little for longer text. Short
+ *  enough that the pet never looks stuck mid-sentence. */
 function holdMs(line: string): number {
-  return Math.min(8000, 3000 + line.length * 60);
+  return Math.min(5000, 2200 + line.length * 40);
 }
+
+const FADE_MS = 160;
 
 /** Minimum gap between unprompted lines per state. Tool calls and
  *  thinking flip every few seconds; narrating each one is noise.
@@ -23,6 +26,7 @@ const GAP_MS: Record<State["state"], number> = {
  *  and interactions, without becoming a ticker. */
 export class Bubble {
   private timer = 0;
+  private fade = 0;
   private lastSaid: Partial<Record<State["state"], number>> = {};
   private lastState: State["state"] | null = null;
 
@@ -49,11 +53,19 @@ export class Bubble {
   }
 
   say(line: string) {
+    clearTimeout(this.timer);
+    clearTimeout(this.fade);
     this.el.textContent = line;
     this.el.hidden = false;
-    clearTimeout(this.timer);
-    this.timer = window.setTimeout(() => {
+    // Two frames so the transition runs from the hidden state.
+    requestAnimationFrame(() => requestAnimationFrame(() => this.el.classList.add("show")));
+    this.timer = window.setTimeout(() => this.hide(), holdMs(line));
+  }
+
+  private hide() {
+    this.el.classList.remove("show");
+    this.fade = window.setTimeout(() => {
       this.el.hidden = true;
-    }, holdMs(line));
+    }, FADE_MS);
   }
 }

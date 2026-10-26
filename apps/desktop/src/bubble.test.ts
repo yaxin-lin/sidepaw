@@ -1,5 +1,8 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// jsdom has no requestAnimationFrame; run callbacks on the fake clock.
+globalThis.requestAnimationFrame = (cb) => window.setTimeout(() => cb(0), 16);
 import { Bubble } from "./bubble";
 import { Lines } from "./lines";
 
@@ -29,8 +32,11 @@ describe("Bubble", () => {
     bubble.onState({ state: "waiting" });
     expect(el.hidden).toBe(false);
     expect(el.textContent).toBe("needs you");
+    vi.advanceTimersByTime(40);
+    expect(el.classList.contains("show")).toBe(true);
     vi.advanceTimersByTime(10_000);
     expect(el.hidden).toBe(true);
+    expect(el.classList.contains("show")).toBe(false);
   });
 
   it("does not repeat for the same state on every poll", () => {

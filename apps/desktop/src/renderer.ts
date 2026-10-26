@@ -43,6 +43,16 @@ export class SpriteRenderer {
     this.row = rowFor(state);
   }
 
+  /** Draw the frame currently on screen into another context at
+   *  `w` by `h`, for callers that need its shape at low resolution. */
+  drawCurrentInto(ctx: CanvasRenderingContext2D, w: number, h: number) {
+    if (this.lastDrawn < 0) return;
+    const frame = this.lastDrawn % FRAMES;
+    const row = Math.floor(this.lastDrawn / FRAMES);
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(this.sheet, frame * CELL_W, row * CELL_H, CELL_W, CELL_H, 0, 0, w, h);
+  }
+
   start() {
     const draw = (t: number) => {
       const frame = Math.floor((t % LOOP_MS) / (LOOP_MS / FRAMES));

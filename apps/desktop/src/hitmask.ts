@@ -53,21 +53,42 @@ function rectOf(el: Element): Rect {
   return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
 }
 
-/** Build the window's opacity mask from the canvas plus any solid
- *  elements, and hand it to the Rust poller. */
-export function pushHitMask(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, solid: HTMLElement[]) {
-  const dpr = canvas.width / canvas.clientWidth;
-  const img = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  const rows = buildMask({
-    width: window.innerWidth,
-    height: window.innerHeight,
-    canvas: rectOf(canvas),
-    opaqueAt: (x, y) => {
-      const px = Math.min(canvas.width - 1, Math.floor(x * dpr));
-      const py = Math.min(canvas.height - 1, Math.floor(y * dpr));
-      return img[(py * canvas.width + px) * 4 + 3] > ALPHA_MIN;
-    },
-    solid: solid.filter((el) => !el.hidden).map(rectOf),
-  });
-  void invoke("set_hit_mask", { cell: CELL, rows });
+/** Samples the pet at one pixel per mask cell. Reading the full
+ *  device-pixel canvas six times a second cost more than drawing the
+ *  frame again at 48 by 52. */
+export class HitMaskSource {
+  private small: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D;
+
+  constructor(
+    private canvas: HTMLCanvasElement,
+    private draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
+  ) {
+    this.small = document.createElement("canvas");
+    this.small.width = Math.ceil(canvas.clientWidth / CELL);
+    this.small.height = Math.ceil(canvas.clientHeight / CELL);
+    const ctx = this.small.getContext("2d", { willReadFrequently: true });
+    if (!ctx) throw new Error("no 2d context");
+    this.ctx = ctx;
+  }
+
+  /** Build the window's opacity mask from the pet plus any solid
+   *  elements, and hand it to the Rust poller. */
+  push(solid: HTMLElement[]) {
+    const { width, height } = this.small;
+    this.draw(this.ctx, width, height);
+    const img = this.ctx.getImageData(0, 0, width, height).data;
+    const rows = buildMask({
+      width: window.innerWidth,
+      height: window.innerHeight,
+      canvas: rectOf(this.canvas),
+      opaqueAt: (x, y) => {
+        const px = Math.min(width - 1, Math.floor(x / CELL));
+        const py = Math.min(height - 1, Math.floor(y / CELL));
+        return img[(py * width + px) * 4 + 3] > ALPHA_MIN;
+      },
+      solid: solid.filter((el) => !el.hidden).map(rectOf),
+    });
+    void invoke("set_hit_mask", { cell: CELL, rows });
+  }
 }
