@@ -48,6 +48,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
   and `level`, per-project `level` by `cwd` prefix, and the daemon port.
   Unknown keys are rejected. Events from disabled hosts are dropped.
 - `raw` payloads above 64 KB are not stored.
+- Menu bar / tray icon with Setup, Show/Hide pet and Quit. On macOS the
+  app runs as an accessory, so no dock icon.
 - Installing Claude Code hooks also exempts loopback from proxies via
   `env.NO_PROXY` in `settings.json`; a global-mode system proxy would
   otherwise swallow every hook request ("socket hang up").

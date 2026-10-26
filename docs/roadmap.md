@@ -29,7 +29,7 @@ and one fixture directory; if not, fix the abstraction now.
 Done: permission level resolved per host and per project before the
 filter runs, `raw` capped at 64 KB, `config.toml` loaded. Remaining:
 `migrations/` directory and first migration; daily report from counters
-alone, no model; tray icon with quiet toggle. macOS signing and
+alone, no model. Tray icon done. macOS signing and
 notarization in CI. Exit criterion: fully usable with no API key.
 
 ## 0.4 It talks

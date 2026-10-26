@@ -3,6 +3,7 @@
 //! renderer never touches HTTP.
 
 mod hit;
+mod tray;
 mod update;
 
 use hit::{HitMask, Mask};
@@ -87,6 +88,10 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("pet") {
                 hit::spawn_poller(app.handle().clone(), window);
             }
+            // A pet lives in the menu bar, not the dock.
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            tray::install(app.handle())?;
             update::check_in_background(app.handle().clone());
 
             // First run: nothing is hooked up yet, so show the setup window
