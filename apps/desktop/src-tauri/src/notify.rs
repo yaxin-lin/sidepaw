@@ -8,6 +8,7 @@ use sidepaw_daemon::server::Running;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
+#[cfg(not(target_os = "macos"))]
 use tauri_plugin_notification::NotificationExt;
 
 const POLL: Duration = Duration::from_millis(500);
@@ -15,13 +16,42 @@ const POLL: Duration = Duration::from_millis(500);
 /// permission prompt the user is already looking at should not nag.
 const REPEAT: Duration = Duration::from_secs(60);
 
-pub fn send(app: &AppHandle, title: &str, body: &str) -> tauri_plugin_notification::Result<()> {
+/// On macOS the plugin's backend is the deprecated NSUserNotificationCenter,
+/// which current macOS silently drops for an ad-hoc signed bundle, so the
+/// notification goes through `osascript` instead. The sender then reads
+/// as Script Editor; a proper UNUserNotificationCenter path needs a
+/// signed bundle and is planned with code signing.
+#[cfg(target_os = "macos")]
+pub fn send(_app: &AppHandle, title: &str, body: &str) -> Result<(), String> {
+    let esc = |s: &str| s.replace('\\', "\\\\").replace('"', "\\\"");
+    let script = format!(
+        "display notification \"{}\" with title \"{}\" sound name \"default\"",
+        esc(body),
+        esc(title)
+    );
+    let status = std::process::Command::new("osascript")
+        .arg("-e")
+        .arg(script)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map_err(|e| e.to_string())?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("osascript exited with {status}"))
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn send(app: &AppHandle, title: &str, body: &str) -> Result<(), String> {
     app.notification()
         .builder()
         .title(title)
         .body(body)
         .sound("default")
         .show()
+        .map_err(|e| e.to_string())
 }
 
 pub fn spawn_watcher(app: AppHandle) {

@@ -70,6 +70,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   project folder (when the level keeps `cwd`), state and duration,
   sessions needing input first; the icon turns orange and shows a count
   while any session waits for approval.
+- On macOS, notifications go through `osascript` because the plugin's
+  NSUserNotificationCenter backend is dropped silently by current macOS
+  for an ad-hoc signed bundle; the sender shows as Script Editor until
+  code signing lands.
 - System notifications with sound when an agent waits for approval,
   errors or finishes a turn, at permission level 3 and up, at most once
   per session and state per minute. The setup window gains a permission

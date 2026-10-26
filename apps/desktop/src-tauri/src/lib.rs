@@ -46,7 +46,7 @@ fn set_level(server: State<'_, Running>, level: u8) -> Result<(), String> {
 
 #[tauri::command]
 fn test_notification(app: AppHandle) -> Result<(), String> {
-    notify::send(&app, "sidepaw", text::test_notification()).map_err(|e| e.to_string())
+    notify::send(&app, "sidepaw", text::test_notification())
 }
 
 /// Answer a permission prompt the server is holding (level 4, `act` on).
