@@ -5,15 +5,17 @@
 //!   POST /v1/events               a unified Event (adapters that run elsewhere)
 //!   POST /v1/native/{host}        a host's native payload (hooks, the shim)
 //!   GET  /v1/state                snapshot of every session's state
+//!   GET  /v1/report/today         counters since local midnight
 //!
 //! All `/v1` routes require `Authorization: Bearer <token>`.
 
-use crate::adapters::{self, now_ms};
+use crate::adapters;
+use crate::clock::{now_ms, now_rfc3339, start_of_today_rfc3339};
 use crate::config::Config;
 use crate::home::{self, DaemonState};
 use crate::redact;
 use crate::registry::{Registry, Snapshot};
-use crate::store::Store;
+use crate::store::{DayReport, Store};
 use anyhow::{Context, Result};
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -59,6 +61,14 @@ impl Shared {
 
     pub fn token(&self) -> &str {
         &self.token
+    }
+
+    pub fn report_today(&self) -> Result<DayReport> {
+        self.app
+            .lock()
+            .unwrap()
+            .store
+            .report_since(&start_of_today_rfc3339())
     }
 }
 
@@ -125,6 +135,7 @@ pub fn router(shared: Shared) -> Router {
         .route("/v1/events", post(post_event))
         .route("/v1/native/{host}", post(post_native))
         .route("/v1/state", get(get_state))
+        .route("/v1/report/today", get(get_report_today))
         .route_layer(middleware::from_fn_with_state(shared.clone(), auth));
     Router::new()
         .route("/healthz", get(|| async { "ok" }))
@@ -160,9 +171,8 @@ async fn post_native(
     Path(host): Path<String>,
     Json(payload): Json<serde_json::Value>,
 ) -> StatusCode {
-    let host: Host = match serde_json::from_value(serde_json::Value::String(host)) {
-        Ok(h) => h,
-        Err(_) => return StatusCode::NOT_FOUND,
+    let Ok(host) = host.parse::<Host>() else {
+        return StatusCode::NOT_FOUND;
     };
     match adapters::from_native(host, &payload) {
         Some(event) => ingest(&shared, event),
@@ -173,6 +183,16 @@ async fn post_native(
 async fn get_state(State(shared): State<Shared>) -> Json<Snapshot> {
     let app = shared.app.lock().unwrap();
     Json(app.registry.snapshot(now_ms()))
+}
+
+async fn get_report_today(State(shared): State<Shared>) -> Response {
+    match shared.report_today() {
+        Ok(r) => Json(r).into_response(),
+        Err(e) => {
+            tracing::error!("report: {e}");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
 }
 
 /// Redact, filter, store, advance the state machine. The order matters:
@@ -214,7 +234,7 @@ async fn tick_loop(app: Arc<Mutex<App>>) {
         let mut app = app.lock().unwrap();
         let changes = app.registry.tick(now);
         for (key, state) in changes {
-            let ts = adapters::now_rfc3339();
+            let ts = now_rfc3339();
             if let Err(e) = app.store.insert_state_change(&key, &ts, state) {
                 tracing::error!("store: {e}");
             }

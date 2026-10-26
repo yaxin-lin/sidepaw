@@ -50,6 +50,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - `raw` payloads above 64 KB are not stored.
 - Menu bar / tray icon with Setup, Show/Hide pet and Quit. On macOS the
   app runs as an accessory, so no dock icon.
+- Daily report from counters alone: sessions, turns, tool calls,
+  errors, tokens, time spent waiting on the user, most used tools. In
+  the setup window and at `GET /v1/report/today`. Works at every
+  permission level and needs no model.
 - Installing Claude Code hooks also exempts loopback from proxies via
   `env.NO_PROXY` in `settings.json`; a global-mode system proxy would
   otherwise swallow every hook request ("socket hang up").

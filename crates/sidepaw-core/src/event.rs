@@ -121,6 +121,20 @@ impl Host {
     }
 }
 
+impl std::str::FromStr for Host {
+    type Err = UnknownHost;
+
+    /// Accepts the kebab-case names used on the wire (`claude-code`).
+    fn from_str(s: &str) -> Result<Self, UnknownHost> {
+        serde_json::from_value(serde_json::Value::String(s.to_owned()))
+            .map_err(|_| UnknownHost(s.to_owned()))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("unknown host {0:?}")]
+pub struct UnknownHost(pub String);
+
 /// Classify a tool by its host-reported name. Shared across adapters
 /// because the common hosts converge on the same names; an adapter can
 /// still override for host-specific tools.

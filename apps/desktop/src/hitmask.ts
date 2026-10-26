@@ -1,12 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 
-/// Logical pixels per mask cell. 192 / 4 = 48 columns fits in the 64
-/// bits the Rust side reads per row; 240 / 4 = 60 rows.
+/** Logical pixels per mask cell. 192 / 4 = 48 columns fits in the 64 */
+/** bits the Rust side reads per row; 240 / 4 = 60 rows. */
 export const CELL = 4;
 const ALPHA_MIN = 16;
 
-/// Build the window's opacity mask from the canvas plus any solid
-/// elements below it, and hand it to the Rust poller.
+/** Build the window's opacity mask from the canvas plus any solid */
+/** elements below it, and hand it to the Rust poller. */
 export function pushHitMask(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, solid: HTMLElement[]) {
   const dpr = canvas.width / canvas.clientWidth;
   const img = ctx.getImageData(0, 0, canvas.width, canvas.height).data;

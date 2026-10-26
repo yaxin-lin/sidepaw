@@ -27,8 +27,8 @@ pub const CLAUDE_CODE_EVENTS: [&str; 9] = [
     "SessionEnd",
 ];
 
-/// Seconds Claude Code waits for our server. It answers in
-/// milliseconds; the cap only matters when it is not running.
+// Seconds Claude Code waits for our server. It answers in milliseconds;
+// the cap only matters when it is not running.
 const TIMEOUT_S: u32 = 5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -416,9 +416,10 @@ mod tests {
         let mut s = read(&path).unwrap().unwrap();
         merge(&mut s, &block());
         write(&path, &s).unwrap();
-        assert!(
-            dir.join("settings.sidepaw-backup").exists()
-                || path.with_extension("json.sidepaw-backup").exists()
+        assert_eq!(
+            std::fs::read_to_string(dir.join("settings.json.sidepaw-backup")).unwrap(),
+            "{\n  \"theme\": \"dark\"\n}\n",
+            "the backup is the file as it was"
         );
         let text = std::fs::read_to_string(&path).unwrap();
         assert!(

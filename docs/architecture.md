@@ -21,6 +21,7 @@ built in is in [roadmap.md](roadmap.md).
 | Click-through of transparent pixels, self-update, release workflow | built (0.2) |
 | Setup window: install, update, remove Claude Code hooks | built (0.2) |
 | Tray icon (setup, show/hide, quit) | built (0.3) |
+| Daily report from counters (`GET /v1/report/today`, setup window) | built (0.3) |
 | Bundled pet packs | `pets/placeholder`, a generated stand-in until a real pack lands |
 
 ## Overview
@@ -90,9 +91,13 @@ plain values.
 Library plus a thin `sidepaw` binary. Owns the listening socket,
 SQLite and the adapters.
 
-- `server`: HTTP ingest (`POST /v1/events`, `POST /v1/native/{host}`)
-  and `GET /v1/state` (snapshot; SSE planned), bound to `127.0.0.1`
-  with a bearer token
+- `server`: HTTP ingest (`POST /v1/events`, `POST /v1/native/{host}`),
+  `GET /v1/state` (snapshot) and `GET /v1/report/today`, bound to
+  `127.0.0.1` with a bearer token
+- `config`: `config.toml` and the effective permission level per event
+- `install`: writes, checks and removes hook configuration in a host's
+  settings file
+- `clock`: the only place that asks what time it is
 - `store`: SQLite via rusqlite, schema in `contracts/schema.sql`
 - `adapters/`: one module per host
 - `home`: the data directory and `state.json` (port and token)

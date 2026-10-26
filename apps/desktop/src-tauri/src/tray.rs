@@ -2,9 +2,15 @@
 //! (the pet window skips both), this is how the app is found once the
 //! pet is hidden, and the only way to quit without a terminal.
 
+use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager};
+
+// Embedded rather than taken from the window icon: in dev there may be
+// no window icon, and a tray item without an image is an invisible
+// blank in the macOS menu bar.
+const ICON: &[u8] = include_bytes!("../icons/32x32.png");
 
 const SETUP: &str = "setup";
 const TOGGLE: &str = "toggle";
@@ -16,14 +22,11 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
     let quit = MenuItem::with_id(app, QUIT, "Quit sidepaw", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&setup, &toggle, &quit])?;
 
-    let mut builder = TrayIconBuilder::with_id("main")
+    TrayIconBuilder::with_id("main")
+        .icon(Image::from_bytes(ICON)?)
         .menu(&menu)
         .show_menu_on_left_click(true)
-        .tooltip("sidepaw");
-    if let Some(icon) = app.default_window_icon() {
-        builder = builder.icon(icon.clone());
-    }
-    builder
+        .tooltip("sidepaw")
         .on_menu_event(move |app, event| match event.id().as_ref() {
             SETUP => {
                 let _ = super::open_setup(app.clone());

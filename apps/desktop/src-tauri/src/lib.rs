@@ -7,10 +7,12 @@ mod tray;
 mod update;
 
 use hit::{HitMask, Mask};
+use sidepaw_core::event::UnknownHost;
 use sidepaw_core::Host;
 use sidepaw_daemon::install::{self, Report, Status};
 use sidepaw_daemon::registry::Snapshot;
 use sidepaw_daemon::server::{self, Running};
+use sidepaw_daemon::store::DayReport;
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 #[tauri::command]
@@ -29,26 +31,29 @@ fn set_hit_mask(mask: State<'_, HitMask>, cell: u32, rows: Vec<u64>) {
     *mask.0.lock().unwrap() = Mask { cell, rows };
 }
 
-fn parse_host(s: &str) -> Result<Host, String> {
-    serde_json::from_value(serde_json::Value::String(s.to_string()))
-        .map_err(|_| format!("unknown host {s:?}"))
+#[tauri::command]
+fn report_today(server: State<'_, Running>) -> Result<DayReport, String> {
+    server.shared.report_today().map_err(|e| e.to_string())
+}
+
+fn host(name: &str) -> Result<Host, String> {
+    name.parse().map_err(|e: UnknownHost| e.to_string())
 }
 
 #[tauri::command]
-fn host_status(server: State<'_, Running>, host: String) -> Result<Report, String> {
-    install::status(parse_host(&host)?, server.port, server.shared.token())
+fn host_status(server: State<'_, Running>, host_name: String) -> Result<Report, String> {
+    install::status(host(&host_name)?, server.port, server.shared.token())
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn host_install(server: State<'_, Running>, host: String) -> Result<Report, String> {
-    install::apply(parse_host(&host)?, server.port, server.shared.token())
-        .map_err(|e| e.to_string())
+fn host_install(server: State<'_, Running>, host_name: String) -> Result<Report, String> {
+    install::apply(host(&host_name)?, server.port, server.shared.token()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn host_remove(server: State<'_, Running>, host: String) -> Result<Report, String> {
-    install::remove(parse_host(&host)?, server.port, server.shared.token())
+fn host_remove(server: State<'_, Running>, host_name: String) -> Result<Report, String> {
+    install::remove(host(&host_name)?, server.port, server.shared.token())
         .map_err(|e| e.to_string())
 }
 
@@ -108,6 +113,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             snapshot,
             server_port,
+            report_today,
             set_hit_mask,
             host_status,
             host_install,

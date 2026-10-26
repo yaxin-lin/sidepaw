@@ -10,7 +10,7 @@
 //! later, so it is ignored to avoid a duplicate. Approval itself has no
 //! hook; see the note in `from_hook`.
 
-use super::now_rfc3339;
+use crate::clock::now_rfc3339;
 use serde_json::Value;
 use sidepaw_core::event::{classify_tool, ErrorInfo};
 use sidepaw_core::{Event, Host, Kind, Tool};

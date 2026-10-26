@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { DayReport } from "./generated/DayReport";
 import type { Report } from "./generated/Report";
 import type { Status } from "./generated/Status";
 
@@ -28,7 +29,7 @@ async function run(cmd: "host_status" | "host_install" | "host_remove", done: st
   const msg = el("cc-msg");
   msg.className = "msg";
   try {
-    const r = await invoke<Report>(cmd, { host: HOST });
+    const r = await invoke<Report>(cmd, { hostName: HOST });
     render(r);
     msg.textContent = done;
   } catch (e) {
@@ -37,9 +38,33 @@ async function run(cmd: "host_status" | "host_install" | "host_remove", done: st
   }
 }
 
+function minutes(ms: number): string {
+  if (ms < 60_000) return `${Math.round(ms / 1000)} s`;
+  const m = Math.round(ms / 60_000);
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+}
+
+async function renderToday() {
+  try {
+    const r = await invoke<DayReport>("report_today");
+    el("t-sessions").textContent = String(r.sessions);
+    el("t-turns").textContent = String(r.turns);
+    el("t-tools").textContent = String(r.tool_calls);
+    el("t-errors").textContent = String(r.errors);
+    el("t-waiting").textContent = minutes(r.waiting_ms);
+    el("t-top").textContent = r.tools.length
+      ? r.tools.slice(0, 3).map(([name, n]) => `${name} ×${n}`).join(", ")
+      : "–";
+  } catch (e) {
+    el("t-top").textContent = String(e);
+  }
+}
+
 async function main() {
   const port = await invoke<number>("server_port");
   el("server-addr").textContent = `127.0.0.1:${port}`;
+  await renderToday();
+  setInterval(() => void renderToday(), 10_000);
   await run("host_status", "");
   el("cc-install").addEventListener("click", () => void run("host_install", "Written. A backup is next to the file."));
   el("cc-remove").addEventListener("click", () => void run("host_remove", "Removed sidepaw's hooks; everything else untouched."));

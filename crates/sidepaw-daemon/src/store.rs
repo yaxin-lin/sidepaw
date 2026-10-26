@@ -3,8 +3,36 @@
 
 use anyhow::Result;
 use rusqlite::{params, Connection};
+use serde::Serialize;
 use sidepaw_core::{Event, State};
 use std::path::Path;
+
+/// Counters for one day, computed from stored events alone, so it works
+/// at every permission level and without a model.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct DayReport {
+    /// RFC 3339 start of the day the report covers.
+    pub since: String,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub sessions: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub turns: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub tool_calls: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub errors: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub tokens_in: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub tokens_out: u64,
+    /// Time spent waiting for the user to answer a prompt, in ms.
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub waiting_ms: u64,
+    /// Tool calls per tool name, most used first. Empty at level 0,
+    /// where names are not stored.
+    pub tools: Vec<(String, u64)>,
+}
 
 const SCHEMA: &str = include_str!("../../../docs/contracts/schema.sql");
 
@@ -98,6 +126,63 @@ impl Store {
         Ok(())
     }
 
+    /// Counters since `since` (RFC 3339, UTC). Waiting time is the gap
+    /// between each `waiting` state change and the next change in the
+    /// same session; an open wait is not counted until it closes.
+    pub fn report_since(&self, since: &str) -> Result<DayReport> {
+        let mut r = DayReport {
+            since: since.to_owned(),
+            ..Default::default()
+        };
+        let row = self.conn.query_row(
+            "SELECT COUNT(DISTINCT session_id),
+                    SUM(kind = 'turn_end'), SUM(kind = 'tool_start'),
+                    SUM(kind IN ('tool_fail', 'error')),
+                    COALESCE(SUM(tokens_in), 0), COALESCE(SUM(tokens_out), 0)
+             FROM events WHERE ts >= ?1",
+            params![since],
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, Option<i64>>(1)?.unwrap_or(0),
+                    row.get::<_, Option<i64>>(2)?.unwrap_or(0),
+                    row.get::<_, Option<i64>>(3)?.unwrap_or(0),
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, i64>(5)?,
+                ))
+            },
+        )?;
+        r.sessions = row.0 as u64;
+        r.turns = row.1 as u64;
+        r.tool_calls = row.2 as u64;
+        r.errors = row.3 as u64;
+        r.tokens_in = row.4 as u64;
+        r.tokens_out = row.5 as u64;
+
+        let waiting: f64 = self.conn.query_row(
+            "SELECT COALESCE(SUM((julianday(next_ts) - julianday(ts)) * 86400000.0), 0)
+             FROM (SELECT ts, state,
+                          LEAD(ts) OVER (PARTITION BY session_id ORDER BY id) AS next_ts
+                   FROM state_changes WHERE ts >= ?1)
+             WHERE state = 'waiting' AND next_ts IS NOT NULL",
+            params![since],
+            |row| row.get(0),
+        )?;
+        r.waiting_ms = waiting.max(0.0) as u64;
+
+        let mut stmt = self.conn.prepare(
+            "SELECT tool_name, COUNT(*) AS n FROM events
+             WHERE ts >= ?1 AND kind = 'tool_start' AND tool_name IS NOT NULL AND tool_name != ''
+             GROUP BY tool_name ORDER BY n DESC, tool_name LIMIT 20",
+        )?;
+        r.tools = stmt
+            .query_map(params![since], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)? as u64))
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(r)
+    }
+
     #[cfg(test)]
     pub fn last_event_text(&self) -> Result<Option<String>> {
         Ok(self.conn.query_row(
@@ -175,6 +260,47 @@ mod tests {
             .query_row("SELECT detail FROM state_changes LIMIT 1", [], |r| r.get(0))
             .unwrap();
         assert_eq!(detail, "shell");
+    }
+
+    #[test]
+    fn report_counts_today_only_and_sums_closed_waits() {
+        let mut s = Store::in_memory().unwrap();
+        let mut at = |ts: &str, kind: Kind, tool: &str| {
+            let mut e = ev(kind);
+            e.ts = ts.into();
+            e.tool = Some(Tool {
+                name: tool.into(),
+                category: ToolCategory::Shell,
+            });
+            s.insert_event(&e).unwrap();
+        };
+        at("2026-10-25T23:00:00.000Z", Kind::ToolStart, "Bash"); // yesterday
+        at("2026-10-26T09:00:00.000Z", Kind::ToolStart, "Bash");
+        at("2026-10-26T09:00:01.000Z", Kind::ToolStart, "Read");
+        at("2026-10-26T09:00:02.000Z", Kind::ToolStart, "Bash");
+        at("2026-10-26T09:00:03.000Z", Kind::ToolFail, "Bash");
+        at("2026-10-26T09:00:04.000Z", Kind::TurnEnd, "");
+        s.insert_state_change("dsh:42", "2026-10-26T09:00:00.000Z", State::Waiting)
+            .unwrap();
+        s.insert_state_change("dsh:42", "2026-10-26T09:00:30.000Z", State::Thinking)
+            .unwrap();
+        s.insert_state_change("dsh:42", "2026-10-26T09:01:00.000Z", State::Waiting)
+            .unwrap(); // still open
+
+        let r = s.report_since("2026-10-26T00:00:00.000Z").unwrap();
+        assert_eq!(r.sessions, 1);
+        assert_eq!(r.tool_calls, 3, "yesterday's call is excluded");
+        assert_eq!(r.errors, 1);
+        assert_eq!(r.turns, 1);
+        assert!(
+            (r.waiting_ms as i64 - 30_000).abs() < 50,
+            "waited {} ms, expected about 30000",
+            r.waiting_ms
+        );
+        assert_eq!(
+            r.tools,
+            vec![("Bash".to_string(), 2), ("Read".to_string(), 1)]
+        );
     }
 
     #[test]

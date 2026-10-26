@@ -138,9 +138,9 @@ impl Config {
     }
 }
 
-/// `root` contains `cwd` when they are equal or `cwd` is below it.
-/// Compared as strings on purpose: no filesystem access, works for
-/// paths that no longer exist, and both sides come from the same host.
+// `root` contains `cwd` when they are equal or `cwd` is below it.
+// Compared as strings on purpose: no filesystem access, works for paths
+// that no longer exist, and both sides come from the same host.
 fn path_contains(root: &str, cwd: &str) -> bool {
     let root = root.trim_end_matches(['/', '\\']);
     if root.is_empty() {

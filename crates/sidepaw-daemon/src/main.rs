@@ -32,12 +32,12 @@ enum Command {
     },
     /// Read one native hook payload from stdin and post it to the daemon.
     Hook {
-        #[arg(long, value_parser = parse_host)]
+        #[arg(long)]
         host: Host,
     },
     /// Print the hook configuration snippet for a host, or write it.
     Install {
-        #[arg(long, value_parser = parse_host)]
+        #[arg(long)]
         host: Host,
         /// Merge the snippet into the host's settings file (backs it up first).
         #[arg(long, conflicts_with = "remove")]
@@ -46,11 +46,6 @@ enum Command {
         #[arg(long)]
         remove: bool,
     },
-}
-
-fn parse_host(s: &str) -> Result<Host, String> {
-    serde_json::from_value(serde_json::Value::String(s.to_string()))
-        .map_err(|_| format!("unknown host {s:?}"))
 }
 
 #[tokio::main]
