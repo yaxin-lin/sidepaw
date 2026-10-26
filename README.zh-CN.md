@@ -59,9 +59,9 @@ cargo test --workspace
 pnpm --filter sidepaw-desktop tauri dev # 启动桌宠窗口
 ```
 
-窗口会显示 `pets/` 里的占位宠物。要让它对 Claude Code 有反应，在应用
-运行时执行 `sidepaw install --host claude-code` 打印 hook 配置，合并进
-`~/.claude/settings.json`。
+窗口会显示 `pets/` 里的占位宠物。首次运行或在小球上右键会打开设置窗口，
+一键把 Claude Code 的 hook 写进 `~/.claude/settings.json`（旁边会留一份
+备份）。终端里等价的命令是 `sidepaw install --host claude-code --apply`。
 
 ## 参与贡献
 

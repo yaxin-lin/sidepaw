@@ -24,9 +24,14 @@ async function main() {
   renderer.onFrame = () => pushHitMask(canvas, renderer.ctx, [label]);
   renderer.start();
 
-  // The window has no decorations, so the pet itself is the drag handle.
+  // The window has no decorations, so the pet itself is the drag handle
+  // and right-click is the only way in to settings.
   canvas.addEventListener("mousedown", (e) => {
     if (e.button === 0) void getCurrentWindow().startDragging();
+  });
+  canvas.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    void invoke("open_setup");
   });
 
   const poll = async () => {

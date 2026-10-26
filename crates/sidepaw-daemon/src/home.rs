@@ -5,14 +5,19 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+pub fn user_home() -> Option<PathBuf> {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+}
+
 pub fn dir() -> Result<PathBuf> {
     if let Some(p) = std::env::var_os("SIDEPAW_HOME") {
         return Ok(PathBuf::from(p));
     }
-    let home = std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .context("cannot find home directory")?;
-    Ok(PathBuf::from(home).join(".sidepaw"))
+    Ok(user_home()
+        .context("cannot find home directory")?
+        .join(".sidepaw"))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,11 +45,7 @@ impl DaemonState {
         Ok(())
     }
 
-    /// Reuse the token from a previous run so hook configs stay valid
-    /// across restarts; generate one on first run.
-    pub fn token_or_new() -> String {
-        Self::load()
-            .map(|s| s.token)
-            .unwrap_or_else(|_| uuid::Uuid::new_v4().simple().to_string())
+    pub fn new_token() -> String {
+        uuid::Uuid::new_v4().simple().to_string()
     }
 }

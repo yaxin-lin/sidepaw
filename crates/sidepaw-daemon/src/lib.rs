@@ -7,6 +7,7 @@
 pub mod adapters;
 pub mod home;
 pub mod hook;
+pub mod install;
 pub mod redact;
 pub mod registry;
 pub mod server;

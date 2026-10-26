@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>sidepaw setup</title>
+    <style>
+      :root { color-scheme: light dark; --fg: #1d1d1f; --bg: #f5f5f7; --card: #fff; --muted: #6e6e73; --line: #d2d2d7; --ok: #2e7d32; --warn: #b26a00; --bad: #c62828; --accent: #2962ff; }
+      @media (prefers-color-scheme: dark) { :root { --fg: #f5f5f7; --bg: #1c1c1e; --card: #2c2c2e; --muted: #98989d; --line: #3a3a3c; } }
+      html, body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, -apple-system, sans-serif; }
+      main { padding: 20px 24px 28px; max-width: 640px; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      .sub { color: var(--muted); margin: 0 0 20px; }
+      section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+      h2 { font-size: 15px; margin: 0 0 8px; display: flex; align-items: center; gap: 10px; }
+      .badge { font-size: 11px; font-weight: 600; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; }
+      .badge.installed { color: var(--ok); } .badge.stale { color: var(--warn); } .badge.absent, .badge.no_file { color: var(--muted); }
+      .path { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--muted); word-break: break-all; }
+      pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-size: 11.5px; max-height: 220px; overflow: auto; margin: 10px 0; }
+      .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      button { font: inherit; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; }
+      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      button:disabled { opacity: .5; cursor: default; }
+      .msg { color: var(--muted); font-size: 13px; }
+      .msg.err { color: var(--bad); }
+      details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+      dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; }
+      dt { color: var(--muted); } dd { margin: 0; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>sidepaw setup</h1>
+      <p class="sub">Connect your coding agents. Nothing is sent anywhere but this machine.</p>
+
+      <section>
+        <h2>Server</h2>
+        <dl>
+          <dt>Address</dt><dd id="server-addr">…</dd>
+          <dt>Data</dt><dd>~/.sidepaw</dd>
+        </dl>
+      </section>
+
+      <section id="claude-code">
+        <h2>Claude Code <span class="badge" id="cc-badge">…</span></h2>
+        <div class="path" id="cc-path"></div>
+        <p class="msg" id="cc-explain"></p>
+        <details>
+          <summary>What will be written</summary>
+          <pre id="cc-preview"></pre>
+        </details>
+        <div class="row">
+          <button class="primary" id="cc-install">Install hooks</button>
+          <button id="cc-remove">Remove</button>
+          <span class="msg" id="cc-msg"></span>
+        </div>
+      </section>
+
+      <section>
+        <h2>Other hosts</h2>
+        <p class="msg">Codex, OpenCode, DeepSeek Harness and Kimi Code are on the roadmap. See docs/roadmap.md.</p>
+      </section>
+    </main>
+    <script type="module" src="/src/setup.ts"></script>
+  </body>
+</html>

@@ -37,12 +37,23 @@ and the project uses [Semantic Versioning](https://semver.org/).
   and install silently (`tauri-plugin-updater`). A tag-triggered
   `release` workflow builds installers for macOS (both architectures),
   Linux and Windows into a draft release. See `docs/releasing.md`.
+- Setup window (first run, or right-click the pet) that installs,
+  updates or removes the Claude Code hooks in `settings.json` with a
+  backup; `sidepaw install --host claude-code --apply` does the same
+  from a terminal. Handlers are identified by URL, so install is
+  idempotent and remove leaves other hooks alone.
+- The server reuses its previous port across restarts so installed hook
+  configs stay valid.
 
 ### Fixed
 
 - Approving a Claude Code permission prompt left the pet in `Waiting`
   until the turn ended, because Claude Code sends no event on approve.
   A tool finishing or failing now clears `Waiting`.
+- `StopFailure` payloads were read with the wrong field names; `error`
+  is the type and `error_details` the message.
+- The Claude Code hook block no longer sets `async` (command-only) and
+  no longer registers `SessionStart`, which rejects `http` handlers.
 - The hook shim no longer routes its loopback request through
   `HTTP_PROXY`; a local proxy that rejects localhost traffic would have
   dropped every event.

@@ -70,7 +70,11 @@ pub struct Running {
 pub async fn start(port: u16) -> Result<Running> {
     let dir = home::dir()?;
     let store = Store::open(&dir.join("sidepaw.sqlite"))?;
-    let token = DaemonState::token_or_new();
+    let previous = DaemonState::load().ok();
+    let token = previous
+        .as_ref()
+        .map(|s| s.token.clone())
+        .unwrap_or_else(DaemonState::new_token);
     let shared = Shared::new(
         App {
             store,
@@ -80,9 +84,19 @@ pub async fn start(port: u16) -> Result<Running> {
         token.clone(),
     );
 
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", port))
-        .await
-        .context("bind")?;
+    // Hook configs embed the port, so keep the one from last run when the
+    // caller does not insist on a specific one.
+    let wanted = match (port, previous.as_ref()) {
+        (0, Some(s)) if s.port != 0 => s.port,
+        _ => port,
+    };
+    let listener = match tokio::net::TcpListener::bind(("127.0.0.1", wanted)).await {
+        Ok(l) => l,
+        Err(_) if wanted != port => tokio::net::TcpListener::bind(("127.0.0.1", port))
+            .await
+            .context("bind")?,
+        Err(e) => return Err(e).context("bind"),
+    };
     let port = listener.local_addr()?.port();
     DaemonState { port, token }.save()?;
     tracing::info!("listening on 127.0.0.1:{port}, data in {}", dir.display());

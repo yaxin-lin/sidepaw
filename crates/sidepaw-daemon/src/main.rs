@@ -6,10 +6,10 @@
 //! All logic lives in the `sidepaw_daemon` library so the desktop app
 //! can run the same server inside its own process.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use sidepaw_core::Host;
-use sidepaw_daemon::{hook, server};
+use sidepaw_daemon::{home, hook, install, server};
 
 #[derive(Parser)]
 #[command(
@@ -35,10 +35,16 @@ enum Command {
         #[arg(long, value_parser = parse_host)]
         host: Host,
     },
-    /// Print the hook configuration snippet for a host.
+    /// Print the hook configuration snippet for a host, or write it.
     Install {
         #[arg(long, value_parser = parse_host)]
         host: Host,
+        /// Merge the snippet into the host's settings file (backs it up first).
+        #[arg(long, conflicts_with = "remove")]
+        apply: bool,
+        /// Remove sidepaw's handlers from the host's settings file.
+        #[arg(long)]
+        remove: bool,
     },
 }
 
@@ -58,8 +64,23 @@ async fn main() -> Result<()> {
     match Cli::parse().command {
         Command::Serve { port } => server::run(port).await,
         Command::Hook { host } => hook::forward_stdin(host),
-        Command::Install { host } => {
-            println!("{}", hook::install_snippet(host)?);
+        Command::Install {
+            host,
+            apply,
+            remove,
+        } => {
+            if apply || remove {
+                let state = home::DaemonState::load()
+                    .context("the server has to have run once so the port and token exist")?;
+                let report = if apply {
+                    install::apply(host, state.port, &state.token)?
+                } else {
+                    install::remove(host, state.port, &state.token)?
+                };
+                println!("{}: {:?} ({})", host.as_str(), report.status, report.path);
+            } else {
+                println!("{}", hook::install_snippet(host)?);
+            }
             Ok(())
         }
     }

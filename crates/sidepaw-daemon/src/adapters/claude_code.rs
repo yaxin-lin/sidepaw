@@ -37,12 +37,13 @@ pub fn from_hook(p: &Value) -> Option<Event> {
         "PermissionRequest" => (Kind::ApprovalWait, tool_summary(p), None),
         "PermissionDenied" => (Kind::ApprovalDone, None, None),
         "Stop" => (Kind::TurnEnd, str_field(p, "last_assistant_message"), None),
+        // `error` is the type (rate_limit, ...), `error_details` the text.
         "StopFailure" => (
             Kind::Error,
-            None,
+            str_field(p, "last_assistant_message"),
             Some(ErrorInfo {
-                kind: str_field(p, "error_type").unwrap_or_else(|| "stop_failure".into()),
-                message: str_field(p, "error"),
+                kind: str_field(p, "error").unwrap_or_else(|| "stop_failure".into()),
+                message: str_field(p, "error_details"),
             }),
         ),
         // Subagents, compaction, config changes and the rest do not move
@@ -125,6 +126,15 @@ mod tests {
         let e = from_hook(&fixture("stop")).unwrap();
         assert_eq!(e.kind, Kind::TurnEnd);
         assert!(e.text.unwrap().starts_with("Done."));
+    }
+
+    #[test]
+    fn stop_failure_splits_type_and_details() {
+        let e = from_hook(&fixture("stop-failure")).unwrap();
+        assert_eq!(e.kind, Kind::Error);
+        let err = e.error.unwrap();
+        assert_eq!(err.kind, "rate_limit");
+        assert_eq!(err.message.as_deref(), Some("429 Too Many Requests"));
     }
 
     #[test]

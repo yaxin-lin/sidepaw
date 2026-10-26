@@ -3,9 +3,9 @@
 //! exits 0 regardless, because a failing hook must never block the
 //! agent.
 //!
-//! `sidepaw install --host <host>` prints the snippet the setup wizard
-//! writes into the host's config. Printing instead of writing keeps the
-//! daemon free of host-config editing; the desktop app owns that.
+//! `sidepaw install --host <host>` prints the snippet for the host's
+//! config; with `--apply` it merges the snippet in through `install.rs`,
+//! which is also what the desktop setup window calls.
 
 use crate::home::DaemonState;
 use anyhow::{bail, Result};
@@ -57,32 +57,9 @@ pub fn install_snippet(host: Host) -> Result<String> {
     let exe = std::env::current_exe()?.display().to_string();
     let snippet = match host {
         Host::ClaudeCode => {
-            let events = [
-                "SessionStart",
-                "UserPromptSubmit",
-                "PreToolUse",
-                "PostToolUse",
-                "PostToolUseFailure",
-                "PermissionRequest",
-                "PermissionDenied",
-                "Stop",
-                "StopFailure",
-                "SessionEnd",
-            ];
-            let hook = serde_json::json!([{
-                "hooks": [{
-                    "type": "http",
-                    "url": format!("http://127.0.0.1:{}/v1/native/claude-code", state.port),
-                    "headers": { "Authorization": format!("Bearer {}", state.token) },
-                    "async": true,
-                    "onFailure": "continue"
-                }]
-            }]);
-            let hooks: serde_json::Map<String, serde_json::Value> = events
-                .iter()
-                .map(|e| (e.to_string(), hook.clone()))
-                .collect();
-            serde_json::to_string_pretty(&serde_json::json!({ "hooks": hooks }))?
+            let block = crate::install::hook_block(host, state.port, &state.token)
+                .expect("claude code has a hook block");
+            serde_json::to_string_pretty(&block)?
         }
         Host::Codex | Host::Kimi | Host::Gemini | Host::Cursor => {
             format!(

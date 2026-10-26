@@ -19,7 +19,8 @@ built in is in [roadmap.md](roadmap.md).
 | Brain (persona, context, LLM, proactive, memory) | planned |
 | `apps/desktop`: transparent always-on-top window, spritesheet renderer, embedded server, TS types from Rust | built (0.1) |
 | Click-through of transparent pixels, self-update, release workflow | built (0.2) |
-| Tray icon, setup wizard | planned |
+| Setup window: install, update, remove Claude Code hooks | built (0.2) |
+| Tray icon | planned |
 | Bundled pet packs | `pets/placeholder`, a generated stand-in until a real pack lands |
 
 ## Overview
@@ -122,14 +123,17 @@ Release builds check the GitHub release feed once at startup and update
 silently (`update.rs`); dev builds never do. `docs/releasing.md` has the
 release procedure.
 
-Planned here: a tray icon, the chat panel, the setup wizard, the studio,
-and the brain (ADR 7).
+Right-click on the pet, or the first run with no hooks installed, opens
+the setup window (`setup.html`), which calls the `host_*` commands.
+
+Planned here: a tray icon, the chat panel, the studio, and the brain
+(ADR 7).
 
 ## Host adapters
 
 | Host | Mechanism | Thinking | Tool | Waiting | Done | Error |
 | --- | --- | --- | --- | --- | --- | --- |
-| Claude Code | `http` hook in `~/.claude/settings.json` | `UserPromptSubmit` | `PreToolUse` / `PostToolUse` | `PermissionRequest` | `Stop` | `StopFailure`, `PostToolUseFailure` |
+| Claude Code | `http` hooks in `~/.claude/settings.json`, written by the setup window | `UserPromptSubmit` | `PreToolUse` / `PostToolUse` | `PermissionRequest` | `Stop` | `StopFailure`, `PostToolUseFailure` |
 | Codex | `~/.codex/hooks.json`, shim via `--hook` | `UserPromptSubmit` | `PreToolUse` / `PostToolUse` | `PermissionRequest` | `Stop` | `PostToolUse` with error |
 | OpenCode | `GET /event` SSE on the local server | `session.status: busy` | `session.next.tool.*` | `permission.asked` | `session.idle` | `session.error` |
 | DSH | tail `~/.dsh/sessions/**/session.v*.jsonl.zstd` | `turn/start` | `tool/call` / `tool/result` | tool awaiting approval | `turn/end` | `isError` |
@@ -142,6 +146,12 @@ Claude Code sends no event when the user approves a permission prompt
 (the order is `PreToolUse`, `PermissionRequest`, the tool runs,
 `PostToolUse`), so the state machine treats the tool finishing as the
 answer. `PermissionDenied` is the only explicit answer.
+
+Claude Code does not allow `http` handlers on `SessionStart`, so it is
+not registered; the session is created by its first other event. The
+setup window (`install.rs`) merges one `http` handler per event into the
+user's settings, recognises its own handlers by URL, and backs the file
+up before every write.
 
 Candidates not yet mapped: Gemini CLI (`~/.gemini/settings.json` hooks),
 Cursor (`~/.cursor/hooks.json`), and hosts without hooks (MiniMax Code),

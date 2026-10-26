@@ -13,6 +13,9 @@ export default defineConfig({
   },
   envPrefix: ["VITE_", "TAURI_ENV_*"],
   build: {
+    rollupOptions: {
+      input: { pet: "index.html", setup: "setup.html" },
+    },
     target: ["es2022", "chrome105", "safari13"],
     minify: !process.env.TAURI_ENV_DEBUG,
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
