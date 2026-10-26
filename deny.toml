@@ -10,6 +10,14 @@ ignore = [
     # Tauri's Linux GTK bindings (gtk -> glib-macros); nothing to switch
     # to until upstream moves. Revisit when bumping tauri.
     { id = "RUSTSEC-2024-0370", reason = "transitive via tauri/gtk on Linux" },
+    # zip 4.x extraction issues (symlinks, SUID bits). Pinned by
+    # tauri-plugin-updater on Windows only. The only archive it extracts
+    # is our own update package, whose minisign signature is verified
+    # before extraction, so exploiting these needs the signing key.
+    # Drop these once the updater moves to zip >= 9.
+    { id = "RUSTSEC-2026-0367", reason = "windows-only, signed archive, pinned by tauri-plugin-updater" },
+    { id = "RUSTSEC-2026-0368", reason = "windows-only, signed archive, pinned by tauri-plugin-updater" },
+    { id = "RUSTSEC-2026-0369", reason = "windows-only, signed archive, pinned by tauri-plugin-updater" },
 ]
 
 [licenses]
