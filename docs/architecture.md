@@ -168,6 +168,10 @@ Waiting > Error > Tool > Thinking > Done > Idle > Sleeping
 
 - `Done` decays to `Idle` after 10 s.
 - `Idle` decays to `Sleeping` after 120 s without events.
+- Busy states expire when the host goes silent, because interrupting a
+  turn or closing a terminal sends no event: `Thinking` after 3 min,
+  `Tool` after 15 min (a Bash call can run 10), `Error` after 2 min, all
+  to `Idle`. `Waiting` never expires.
 - `Waiting` is set by `approval_wait` and cleared by `approval_done`,
   by the tool finishing or failing, or by the turn ending. A new tool
   starting while a prompt is open does not clear it.

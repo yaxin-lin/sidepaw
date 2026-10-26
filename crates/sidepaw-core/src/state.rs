@@ -15,6 +15,14 @@ use serde::{Deserialize, Serialize};
 pub const DONE_MS: u64 = 10_000;
 /// How long `Idle` lasts without events before `Sleeping`.
 pub const IDLE_MS: u64 = 120_000;
+/// Hosts send nothing when the user interrupts a turn or closes a
+/// terminal mid-run, so busy states must expire on their own or one
+/// abandoned session keeps the pet busy forever. `Waiting` never
+/// expires: a permission prompt really can sit there all afternoon.
+pub const THINKING_STALE_MS: u64 = 180_000;
+/// Long enough for a maximal Bash call (10 min) plus slack.
+pub const TOOL_STALE_MS: u64 = 900_000;
+pub const ERROR_STALE_MS: u64 = 120_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "state", content = "detail")]
@@ -131,14 +139,28 @@ impl Session {
         self.transition(next, now_ms)
     }
 
-    /// Advance time without an event. Handles `Done` and `Idle` decay.
+    /// Advance time without an event: `Done` and `Idle` decay, and busy
+    /// states expire when the host has gone silent.
     pub fn tick(&mut self, now_ms: u64) -> Option<State> {
         let elapsed = self.in_state_for(now_ms);
-        match self.state {
-            State::Done if elapsed >= DONE_MS => self.transition(State::Idle, now_ms),
-            State::Idle if elapsed >= IDLE_MS => self.transition(State::Sleeping, now_ms),
-            _ => None,
+        let expired = match self.state {
+            State::Done => elapsed >= DONE_MS,
+            State::Thinking => elapsed >= THINKING_STALE_MS,
+            State::Tool(_) => elapsed >= TOOL_STALE_MS,
+            State::Error => elapsed >= ERROR_STALE_MS,
+            State::Idle => {
+                return (elapsed >= IDLE_MS)
+                    .then(|| self.transition(State::Sleeping, now_ms))
+                    .flatten()
+            }
+            State::Waiting | State::Sleeping => false,
+        };
+        if !expired {
+            return None;
         }
+        self.open_tools = 0;
+        self.waiting = false;
+        self.transition(State::Idle, now_ms)
     }
 
     fn resume(&self) -> State {
@@ -267,6 +289,33 @@ mod tests {
         assert_eq!(s.tick(DONE_MS), Some(State::Idle));
         assert_eq!(s.tick(DONE_MS + IDLE_MS - 1), None);
         assert_eq!(s.tick(DONE_MS + IDLE_MS), Some(State::Sleeping));
+    }
+
+    #[test]
+    fn abandoned_busy_states_expire_but_waiting_does_not() {
+        let mut s = Session::new(0);
+        s.apply(&ev(Kind::Prompt), 0);
+        assert_eq!(s.tick(THINKING_STALE_MS - 1), None);
+        assert_eq!(s.tick(THINKING_STALE_MS), Some(State::Idle));
+
+        let mut s = Session::new(0);
+        s.apply(&tool(Kind::ToolStart, ToolCategory::Shell), 0);
+        assert_eq!(s.tick(THINKING_STALE_MS), None, "tools get longer");
+        assert_eq!(s.tick(TOOL_STALE_MS), Some(State::Idle));
+        // The expired tool is forgotten: the next end does not resume it.
+        assert_eq!(
+            s.apply(&ev(Kind::ToolEnd), TOOL_STALE_MS + 1),
+            Some(State::Thinking)
+        );
+
+        let mut s = Session::new(0);
+        s.apply(&ev(Kind::ToolFail), 0);
+        assert_eq!(s.tick(ERROR_STALE_MS), Some(State::Idle));
+
+        let mut s = Session::new(0);
+        s.apply(&ev(Kind::ApprovalWait), 0);
+        assert_eq!(s.tick(TOOL_STALE_MS * 10), None);
+        assert_eq!(s.state(), State::Waiting);
     }
 
     #[test]

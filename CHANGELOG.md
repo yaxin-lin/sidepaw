@@ -50,6 +50,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- A session that went silent while `Thinking`, in a `Tool` or in `Error`
+  (interrupted turn, closed terminal) kept the pet busy forever, since
+  hosts send no event for that. Those states now expire to `Idle`.
+
 - Approving a Claude Code permission prompt left the pet in `Waiting`
   until the turn ended, because Claude Code sends no event on approve.
   A tool finishing or failing now clears `Waiting`.
