@@ -1,0 +1,9 @@
+{
+  "name": "sidepaw",
+  "private": true,
+  "scripts": {
+    "desktop": "pnpm --filter sidepaw-desktop",
+    "build": "pnpm --filter sidepaw-desktop build",
+    "gen:types": "pnpm --filter sidepaw-desktop gen:types"
+  }
+}

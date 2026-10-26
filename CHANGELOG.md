@@ -19,8 +19,22 @@ and the project uses [Semantic Versioning](https://semver.org/).
   pull request templates).
 - Chinese README (`README.zh-CN.md`).
 
+- `apps/desktop`: Tauri 2 pet window (transparent, borderless, always
+  on top, draggable) with a canvas spritesheet renderer for Codex-layout
+  packs, polling the embedded server through a Tauri command.
+- `sidepaw-daemon`: `server::start` returns a handle so the desktop app
+  can embed the server; `server::run` stays for headless use.
+- TypeScript bindings generated from the Rust model with ts-rs
+  (`pnpm gen:types`), checked for staleness in CI.
+- `pets/placeholder`: a generated stand-in pack and the stdlib-only
+  scripts that produce it and the app icon (`tools/`).
+- CI builds the frontend and the Tauri crate on all three platforms.
+
 ### Fixed
 
 - Approving a Claude Code permission prompt left the pet in `Waiting`
   until the turn ended, because Claude Code sends no event on approve.
   A tool finishing or failing now clears `Waiting`.
+- The hook shim no longer routes its loopback request through
+  `HTTP_PROXY`; a local proxy that rejects localhost traffic would have
+  dropped every event.

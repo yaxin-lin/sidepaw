@@ -1,14 +1,17 @@
 # apps/desktop
 
-Not scaffolded yet. When the daemon has a stable `/v1/state` stream,
-create the app with:
+Tauri 2 app: a transparent, borderless, always-on-top window that draws
+the pet and embeds the ingest server (ADR 6). Vanilla TypeScript, no
+framework.
 
 ```
-cd apps/desktop
-pnpm create tauri-app@latest . --template vanilla-ts
+pnpm install
+pnpm gen:types        # TypeScript types from the Rust model, into src/generated
+pnpm tauri dev        # runs vite and the app
+pnpm tauri build      # installer under src-tauri/target/release/bundle
 ```
 
-Then wire the window to `transparent: true`, `decorations: false`,
-`alwaysOnTop: true` in `tauri.conf.json` and subscribe to the daemon.
-Keep the renderer free of host-specific code; it only knows about
-`sidepaw_core` states and pet packs.
+The renderer only knows about `sidepaw_core` states and the pet pack
+layout. It never reads host files; events reach it through the
+embedded server. Packs are served from the repository's `pets/` folder
+in development and copied into the bundle for release.

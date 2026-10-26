@@ -1,6 +1,6 @@
 # 6. Embed the server in the desktop app
 
-Status: proposed, 2026-10-26. Partially supersedes ADR 2, which described
+Status: accepted, 2026-10-26. Partially supersedes ADR 2, which described
 a separate daemon process.
 
 ## Context

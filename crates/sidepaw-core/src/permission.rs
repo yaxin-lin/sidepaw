@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(try_from = "u8", into = "u8")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub enum Level {
     Observe = 0,
     Record = 1,

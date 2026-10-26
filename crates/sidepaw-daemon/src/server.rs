@@ -21,6 +21,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use sidepaw_core::{Event, Host, Level};
+use std::future::IntoFuture;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -36,18 +37,48 @@ pub struct Shared {
     token: Arc<String>,
 }
 
-pub async fn run(port: u16) -> Result<()> {
+impl Shared {
+    pub fn new(app: App, token: String) -> Self {
+        Shared {
+            app: Arc::new(Mutex::new(app)),
+            token: Arc::new(token),
+        }
+    }
+
+    /// The same view `GET /v1/state` returns, for callers in the same
+    /// process (the desktop app) that do not need to go through HTTP.
+    pub fn snapshot(&self) -> Snapshot {
+        self.app.lock().unwrap().registry.snapshot(now_ms())
+    }
+
+    pub fn token(&self) -> &str {
+        &self.token
+    }
+}
+
+/// A server that has bound its socket and is accepting in the
+/// background on the current tokio runtime.
+pub struct Running {
+    pub port: u16,
+    pub shared: Shared,
+}
+
+/// Open the store, bind `127.0.0.1:port`, record port and token in
+/// `state.json`, and spawn the accept loop and the decay ticker. Returns
+/// as soon as the socket is bound; the server lives as long as the
+/// runtime does.
+pub async fn start(port: u16) -> Result<Running> {
     let dir = home::dir()?;
     let store = Store::open(&dir.join("sidepaw.sqlite"))?;
     let token = DaemonState::token_or_new();
-    let shared = Shared {
-        app: Arc::new(Mutex::new(App {
+    let shared = Shared::new(
+        App {
             store,
             registry: Registry::default(),
             level: Level::DEFAULT,
-        })),
-        token: Arc::new(token.clone()),
-    };
+        },
+        token.clone(),
+    );
 
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", port))
         .await
@@ -57,12 +88,14 @@ pub async fn run(port: u16) -> Result<()> {
     tracing::info!("listening on 127.0.0.1:{port}, data in {}", dir.display());
 
     tokio::spawn(tick_loop(shared.app.clone()));
+    tokio::spawn(axum::serve(listener, router(shared.clone())).into_future());
+    Ok(Running { port, shared })
+}
 
-    axum::serve(listener, router(shared))
-        .with_graceful_shutdown(async {
-            let _ = tokio::signal::ctrl_c().await;
-        })
-        .await?;
+/// Headless mode: `start`, then block until Ctrl-C.
+pub async fn run(port: u16) -> Result<()> {
+    let _running = start(port).await?;
+    tokio::signal::ctrl_c().await?;
     Ok(())
 }
 
@@ -164,14 +197,14 @@ mod tests {
     use tower::ServiceExt;
 
     fn test_shared() -> Shared {
-        Shared {
-            app: Arc::new(Mutex::new(App {
+        Shared::new(
+            App {
                 store: Store::in_memory().unwrap(),
                 registry: Registry::default(),
                 level: Level::DEFAULT,
-            })),
-            token: Arc::new("t0k3n".into()),
-        }
+            },
+            "t0k3n".into(),
+        )
     }
 
     fn req(method: &str, path: &str, token: Option<&str>, body: &str) -> Request<Body> {

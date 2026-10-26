@@ -1,6 +1,6 @@
 # 7. The brain lives in the desktop app, in TypeScript
 
-Status: proposed, 2026-10-26
+Status: accepted, 2026-10-26
 
 ## Context
 

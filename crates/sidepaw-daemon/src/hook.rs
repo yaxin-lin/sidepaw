@@ -31,7 +31,11 @@ pub fn forward_stdin(host: Host) -> Result<()> {
         state.port,
         host.as_str()
     );
+    // The target is always loopback. ureq would otherwise honour
+    // HTTP_PROXY, and a local proxy (Clash, Surge, ...) that refuses or
+    // mangles localhost traffic would silently eat every event.
     let agent: ureq::Agent = ureq::Agent::config_builder()
+        .proxy(None)
         .timeout_global(Some(std::time::Duration::from_millis(800)))
         .build()
         .into();

@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub enum Host {
     ClaudeCode,
     Codex,
@@ -18,6 +19,7 @@ pub enum Host {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub enum Kind {
     SessionStart,
     Prompt,
@@ -36,6 +38,7 @@ pub enum Kind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub enum ToolCategory {
     Shell,
     Edit,
@@ -46,12 +49,14 @@ pub enum ToolCategory {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Tool {
     pub name: String,
     pub category: ToolCategory,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ErrorInfo {
     #[serde(rename = "type")]
     pub kind: String,
@@ -60,14 +65,18 @@ pub struct ErrorInfo {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Tokens {
     #[serde(default, rename = "in")]
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub input: u64,
     #[serde(default, rename = "out")]
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub output: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Event {
     pub v: u8,
     pub host: Host,

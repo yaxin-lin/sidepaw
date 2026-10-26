@@ -15,10 +15,11 @@ built in is in [roadmap.md](roadmap.md).
 | Claude Code adapter | built, hand-written fixtures |
 | Other host adapters | planned |
 | Per-host and per-project permission levels | planned (one global level today) |
-| SSE state stream | planned (`GET /v1/state` is a snapshot today) |
+| SSE state stream | not needed in-process; `GET /v1/state` snapshot stays for the headless path |
 | Brain (persona, context, LLM, proactive, memory) | planned |
-| `apps/desktop` | planned |
-| Bundled pet packs | planned |
+| `apps/desktop`: transparent always-on-top window, spritesheet renderer, embedded server, TS types from Rust | built (0.1) |
+| Click-through of transparent pixels, tray icon, setup wizard | planned |
+| Bundled pet packs | `pets/placeholder`, a generated stand-in until a real pack lands |
 
 ## Overview
 
@@ -96,13 +97,21 @@ SQLite and the adapters.
   stdin and posts it, so users never install a script;
   `sidepaw install --host <h>` prints the hook snippet
 
-### apps/desktop (planned)
+### apps/desktop
 
-Tauri 2 app. Transparent always-on-top window for the pet, a chat panel,
-the setup wizard and (later) the studio. Embeds `sidepaw-daemon` as a
-library; never reads host files itself. Also hosts the brain (planned,
-ADR 7) in TypeScript: persona compiler, context builder, LLM client,
-proactive scheduler, memory.
+Tauri 2 app, vanilla TypeScript. A 192 by 240 transparent, borderless,
+always-on-top window draws the active pack's spritesheet on a canvas and
+polls the embedded server's snapshot twice a second through a Tauri
+command. The pet is its own drag handle. `src-tauri` embeds
+`sidepaw-daemon` as a library (ADR 6) and starts it on a free port in
+`setup`; hook payloads still arrive over HTTP from the hosts.
+
+Shared types (`State`, `Snapshot`, `Event`, ...) are generated from the
+Rust definitions with ts-rs into `src/generated` (`pnpm gen:types`), so
+the renderer cannot drift from the model.
+
+Planned here: click-through of transparent pixels, a tray icon, the
+chat panel, the setup wizard, the studio, and the brain (ADR 7).
 
 ## Host adapters
 

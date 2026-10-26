@@ -17,8 +17,14 @@ cargo test --workspace                                 # run everything
 cargo clippy --workspace --all-targets -- -D warnings  # must be clean
 cargo fmt                                              # before every commit
 cargo deny check                                       # licenses and advisories
-cargo run -p sidepaw-daemon -- serve --port 0        # headless server, random port
+cargo run -p sidepaw-daemon -- serve --port 0          # headless server, random port
+pnpm install && pnpm gen:types                         # desktop deps and TS types from Rust
+pnpm --filter sidepaw-desktop tauri dev                # run the pet window
 ```
+
+`apps/desktop/src/generated` is produced by ts-rs; never edit it by
+hand, rerun `pnpm gen:types` after changing a shared Rust type. CI
+fails if it is stale.
 
 ## Conventions
 
@@ -47,7 +53,8 @@ cargo run -p sidepaw-daemon -- serve --port 0        # headless server, random p
   adapters; `main.rs` is a thin wrapper. Keep logic out of `main.rs`.
 - `apps/desktop` embeds the server library and renders. It does not
   read host files directly. The brain (prompts, triggers, LLM client)
-  belongs there in TypeScript, not in Rust (ADR 7).
+  belongs there in TypeScript, not in Rust (ADR 7). `src-tauri/src/lib.rs`
+  only wires commands to the library; no logic there.
 - `docs/architecture.md` describes what exists; anything else is marked
   planned and ordered in `docs/roadmap.md`. Keep the status table there
   current.

@@ -31,6 +31,10 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 ureq = { version = "3", default-features = false, features = ["json"] }
 uuid = { version = "1", features = ["v4"] }
+ts-rs = { version = "12", optional = true, features = ["serde-json-impl"] }
+
+[features]
+ts = ["dep:ts-rs", "sidepaw-core/ts"]
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

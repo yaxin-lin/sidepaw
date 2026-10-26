@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/sidepaw-core", "crates/sidepaw-daemon"]
+members = ["crates/sidepaw-core", "crates/sidepaw-daemon", "apps/desktop/src-tauri"]
 
 [workspace.package]
 version = "0.1.0"

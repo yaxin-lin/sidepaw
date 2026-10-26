@@ -18,6 +18,7 @@ pub const IDLE_MS: u64 = 120_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "state", content = "detail")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub enum State {
     Sleeping,
     Idle,

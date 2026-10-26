@@ -11,6 +11,7 @@ pub struct Registry {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Snapshot {
     /// Highest-priority state across sessions, `sleeping` when none.
     pub overall: State,
@@ -18,10 +19,13 @@ pub struct Snapshot {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct SessionView {
     pub key: String,
     #[serde(flatten)]
     pub state: State,
+    // serde writes u64 as a JSON number, so the TS side must not see bigint.
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub for_ms: u64,
 }
 

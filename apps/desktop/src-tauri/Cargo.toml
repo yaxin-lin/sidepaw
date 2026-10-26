@@ -1,0 +1,29 @@
+[package]
+name = "sidepaw-desktop"
+description = "sidepaw desktop app: the pet window, embedding the server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+name = "sidepaw_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+sidepaw-daemon = { path = "../../../crates/sidepaw-daemon", version = "0.1.0" }
+anyhow = "1"
+serde.workspace = true
+serde_json.workspace = true
+# macos-private-api is what makes a transparent window possible on macOS.
+tauri = { version = "2", features = ["macos-private-api"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[lints.clippy]
+all = "warn"

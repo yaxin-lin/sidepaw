@@ -41,20 +41,27 @@ sidepaw 的不同点有三个：
 crates/sidepaw-core     事件模型、状态机、宠物包格式（无 I/O）
 crates/sidepaw-daemon   库：本地接收服务、SQLite 存储、宿主适配器；
                         另有一个很薄的 `sidepaw` 二进制
-apps/desktop            Tauri 应用（尚未搭建）
+apps/desktop            Tauri 2 应用：桌宠窗口和内嵌服务
 docs/                   架构、路线图、ADR、接口契约
-pets/                   内置宠物包（暂无）
+tools/                  纯标准库脚本：占位精灵图、应用图标
+pets/                   内置宠物包（目前只有生成的占位包）
 ```
 
 ## 构建
 
-需要 Rust 1.80 以上；桌面端还需要 Node 22 和 Tauri CLI。
+需要 Rust 1.80 以上、Node 22 和 pnpm。Linux 上 Tauri 需要的系统库见
+`.github/workflows/ci.yml`。
 
 ```
+pnpm install
+pnpm gen:types                          # 从 Rust 模型生成 TypeScript 类型
 cargo test --workspace
+pnpm --filter sidepaw-desktop tauri dev # 启动桌宠窗口
 ```
 
-桌面端尚未搭建，见 `apps/desktop/README.md`。
+窗口会显示 `pets/` 里的占位宠物。要让它对 Claude Code 有反应，在应用
+运行时执行 `sidepaw install --host claude-code` 打印 hook 配置，合并进
+`~/.claude/settings.json`。
 
 ## 参与贡献
 

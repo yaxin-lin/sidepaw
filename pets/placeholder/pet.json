@@ -1,0 +1,13 @@
+{
+  "id": "placeholder",
+  "displayName": "Placeholder",
+  "description": "A generated blob used to test the renderer. Replace with a real pack.",
+  "spritesheetPath": "spritesheet.png",
+  "x-sidepaw": {
+    "version": 1,
+    "license": "CC0-1.0",
+    "attribution": [
+      { "role": "character", "name": "sidepaw contributors", "url": "https://github.com/yaxin-lin/sidepaw" }
+    ]
+  }
+}

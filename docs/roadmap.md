@@ -8,11 +8,14 @@ whenever its shape changes. GitHub milestones mirror this list.
 ## 0.1 It moves
 
 One vertical slice. Tauri 2 app with a transparent, borderless,
-always-on-top, click-through window; spritesheet renderer for one
-existing Codex pack; server embedded (ADR 6); Claude Code `http` hook
-posting straight in. Hook config pasted by hand. No chat, no wizard.
-Shared types generated from Rust. Exit criterion: the pet changes rows
-on both macOS and Windows while Claude Code works.
+always-on-top window; spritesheet renderer for a Codex-layout pack
+(a generated placeholder until a licensed pack is chosen); server
+embedded (ADR 6); Claude Code `http` hook posting straight in. Hook
+config pasted by hand. No chat, no wizard. Shared types generated from
+Rust. Click-through of transparent pixels moved to 0.2: it needs
+per-pixel hit testing because a fully click-through window cannot be
+dragged. Exit criterion: the pet changes rows on both macOS and Windows
+while Claude Code works.
 
 ## 0.2 Second host
 

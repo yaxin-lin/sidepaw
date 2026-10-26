@@ -43,20 +43,27 @@ CoPet, dsh-pet). sidepaw differs in three ways:
 crates/sidepaw-core     event model, state machine, pack format (no I/O)
 crates/sidepaw-daemon   library: local ingest server, SQLite store, host
                         adapters; plus the thin `sidepaw` binary
-apps/desktop            Tauri app (not scaffolded yet)
+apps/desktop            Tauri 2 app: pet window and embedded server
 docs/                   architecture, roadmap, ADRs, contracts
-pets/                   bundled pet packs (none yet)
+tools/                  stdlib-only scripts: placeholder spritesheet, app icon
+pets/                   bundled pet packs (a generated placeholder so far)
 ```
 
 ## Building
 
-Requires Rust 1.80+ and, for the desktop app, Node 22 and the Tauri CLI.
+Requires Rust 1.80+, Node 22 and pnpm. On Linux the Tauri system
+dependencies are listed in `.github/workflows/ci.yml`.
 
 ```
+pnpm install
+pnpm gen:types                          # TypeScript types from the Rust model
 cargo test --workspace
+pnpm --filter sidepaw-desktop tauri dev # the pet window
 ```
 
-The desktop app is not scaffolded yet. See `apps/desktop/README.md`.
+The window shows the placeholder pack from `pets/`. To see it react,
+print the Claude Code hook block with `sidepaw install --host claude-code`
+while the app is running and merge it into `~/.claude/settings.json`.
 
 ## Contributing
 
