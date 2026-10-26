@@ -48,6 +48,7 @@
         <details>
           <summary>What will be written</summary>
           <pre id="cc-preview"></pre>
+          <p class="msg"><code>env.NO_PROXY</code> gets <code>127.0.0.1,localhost</code> appended so a system proxy (Clash, Surge, ...) cannot swallow the loopback request. Other values in it are kept.</p>
         </details>
         <div class="row">
           <button class="primary" id="cc-install">Install hooks</button>

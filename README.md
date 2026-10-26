@@ -66,6 +66,17 @@ right-click, a setup window offers to install the Claude Code hooks into
 `~/.claude/settings.json` (a backup is written next to it). The same
 thing from a terminal: `sidepaw install --host claude-code --apply`.
 
+## Troubleshooting
+
+- Claude Code prints `PreToolUse:Bash hook error` / `socket hang up`:
+  the request to `127.0.0.1` went through a system proxy. The setup
+  window adds `NO_PROXY=127.0.0.1,localhost` to the `env` section of
+  `settings.json`; if you set proxies elsewhere, exempt loopback there
+  too. Start a new Claude Code session afterwards; hooks are read at
+  startup.
+- The setup window says `stale`: the app moved to another port or
+  token. Click Update.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).

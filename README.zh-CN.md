@@ -63,6 +63,15 @@ pnpm --filter sidepaw-desktop tauri dev # 启动桌宠窗口
 一键把 Claude Code 的 hook 写进 `~/.claude/settings.json`（旁边会留一份
 备份）。终端里等价的命令是 `sidepaw install --host claude-code --apply`。
 
+## 常见问题
+
+- Claude Code 提示 `PreToolUse:Bash hook error` / `socket hang up`：
+  发往 `127.0.0.1` 的请求走了系统代理（Clash 全局模式等）。设置窗口会在
+  `settings.json` 的 `env` 里加上 `NO_PROXY=127.0.0.1,localhost`；如果你
+  在别处设了代理，也要把回环地址排除。改完要开新的 Claude Code 会话，
+  hook 配置只在启动时读取。
+- 设置窗口显示 `stale`：应用换了端口或 token，点一下 Update。
+
 ## 参与贡献
 
 见 [CONTRIBUTING.md](CONTRIBUTING.md)。Issue 和 PR 用英文或中文都可以。

@@ -44,6 +44,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   idempotent and remove leaves other hooks alone.
 - The server reuses its previous port across restarts so installed hook
   configs stay valid.
+- Installing Claude Code hooks also exempts loopback from proxies via
+  `env.NO_PROXY` in `settings.json`; a global-mode system proxy would
+  otherwise swallow every hook request ("socket hang up").
 
 ### Fixed
 

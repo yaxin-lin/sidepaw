@@ -69,7 +69,8 @@ fn handler(port: u16, token: &str) -> Value {
 }
 
 /// The `{"hooks": {...}}` object for a host, or `None` when the host
-/// has no settings file we merge into.
+/// has no settings file we merge into. `env.NO_PROXY` is shown in the
+/// block because `merge` adds it; see `ensure_no_proxy`.
 pub fn hook_block(host: Host, port: u16, token: &str) -> Option<Value> {
     match host {
         Host::ClaudeCode => {
@@ -77,7 +78,7 @@ pub fn hook_block(host: Host, port: u16, token: &str) -> Option<Value> {
                 .iter()
                 .map(|e| (e.to_string(), json!([{ "hooks": [handler(port, token)] }])))
                 .collect();
-            Some(json!({ "hooks": hooks }))
+            Some(json!({ "env": { "NO_PROXY": "127.0.0.1,localhost" }, "hooks": hooks }))
         }
         _ => None,
     }
@@ -171,12 +172,51 @@ pub fn strip(settings: &mut Value) -> bool {
     removed
 }
 
+/// Hosts that honour `HTTP_PROXY` would send our loopback request to the
+/// proxy, which cannot reach it (a global-mode Clash answers 502, Claude
+/// Code reports "socket hang up"). Claude Code applies `env` from its
+/// settings to every session, so make sure loopback is exempt there.
+/// Returns whether anything changed.
+pub fn ensure_no_proxy(settings: &mut Value) -> bool {
+    const NEEDED: [&str; 2] = ["127.0.0.1", "localhost"];
+    let Some(root) = settings.as_object_mut() else {
+        return false;
+    };
+    let env = root.entry("env").or_insert_with(|| json!({}));
+    if !env.is_object() {
+        return false;
+    }
+    let env = env.as_object_mut().expect("object");
+    let current = env
+        .get("NO_PROXY")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let mut parts: Vec<&str> = current
+        .split(',')
+        .map(str::trim)
+        .filter(|p| !p.is_empty())
+        .collect();
+    let before = parts.len();
+    for n in NEEDED {
+        if !parts.iter().any(|p| p.eq_ignore_ascii_case(n)) {
+            parts.push(n);
+        }
+    }
+    if parts.len() == before {
+        return false;
+    }
+    env.insert("NO_PROXY".into(), Value::String(parts.join(",")));
+    true
+}
+
 /// Replace our handlers with `block`'s, leaving everything else as is.
 pub fn merge(settings: &mut Value, block: &Value) {
     strip(settings);
     if !settings.is_object() {
         *settings = json!({});
     }
+    ensure_no_proxy(settings);
     let root = settings.as_object_mut().expect("object");
     let hooks = root.entry("hooks").or_insert_with(|| json!({}));
     if !hooks.is_object() {
@@ -332,11 +372,30 @@ mod tests {
     }
 
     #[test]
-    fn strip_removes_empty_hooks_key() {
+    fn strip_removes_empty_hooks_key_but_keeps_env() {
         let mut s = json!({ "theme": "dark" });
         merge(&mut s, &block());
         strip(&mut s);
-        assert_eq!(s, json!({ "theme": "dark" }));
+        assert_eq!(
+            s,
+            json!({ "theme": "dark", "env": { "NO_PROXY": "127.0.0.1,localhost" } })
+        );
+    }
+
+    #[test]
+    fn no_proxy_is_added_or_extended_once() {
+        let mut s = json!({});
+        assert!(ensure_no_proxy(&mut s));
+        assert_eq!(s["env"]["NO_PROXY"], "127.0.0.1,localhost");
+        assert!(!ensure_no_proxy(&mut s));
+
+        let mut s = json!({ "env": { "NO_PROXY": "LOCALHOST, .corp" , "FOO": "1" } });
+        assert!(ensure_no_proxy(&mut s));
+        assert_eq!(s["env"]["NO_PROXY"], "LOCALHOST,.corp,127.0.0.1");
+        assert_eq!(s["env"]["FOO"], "1");
+
+        let mut s = json!({ "env": "not an object" });
+        assert!(!ensure_no_proxy(&mut s));
     }
 
     #[test]
