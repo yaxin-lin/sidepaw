@@ -15,29 +15,6 @@ const POLL: Duration = Duration::from_millis(500);
 /// permission prompt the user is already looking at should not nag.
 const REPEAT: Duration = Duration::from_secs(60);
 
-fn text(state: State) -> Option<&'static str> {
-    match state {
-        State::Waiting => Some("needs your approval"),
-        State::Error => Some("hit an error"),
-        State::Done => Some("finished a turn"),
-        _ => None,
-    }
-}
-
-/// `claude-code:abc…` reads as "Claude Code" in a notification.
-fn host_label(key: &str) -> &str {
-    match key.split(':').next().unwrap_or("") {
-        "claude-code" => "Claude Code",
-        "codex" => "Codex",
-        "opencode" => "OpenCode",
-        "dsh" => "DeepSeek Harness",
-        "kimi" => "Kimi Code",
-        "gemini" => "Gemini CLI",
-        "cursor" => "Cursor",
-        _ => "An agent",
-    }
-}
-
 pub fn send(app: &AppHandle, title: &str, body: &str) -> tauri_plugin_notification::Result<()> {
     app.notification()
         .builder()
@@ -63,7 +40,7 @@ pub fn spawn_watcher(app: AppHandle) {
                 if !changed || !allowed {
                     continue;
                 }
-                let Some(what) = text(s.state) else {
+                let Some(body) = crate::text::notification(&s.key, s.state) else {
                     continue;
                 };
                 let slot = (s.key.clone(), s.state);
@@ -71,7 +48,6 @@ pub fn spawn_watcher(app: AppHandle) {
                     continue;
                 }
                 sent.insert(slot, Instant::now());
-                let body = format!("{} {what}", host_label(&s.key));
                 if let Err(e) = send(&app, "sidepaw", &body) {
                     tracing::warn!("notification: {e}");
                 }

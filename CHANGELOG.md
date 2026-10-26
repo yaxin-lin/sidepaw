@@ -50,8 +50,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - `raw` payloads above 64 KB are not stored.
 - Menu bar / tray icon with Setup, Show/Hide pet and Quit. On macOS the
   app runs as an accessory, so no dock icon.
-- Chinese UI: the setup window and the pet's status label follow the
-  system language (zh-* gives 简体中文, anything else English). Packs may
+- Chinese UI: the setup window, the pet's status label, the tray menu
+  and notifications follow the system language (zh-* gives 简体中文, anything else English). Packs may
   ship `lines.<lang>.json` beside `lines.json`; the placeholder has
   Chinese lines.
 - Idle behaviour: every 20 to 60 s of idleness the pet walks a short

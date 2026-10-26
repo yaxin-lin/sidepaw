@@ -4,6 +4,7 @@
 //! doubles as the session monitor: one line per live session, the ones
 //! that need the user first, and a count next to the icon when any do.
 
+use crate::text;
 use sidepaw_core::State;
 use sidepaw_daemon::registry::Snapshot;
 use sidepaw_daemon::server::Running;
@@ -26,7 +27,11 @@ const REFRESH: Duration = Duration::from_secs(1);
 pub fn install(app: &AppHandle) -> tauri::Result<()> {
     let tray = TrayIconBuilder::with_id("main")
         .icon(Image::from_bytes(ICON)?)
-        .menu(&build_menu(app, &Snapshot::default_empty(), "Hide pet")?)
+        .menu(&build_menu(
+            app,
+            &Snapshot::default_empty(),
+            text::hide_pet(),
+        )?)
         .show_menu_on_left_click(true)
         .tooltip("sidepaw")
         .on_menu_event(|app, event| match event.id().as_ref() {
@@ -57,7 +62,7 @@ fn build_menu(
         menu.append(&MenuItem::with_id(
             app,
             "none",
-            "No active sessions",
+            text::no_sessions(),
             false,
             None::<&str>,
         )?)?;
@@ -76,7 +81,7 @@ fn build_menu(
     menu.append(&MenuItem::with_id(
         app,
         SETUP,
-        "Setup...",
+        text::setup(),
         true,
         None::<&str>,
     )?)?;
@@ -90,55 +95,11 @@ fn build_menu(
     menu.append(&MenuItem::with_id(
         app,
         QUIT,
-        "Quit sidepaw",
+        text::quit(),
         true,
         None::<&str>,
     )?)?;
     Ok(menu)
-}
-
-fn host_label(key: &str) -> &str {
-    match key.split(':').next().unwrap_or("") {
-        "claude-code" => "Claude Code",
-        "codex" => "Codex",
-        "opencode" => "OpenCode",
-        "dsh" => "DeepSeek Harness",
-        "kimi" => "Kimi Code",
-        "gemini" => "Gemini CLI",
-        "cursor" => "Cursor",
-        other => {
-            if other.is_empty() {
-                "agent"
-            } else {
-                other
-            }
-        }
-    }
-}
-
-fn state_label(state: State) -> &'static str {
-    match state {
-        State::Waiting => "needs you",
-        State::Error => "error",
-        State::Tool(_) => "running a tool",
-        State::Thinking => "thinking",
-        State::Done => "done",
-        State::Idle => "idle",
-        State::Sleeping => "asleep",
-    }
-}
-
-/// Minutes only: the menu is rebuilt whenever this text changes, and
-/// a seconds counter would rebuild it every second.
-fn duration_label(ms: u64) -> String {
-    let m = ms / 60_000;
-    if m == 0 {
-        "<1 min".into()
-    } else if m < 60 {
-        format!("{m} min")
-    } else {
-        format!("{}h {:02}m", m / 60, m % 60)
-    }
 }
 
 fn session_line(s: &sidepaw_daemon::registry::SessionView) -> String {
@@ -154,9 +115,9 @@ fn session_line(s: &sidepaw_daemon::registry::SessionView) -> String {
         .unwrap_or_default();
     format!(
         "{mark} {}{project} · {} {}",
-        host_label(&s.key),
-        state_label(s.state),
-        duration_label(s.for_ms)
+        text::host(&s.key),
+        text::state(s.state),
+        text::duration(s.for_ms)
     )
 }
 
@@ -182,7 +143,11 @@ fn spawn_refresher(app: AppHandle, tray: TrayIcon) {
                 .and_then(|w| w.is_visible().ok())
                 .map(|v| !v)
                 .unwrap_or(false);
-            let toggle_text = if hidden { "Show pet" } else { "Hide pet" };
+            let toggle_text = if hidden {
+                text::show_pet()
+            } else {
+                text::hide_pet()
+            };
             let key: String = snap
                 .sessions
                 .iter()

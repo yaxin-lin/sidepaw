@@ -17,6 +17,7 @@ built in is in [roadmap.md](roadmap.md).
 | `config.toml`, per-host and per-project permission levels, `raw` size cap | built (0.3) |
 | SSE state stream | not needed in-process; `GET /v1/state` snapshot stays for the headless path |
 | System notifications (level 3+), level picker in the setup window | built |
+| Chinese UI (system language): web views, tray, notifications | built |
 | Idle behaviour: walks, dozing, click hop | built |
 | Speech bubble with local lines from the pack | built (0.4) |
 | Persona compiler (sliders, tags, free text to system prompt) | built (0.4), no UI yet |

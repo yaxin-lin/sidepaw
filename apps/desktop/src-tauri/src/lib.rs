@@ -4,6 +4,7 @@
 
 mod hit;
 mod notify;
+mod text;
 mod tray;
 mod update;
 
@@ -45,12 +46,7 @@ fn set_level(server: State<'_, Running>, level: u8) -> Result<(), String> {
 
 #[tauri::command]
 fn test_notification(app: AppHandle) -> Result<(), String> {
-    notify::send(
-        &app,
-        "sidepaw",
-        "Notifications work. Claude Code needs your approval would look like this.",
-    )
-    .map_err(|e| e.to_string())
+    notify::send(&app, "sidepaw", text::test_notification()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

@@ -20,6 +20,7 @@ sidepaw-core = { path = "../../../crates/sidepaw-core", version = "0.1.0" }
 sidepaw-daemon = { path = "../../../crates/sidepaw-daemon", version = "0.1.0" }
 anyhow = "1"
 serde.workspace = true
+sys-locale = "0.3"
 serde_json.workspace = true
 # macos-private-api is what makes a transparent window possible on macOS.
 tauri = { version = "2", features = ["macos-private-api", "tray-icon", "image-png"] }

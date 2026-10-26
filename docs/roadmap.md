@@ -19,7 +19,8 @@ agent-pet and pets-driven. Each item ships on its own.
 4. Done: idle behaviour: short walks, dozing, a hop on click. Looking
    at the cursor needs art the Codex sheet does not have; revisit with
    Pack v2.
-5. Chinese UI and bilingual placeholder lines, following `language`.
+5. Done: Chinese UI (web views, tray, notifications) following the
+   system language; packs may ship `lines.<lang>.json`.
 6. Model provider, persona editor, generated `lines.json`.
 7. Codex adapter and `sidepaw run -- <cmd>`.
 8. One pet per project.
