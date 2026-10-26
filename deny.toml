@@ -18,6 +18,12 @@ ignore = [
     { id = "RUSTSEC-2026-0367", reason = "windows-only, signed archive, pinned by tauri-plugin-updater" },
     { id = "RUSTSEC-2026-0368", reason = "windows-only, signed archive, pinned by tauri-plugin-updater" },
     { id = "RUSTSEC-2026-0369", reason = "windows-only, signed archive, pinned by tauri-plugin-updater" },
+    # zbus_names, zvariant, zvariant_derive: unmaintained, Linux only,
+    # reached through tauri-plugin-notification -> notify-rust -> zbus.
+    # No upgrade exists; revisit when notify-rust moves off them.
+    { id = "RUSTSEC-2026-0370", reason = "linux-only, transitive via notify-rust" },
+    { id = "RUSTSEC-2026-0371", reason = "linux-only, transitive via notify-rust" },
+    { id = "RUSTSEC-2026-0372", reason = "linux-only, transitive via notify-rust" },
 ]
 
 [licenses]
