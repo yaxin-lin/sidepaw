@@ -65,6 +65,15 @@ async function main() {
     try {
       const snap = await invoke<Snapshot>("snapshot");
       renderer.setState(snap.overall);
+      const pending = snap.pending[0];
+      if (pending) {
+        bubble.askApproval(pending, (allow) => {
+          bubble.clearApproval();
+          void invoke("decide", { id: pending.id, allow });
+        });
+      } else {
+        bubble.clearApproval();
+      }
       bubble.onState(snap.overall);
       idle.onState(snap.overall);
       label.textContent = describe(snap);

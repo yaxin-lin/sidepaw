@@ -28,8 +28,11 @@ pub const CLAUDE_CODE_EVENTS: [&str; 9] = [
 ];
 
 // Seconds Claude Code waits for our server. It answers in milliseconds;
-// the cap only matters when it is not running.
+// the cap only matters when it is not running. PermissionRequest is the
+// exception: with `act` on, the server holds it open for the user, so
+// its cap has to cover the longest act window anyone would configure.
 const TIMEOUT_S: u32 = 5;
+const PERMISSION_TIMEOUT_S: u32 = 60;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -59,11 +62,16 @@ fn url(port: u16) -> String {
     format!("http://127.0.0.1:{port}/v1/native/claude-code")
 }
 
-fn handler(port: u16, token: &str) -> Value {
+fn handler(event: &str, port: u16, token: &str) -> Value {
+    let timeout = if event == "PermissionRequest" {
+        PERMISSION_TIMEOUT_S
+    } else {
+        TIMEOUT_S
+    };
     json!({
         "type": "http",
         "url": url(port),
-        "timeout": TIMEOUT_S,
+        "timeout": timeout,
         "headers": { "Authorization": format!("Bearer {token}") }
     })
 }
@@ -76,7 +84,12 @@ pub fn hook_block(host: Host, port: u16, token: &str) -> Option<Value> {
         Host::ClaudeCode => {
             let hooks: Map<String, Value> = CLAUDE_CODE_EVENTS
                 .iter()
-                .map(|e| (e.to_string(), json!([{ "hooks": [handler(port, token)] }])))
+                .map(|e| {
+                    (
+                        e.to_string(),
+                        json!([{ "hooks": [handler(e, port, token)] }]),
+                    )
+                })
                 .collect();
             Some(json!({ "env": { "NO_PROXY": "127.0.0.1,localhost" }, "hooks": hooks }))
         }
@@ -105,12 +118,10 @@ fn is_ours(handler: &Value) -> bool {
         })
 }
 
-fn is_current(handler: &Value, port: u16, token: &str) -> bool {
-    handler.get("url").and_then(Value::as_str) == Some(url(port).as_str())
-        && handler
-            .pointer("/headers/Authorization")
-            .and_then(Value::as_str)
-            == Some(format!("Bearer {token}").as_str())
+/// Current means identical to what install would write now, so a
+/// changed timeout or header also reads as stale.
+fn is_current(event: &str, found: &Value, port: u16, token: &str) -> bool {
+    *found == handler(event, port, token)
 }
 
 /// Classify a parsed settings document.
@@ -128,7 +139,7 @@ pub fn detect(settings: &Value, port: u16, token: &str) -> Status {
             .filter(|h| is_ours(h));
         for h in handlers {
             ours += 1;
-            if is_current(h, port, token) {
+            if is_current(event, h, port, token) {
                 current += 1;
             }
         }
@@ -328,6 +339,8 @@ mod tests {
             assert_eq!(h["url"], "http://127.0.0.1:4000/v1/native/claude-code");
             assert_eq!(h["headers"]["Authorization"], "Bearer tok");
             assert!(h.get("async").is_none(), "async is command-only");
+            let expected = if e == "PermissionRequest" { 60 } else { 5 };
+            assert_eq!(h["timeout"], expected, "{e}");
         }
     }
 
@@ -354,6 +367,12 @@ mod tests {
         merge(&mut s, &block());
         assert_eq!(detect(&s, 4001, "tok"), Status::Stale);
         assert_eq!(detect(&s, 4000, "other"), Status::Stale);
+        s["hooks"]["PermissionRequest"][0]["hooks"][0]["timeout"] = json!(5);
+        assert_eq!(
+            detect(&s, 4000, "tok"),
+            Status::Stale,
+            "an older handler shape is stale"
+        );
         assert_eq!(detect(&json!({"hooks": {}}), 4000, "tok"), Status::Absent);
     }
 

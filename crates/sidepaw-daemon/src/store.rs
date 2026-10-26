@@ -126,6 +126,28 @@ impl Store {
         Ok(())
     }
 
+    pub fn insert_approval(
+        &mut self,
+        session_key: &str,
+        ts: &str,
+        tool_name: Option<&str>,
+        summary: Option<&str>,
+        allow: bool,
+    ) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO approvals (ts, session_id, tool_name, summary, decision)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                ts,
+                session_key,
+                tool_name,
+                summary,
+                if allow { "allow" } else { "deny" }
+            ],
+        )?;
+        Ok(())
+    }
+
     /// Counters since `since` (RFC 3339, UTC). Waiting time is the gap
     /// between each `waiting` state change and the next change in the
     /// same session; an open wait is not counted until it closes.
@@ -181,6 +203,11 @@ impl Store {
             })?
             .collect::<std::result::Result<Vec<_>, _>>()?;
         Ok(r)
+    }
+
+    #[cfg(test)]
+    pub fn conn_for_tests(&self) -> &Connection {
+        &self.conn
     }
 
     #[cfg(test)]
@@ -304,13 +331,37 @@ mod tests {
     }
 
     #[test]
-    fn schema_is_idempotent() {
+    fn schema_is_idempotent_and_versioned() {
         let s = Store::in_memory().unwrap();
         s.conn.execute_batch(SCHEMA).unwrap();
-        let v: i64 = s
+        let (rows, version): (i64, i64) = s
             .conn
-            .query_row("SELECT COUNT(*) FROM schema_version", [], |r| r.get(0))
+            .query_row(
+                "SELECT COUNT(*), MAX(version) FROM schema_version",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
             .unwrap();
-        assert_eq!(v, 1);
+        assert_eq!((rows, version), (1, 2));
+    }
+
+    #[test]
+    fn approvals_are_recorded() {
+        let mut s = Store::in_memory().unwrap();
+        s.insert_approval(
+            "claude-code:s",
+            "t",
+            Some("Bash"),
+            Some("rm -rf build"),
+            false,
+        )
+        .unwrap();
+        let (tool, decision): (String, String) = s
+            .conn
+            .query_row("SELECT tool_name, decision FROM approvals", [], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
+            .unwrap();
+        assert_eq!((tool.as_str(), decision.as_str()), ("Bash", "deny"));
     }
 }

@@ -23,6 +23,14 @@
         box-shadow: 2px 2px 3px rgba(0,0,0,.06);
       }
       #bubble.show { opacity: 1; transform: none; }
+      #bubble.ask { pointer-events: auto; text-align: left; }
+      #bubble.ask .q { font-size: 11px; color: #6e6e73; margin-bottom: 2px; }
+      #bubble.ask code { display: block; font: 11.5px ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-all; max-height: 48px; overflow: hidden; }
+      #bubble.ask .btns { display: flex; gap: 6px; margin-top: 7px; }
+      #bubble.ask button { flex: 1; font: 600 12px system-ui, sans-serif; padding: 5px 0; border-radius: 8px; border: 0; cursor: pointer; color: #fff; }
+      #bubble.ask button.allow { background: #2e7d32; }
+      #bubble.ask button.deny { background: #c62828; }
+      @media (prefers-color-scheme: dark) { #bubble.ask .q { color: #98989d; } }
       #bubble[hidden] { display: none; }
       @media (prefers-color-scheme: dark) {
         #bubble { color: #f5f5f7; background: rgba(44,44,46,.96); box-shadow: 0 4px 14px rgba(0,0,0,.4), 0 0 0 .5px rgba(255,255,255,.12); }

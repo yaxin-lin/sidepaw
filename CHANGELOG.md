@@ -50,6 +50,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - `raw` payloads above 64 KB are not stored.
 - Menu bar / tray icon with Setup, Show/Hide pet and Quit. On macOS the
   app runs as an accessory, so no dock icon.
+- Allow / Deny from the pet (level 4, per host): with `act = true` for
+  a host, the server holds its PermissionRequest hook open for
+  `act_window_s` seconds (default 15) while the bubble shows the tool,
+  the command and two buttons. A click answers Claude Code through the
+  hook response; no click returns an empty response so the terminal
+  prompt appears as usual. Every answer is written to the new
+  `approvals` table (schema version 2). The PermissionRequest handler's
+  timeout is now 60 s, so existing installs read as stale until updated.
 - Chinese UI: the setup window, the pet's status label, the tray menu
   and notifications follow the system language (zh-* gives 简体中文, anything else English). Packs may
   ship `lines.<lang>.json` beside `lines.json`; the placeholder has

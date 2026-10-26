@@ -115,6 +115,20 @@ async function main() {
     );
   });
   await run("host_status", "");
+  const act = el<HTMLInputElement>("cc-act");
+  act.checked = await invoke<boolean>("get_host_act", { hostName: HOST });
+  act.addEventListener("change", () => {
+    invoke("set_host_act", { hostName: HOST, act: act.checked }).then(
+      () => {
+        el("cc-msg").className = "msg";
+        el("cc-msg").textContent = t("act.saved");
+      },
+      (e) => {
+        el("cc-msg").className = "msg err";
+        el("cc-msg").textContent = String(e);
+      },
+    );
+  });
   el("cc-install").addEventListener("click", () => void run("host_install", t("cc.written")));
   el("cc-remove").addEventListener("click", () => void run("host_remove", t("cc.removed")));
 }

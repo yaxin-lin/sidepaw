@@ -23,7 +23,11 @@ Always, at every level:
 
 Level 4 details:
 
-- off by default for every host; enabled per host
+- off by default for every host; enabled per host with
+  `[hosts.<host>] act = true`. Today this covers answering permission
+  prompts from the pet: the prompt is held for `act_window_s` seconds
+  (default 15), a click is the confirmation, and every answer is written
+  to the `approvals` table.
 - each outgoing message shows a confirmation with the exact text unless
   it matches an entry in `[hosts.<host>].allow` (exact string match)
 - voice input cannot trigger level 4 without a visible confirmation

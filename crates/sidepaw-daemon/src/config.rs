@@ -68,6 +68,11 @@ impl Default for Quiet {
 pub struct HostConfig {
     pub enabled: bool,
     pub level: Option<Level>,
+    /// Let the pet answer this host's permission prompts (level 4 only).
+    pub act: bool,
+    /// Seconds the hook is held open for the user to click Allow or Deny
+    /// before the host's own prompt takes over.
+    pub act_window_s: u64,
 }
 
 impl Default for HostConfig {
@@ -75,6 +80,8 @@ impl Default for HostConfig {
         HostConfig {
             enabled: true,
             level: None,
+            act: false,
+            act_window_s: 15,
         }
     }
 }
@@ -124,6 +131,38 @@ impl Config {
         doc["pet"]["level"] = toml_edit::value(i64::from(u8::from(level)));
         std::fs::create_dir_all(dir)?;
         std::fs::write(&path, doc.to_string()).with_context(|| path.display().to_string())
+    }
+
+    /// Set `[hosts.<host>] act` the same way `write_level` does.
+    pub fn write_host_act(dir: &Path, host: Host, act: bool) -> Result<()> {
+        let path = dir.join("config.toml");
+        let text = match std::fs::read_to_string(&path) {
+            Ok(t) => t,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(e) => return Err(e).with_context(|| path.display().to_string()),
+        };
+        let mut doc: toml_edit::DocumentMut = text
+            .parse()
+            .with_context(|| format!("{} is not valid TOML", path.display()))?;
+        if !doc.contains_table("hosts") {
+            doc["hosts"] = toml_edit::table();
+            if let Some(t) = doc["hosts"].as_table_mut() {
+                t.set_implicit(true);
+            }
+        }
+        if !doc["hosts"]
+            .as_table()
+            .is_some_and(|t| t.contains_table(host.as_str()))
+        {
+            doc["hosts"][host.as_str()] = toml_edit::table();
+        }
+        doc["hosts"][host.as_str()]["act"] = toml_edit::value(act);
+        std::fs::create_dir_all(dir)?;
+        std::fs::write(&path, doc.to_string()).with_context(|| path.display().to_string())
+    }
+
+    pub fn host(&self, host: Host) -> HostConfig {
+        self.hosts.get(host.as_str()).cloned().unwrap_or_default()
     }
 
     pub fn host_enabled(&self, host: Host) -> bool {
@@ -266,6 +305,22 @@ port = 4242
         let c = Config::load(&dir).unwrap();
         assert_eq!(c.daemon.port, 4242);
         assert_eq!(c.pet.level, Level::Observe);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn write_host_act_creates_the_host_table() {
+        let dir = std::env::temp_dir().join(format!("sidepaw-act-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("config.toml"), "[pet]\nlevel = 4\n").unwrap();
+        Config::write_host_act(&dir, Host::ClaudeCode, true).unwrap();
+        let c = Config::load(&dir).unwrap();
+        assert!(c.host(Host::ClaudeCode).act);
+        assert_eq!(c.host(Host::ClaudeCode).act_window_s, 15);
+        assert_eq!(c.pet.level, Level::Act, "other keys untouched");
+        Config::write_host_act(&dir, Host::ClaudeCode, false).unwrap();
+        assert!(!Config::load(&dir).unwrap().host(Host::ClaudeCode).act);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

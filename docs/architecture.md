@@ -17,6 +17,7 @@ built in is in [roadmap.md](roadmap.md).
 | `config.toml`, per-host and per-project permission levels, `raw` size cap | built (0.3) |
 | SSE state stream | not needed in-process; `GET /v1/state` snapshot stays for the headless path |
 | System notifications (level 3+), level picker in the setup window | built |
+| Allow / Deny from the bubble (level 4, per-host `act`), `approvals` audit | built |
 | Chinese UI (system language): web views, tray, notifications | built |
 | Idle behaviour: walks, dozing, click hop | built |
 | Speech bubble with local lines from the pack | built (0.4) |
@@ -259,8 +260,12 @@ adds optional files for animation layers and personality. See
   and posts a system notification for waiting, error and done, naming
   only the host. The level is changed from the setup window and written
   to `config.toml` with comments preserved (`toml_edit`).
-- Planned: level 4 (messaging an agent) is off by default, per host, and
-  every message is confirmed unless it matches an explicit allow list.
+- Level 4 with `[hosts.<host>] act = true`: `post_native` holds a
+  PermissionRequest hook open for `act_window_s` seconds and the desktop
+  bubble offers Allow and Deny; the click is the confirmation, the
+  answer goes back in the hook response and is written to `approvals`.
+  Unanswered prompts fall through to the host's own prompt. Sending
+  free-form messages to an agent and allow lists are still planned.
 
 ## Known gaps
 

@@ -33,6 +33,10 @@ to   = "08:00"
 enabled = true               # default true for every host
 level   = 1                  # optional cap for this host
 
+[hosts.claude-code]
+act          = true          # level 4 only: answer permission prompts from the pet
+act_window_s = 15            # seconds the bubble gets before the terminal prompt
+
 [hosts.kimi]
 enabled = false
 

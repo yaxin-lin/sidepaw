@@ -49,6 +49,25 @@ fn test_notification(app: AppHandle) -> Result<(), String> {
     notify::send(&app, "sidepaw", text::test_notification()).map_err(|e| e.to_string())
 }
 
+/// Answer a permission prompt the server is holding (level 4, `act` on).
+#[tauri::command]
+fn decide(server: State<'_, Running>, id: u64, allow: bool) -> Result<(), String> {
+    server.shared.decide(id, allow).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_host_act(server: State<'_, Running>, host_name: String) -> Result<bool, String> {
+    Ok(server.shared.host_act(host(&host_name)?))
+}
+
+#[tauri::command]
+fn set_host_act(server: State<'_, Running>, host_name: String, act: bool) -> Result<(), String> {
+    server
+        .shared
+        .set_host_act(host(&host_name)?, act)
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn report_today(server: State<'_, Running>) -> Result<DayReport, String> {
     server.shared.report_today().map_err(|e| e.to_string())
@@ -134,6 +153,9 @@ pub fn run() {
             snapshot,
             server_port,
             report_today,
+            decide,
+            get_host_act,
+            set_host_act,
             get_level,
             set_level,
             test_notification,

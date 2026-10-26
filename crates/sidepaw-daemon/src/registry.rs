@@ -35,6 +35,24 @@ pub struct Snapshot {
     pub overall: State,
     /// Sorted the same way: waiting first, then most recent activity.
     pub sessions: Vec<SessionView>,
+    /// Permission prompts the pet may answer right now (level 4 hosts
+    /// with `act` on). Filled in by the server, empty from the registry.
+    #[serde(default)]
+    pub pending: Vec<PendingApproval>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct PendingApproval {
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub id: u64,
+    pub key: String,
+    pub tool: Option<String>,
+    /// One line: the command, file or pattern, already redacted.
+    pub summary: Option<String>,
+    /// Milliseconds left before the host's own prompt takes over.
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub expires_in_ms: u64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -60,6 +78,7 @@ impl Snapshot {
         Snapshot {
             overall: State::Sleeping,
             sessions: Vec::new(),
+            pending: Vec::new(),
         }
     }
 }
@@ -104,7 +123,11 @@ impl Registry {
             .collect();
         sessions.sort_by_key(|s| (s.state != State::Waiting, s.quiet_ms, s.key.clone()));
         let overall = sessions.first().map(|s| s.state).unwrap_or(State::Sleeping);
-        Snapshot { overall, sessions }
+        Snapshot {
+            overall,
+            sessions,
+            pending: Vec::new(),
+        }
     }
 }
 

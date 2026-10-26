@@ -1,4 +1,6 @@
+import type { PendingApproval } from "./generated/PendingApproval";
 import type { State } from "./generated/State";
+import { t } from "./i18n";
 import { keysFor, Lines } from "./lines";
 
 /** How long a line stays up, scaled a little for longer text. Short
@@ -30,7 +32,46 @@ export class Bubble {
   private lastSaid: Partial<Record<State["state"], number>> = {};
   private lastState: State["state"] | null = null;
 
+  /** The prompt currently shown with buttons, if any. */
+  private asking: number | null = null;
+
   constructor(private el: HTMLElement, private lines: Lines, private now: () => number = Date.now) {}
+
+  /** Show a held permission prompt with Allow and Deny. Replaces any
+   *  line and stays until `clearApproval` or a different prompt. */
+  askApproval(p: PendingApproval, answer: (allow: boolean) => void) {
+    if (this.asking === p.id) return;
+    this.asking = p.id;
+    clearTimeout(this.timer);
+    clearTimeout(this.fade);
+    const host = hostLabel(p.key);
+    this.el.replaceChildren();
+    const q = document.createElement("div");
+    q.className = "q";
+    q.textContent = `${t("ask.wants", { host })}${p.tool ? ` ${p.tool}` : ""}`;
+    const code = document.createElement("code");
+    code.textContent = p.summary ?? "";
+    const row = document.createElement("div");
+    row.className = "btns";
+    for (const [label, allow] of [[t("ask.allow"), true], [t("ask.deny"), false]] as const) {
+      const b = document.createElement("button");
+      b.textContent = label;
+      b.className = allow ? "allow" : "deny";
+      b.addEventListener("click", () => answer(allow));
+      row.append(b);
+    }
+    this.el.append(q, code, row);
+    this.el.classList.add("ask");
+    this.el.hidden = false;
+    requestAnimationFrame(() => requestAnimationFrame(() => this.el.classList.add("show")));
+  }
+
+  clearApproval() {
+    if (this.asking === null) return;
+    this.asking = null;
+    this.el.classList.remove("ask");
+    this.hide();
+  }
 
   /** Call on every poll; only transitions can trigger a line. */
   onState(state: State) {
@@ -53,8 +94,10 @@ export class Bubble {
   }
 
   say(line: string) {
+    if (this.asking !== null) return; // a prompt outranks chatter
     clearTimeout(this.timer);
     clearTimeout(this.fade);
+    this.el.classList.remove("ask");
     this.el.textContent = line;
     this.el.hidden = false;
     // Two frames so the transition runs from the hidden state.
@@ -67,5 +110,22 @@ export class Bubble {
     this.fade = window.setTimeout(() => {
       this.el.hidden = true;
     }, FADE_MS);
+  }
+}
+
+function hostLabel(key: string): string {
+  switch (key.split(":")[0]) {
+    case "claude-code":
+      return "Claude Code";
+    case "codex":
+      return "Codex";
+    case "opencode":
+      return "OpenCode";
+    case "dsh":
+      return "DeepSeek Harness";
+    case "kimi":
+      return "Kimi Code";
+    default:
+      return key.split(":")[0] || "agent";
   }
 }

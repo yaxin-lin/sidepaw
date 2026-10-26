@@ -14,8 +14,8 @@ agent-pet and pets-driven. Each item ships on its own.
    (L3), with a permission level picker in the setup window.
 2. Done: tray session monitor: host, project, state and duration per
    session; sessions that need input first, icon tinted.
-3. Allow / Deny in the bubble while waiting, answered through the hook
-   response (L4, per host).
+3. Done: Allow / Deny in the bubble while waiting, answered through
+   the hook response (L4, per host, every answer recorded).
 4. Done: idle behaviour: short walks, dozing, a hop on click. Looking
    at the cursor needs art the Codex sheet does not have; revisit with
    Pack v2.
