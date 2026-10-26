@@ -20,12 +20,15 @@ allow = [
     "MPL-2.0",
     "CC0-1.0",
     "OpenSSL",
+    "CDLA-Permissive-2.0",   # webpki-roots: Mozilla CA bundle, pulled in by ureq's TLS
 ]
 confidence-threshold = 0.9
 
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
+# Workspace crates reference each other by path without a version.
+allow-wildcard-paths = true
 
 [sources]
 unknown-registry = "deny"
