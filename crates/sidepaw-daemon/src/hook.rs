@@ -31,10 +31,14 @@ pub fn forward_stdin(host: Host) -> Result<()> {
         state.port,
         host.as_str()
     );
-    let result = ureq::post(&url)
-        .set("Authorization", &format!("Bearer {}", state.token))
-        .timeout(std::time::Duration::from_millis(800))
-        .send_json(payload);
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_global(Some(std::time::Duration::from_millis(800)))
+        .build()
+        .into();
+    let result = agent
+        .post(&url)
+        .header("Authorization", &format!("Bearer {}", state.token))
+        .send_json(&payload);
     if let Err(e) = result {
         tracing::warn!("could not reach daemon: {e}");
     }

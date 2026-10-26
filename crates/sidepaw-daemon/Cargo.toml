@@ -16,7 +16,7 @@ name = "sidepaw"
 path = "src/main.rs"
 
 [dependencies]
-sidepaw-core = { path = "../sidepaw-core" }
+sidepaw-core = { path = "../sidepaw-core", version = "0.1.0" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -24,12 +24,12 @@ anyhow = "1"
 axum = "0.8"
 clap = { version = "4", features = ["derive"] }
 regex = "1"
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.41", features = ["bundled"] }
 time = { version = "0.3", features = ["formatting", "macros"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time", "signal"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-ureq = { version = "2", features = ["json"] }
+ureq = { version = "3", default-features = false, features = ["json"] }
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
