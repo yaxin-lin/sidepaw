@@ -1,5 +1,5 @@
-import { CELL_H, CELL_W, FRAMES, LOOP_MS, ROW } from "./pack";
-import type { State } from "./generated/State";
+import { CELL_H, CELL_W, FRAMES, LOOP_MS, ROW } from "../pack";
+import type { State } from "../generated/State";
 
 /** Which spritesheet row a pet state plays; see docs/contracts/pet-pack.md. */
 export function rowFor(state: State): number {

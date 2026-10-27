@@ -3,4 +3,4 @@
 /**
  * Where the key the app would use comes from, for the setup window.
  */
-export type KeySource = "env" | "keyring" | "none";
+export type KeySource = "env" | "keyring" | "none" | "unavailable";

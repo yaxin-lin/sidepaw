@@ -11,8 +11,8 @@ mod update;
 use hit::{HitMask, Mask};
 use sidepaw_core::event::UnknownHost;
 use sidepaw_core::{Host, Level};
-use sidepaw_daemon::config::Model;
-use sidepaw_daemon::install::{self, Report, Status};
+use sidepaw_daemon::config::ModelConfig;
+use sidepaw_daemon::install::{self, Report};
 use sidepaw_daemon::pets;
 use sidepaw_daemon::registry::Snapshot;
 use sidepaw_daemon::secret::{self, KeySource};
@@ -98,12 +98,12 @@ fn host_remove(server: State<'_, Running>, host_name: String) -> Result<Report, 
 }
 
 #[tauri::command]
-fn get_model(server: State<'_, Running>) -> Model {
+fn get_model(server: State<'_, Running>) -> ModelConfig {
     server.shared.model()
 }
 
 #[tauri::command]
-fn set_model(server: State<'_, Running>, model: Model) -> Result<(), String> {
+fn set_model(server: State<'_, Running>, model: ModelConfig) -> Result<(), String> {
     server.shared.set_model(model).map_err(|e| e.to_string())
 }
 
@@ -158,14 +158,12 @@ fn audit_recent(server: State<'_, Running>, limit: u32) -> Result<Vec<AuditRow>,
     server.shared.audit_recent(limit).map_err(|e| e.to_string())
 }
 
-/// Global cursor position in physical pixels, for the pet's reactions
-/// to a cursor that is near but not over it (the web view only sees
-/// the cursor while it is over opaque pixels).
+/// The cursor relative to the pet window, for reactions to a cursor
+/// that is near but not over it (the web view only sees the cursor
+/// while it is over opaque pixels).
 #[tauri::command]
-fn cursor_position(app: AppHandle) -> Result<(f64, f64), String> {
-    app.cursor_position()
-        .map(|p| (p.x, p.y))
-        .map_err(|e| e.to_string())
+fn cursor_relative(app: AppHandle, window: tauri::WebviewWindow) -> Option<hit::CursorRelative> {
+    hit::cursor_relative(&app, &window)
 }
 
 /// The setup window is created on demand and reused while open.
@@ -215,13 +213,8 @@ pub fn run() {
             notify::spawn_watcher(app.handle().clone());
             update::check_in_background(app.handle().clone());
 
-            // First run: nothing is hooked up yet, so show the setup window
-            // instead of a pet that never moves.
             let running = app.state::<Running>();
-            let first_run = install::status(Host::ClaudeCode, running.port, running.shared.token())
-                .map(|r| matches!(r.status, Status::Absent | Status::NoFile))
-                .unwrap_or(false);
-            if first_run {
+            if install::is_first_run(running.port, running.shared.token()) {
                 let _ = open_setup(app.handle().clone());
             }
             Ok(())
@@ -250,7 +243,7 @@ pub fn run() {
             pet_file_write,
             audit_call,
             audit_recent,
-            cursor_position,
+            cursor_relative,
             open_setup
         ])
         .run(tauri::generate_context!())

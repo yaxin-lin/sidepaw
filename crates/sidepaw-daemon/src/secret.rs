@@ -21,24 +21,38 @@ pub enum KeySource {
     Env,
     Keyring,
     None,
+    /// The credential store could not be read (locked, no backend);
+    /// `get` will fail the same way, so the UI should say so.
+    Unavailable,
+}
+
+fn from_env() -> Option<String> {
+    env_key(std::env::var(ENV).ok())
+}
+
+// A blank variable counts as unset, so `SIDEPAW_API_KEY= sidepaw` does
+// not shadow a stored key with nothing.
+fn env_key(value: Option<String>) -> Option<String> {
+    value.map(|v| v.trim().to_owned()).filter(|v| !v.is_empty())
 }
 
 pub fn source() -> KeySource {
-    if std::env::var_os(ENV).is_some_and(|v| !v.is_empty()) {
+    if from_env().is_some() {
         return KeySource::Env;
     }
     match entry().and_then(|e| Ok(e.get_password()?)) {
         Ok(_) => KeySource::Keyring,
-        Err(_) => KeySource::None,
+        Err(e) if matches!(e.downcast_ref(), Some(keyring::Error::NoEntry)) => KeySource::None,
+        Err(e) => {
+            tracing::warn!("credential store: {e:#}");
+            KeySource::Unavailable
+        }
     }
 }
 
 pub fn get() -> Result<Option<String>> {
-    if let Some(v) = std::env::var_os(ENV) {
-        let v = v.to_string_lossy().trim().to_owned();
-        if !v.is_empty() {
-            return Ok(Some(v));
-        }
+    if let Some(v) = from_env() {
+        return Ok(Some(v));
     }
     match entry()?.get_password() {
         Ok(k) => Ok(Some(k)),
@@ -73,7 +87,7 @@ mod tests {
     #[test]
     #[ignore]
     fn keyring_round_trip() {
-        std::env::remove_var(ENV);
+        assert!(from_env().is_none(), "unset SIDEPAW_API_KEY for this test");
         clear().unwrap();
         assert_eq!(get().unwrap(), None);
         assert_eq!(source(), KeySource::None);
@@ -85,11 +99,12 @@ mod tests {
     }
 
     #[test]
-    fn env_wins_and_blank_env_is_ignored() {
-        // The env var is process-wide; keep this the only test that sets it.
-        std::env::set_var(ENV, "  from-env ");
-        assert_eq!(get().unwrap().as_deref(), Some("from-env"));
-        assert_eq!(source(), KeySource::Env);
-        std::env::remove_var(ENV);
+    fn env_value_is_trimmed_and_blank_means_unset() {
+        assert_eq!(
+            env_key(Some("  from-env ".into())).as_deref(),
+            Some("from-env")
+        );
+        assert_eq!(env_key(Some("   ".into())), None);
+        assert_eq!(env_key(None), None);
     }
 }

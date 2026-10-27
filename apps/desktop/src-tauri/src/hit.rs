@@ -37,24 +37,43 @@ impl Mask {
 #[derive(Default)]
 pub struct HitMask(pub Mutex<Mask>);
 
+/// The cursor as the web view would like to see it: relative to the
+/// window's origin, in logical pixels, with the window's logical size.
+/// Negative or beyond the size means outside.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
+pub struct CursorRelative {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+pub fn cursor_relative(app: &AppHandle, window: &WebviewWindow) -> Option<CursorRelative> {
+    let cursor = app.cursor_position().ok()?;
+    let origin = window.outer_position().ok()?;
+    let size = window.inner_size().ok()?;
+    let scale = window.scale_factor().ok()?;
+    Some(CursorRelative {
+        x: (cursor.x - origin.x as f64) / scale,
+        y: (cursor.y - origin.y as f64) / scale,
+        width: size.width as f64 / scale,
+        height: size.height as f64 / scale,
+    })
+}
+
 pub const POLL: Duration = Duration::from_millis(40);
 
 /// Decide for the current cursor position. Returns the new
 /// ignore-cursor-events value, or `None` when it cannot be determined
 /// (cursor API unavailable, window hidden) and nothing should change.
 pub fn should_ignore(app: &AppHandle, window: &WebviewWindow, mask: &Mask) -> Option<bool> {
-    let cursor = app.cursor_position().ok()?;
-    let origin = window.outer_position().ok()?;
-    let size = window.inner_size().ok()?;
-    let scale = window.scale_factor().ok()?;
-    let x = cursor.x - origin.x as f64;
-    let y = cursor.y - origin.y as f64;
-    if x < 0.0 || y < 0.0 || x >= size.width as f64 || y >= size.height as f64 {
+    let c = cursor_relative(app, window)?;
+    if c.x < 0.0 || c.y < 0.0 || c.x >= c.width || c.y >= c.height {
         // Outside the window entirely: ignoring costs nothing and means
         // the first re-entry is already in the right mode.
         return Some(true);
     }
-    Some(!mask.opaque_at(x / scale, y / scale))
+    Some(!mask.opaque_at(c.x, c.y))
 }
 
 pub fn spawn_poller(app: AppHandle, window: WebviewWindow) {

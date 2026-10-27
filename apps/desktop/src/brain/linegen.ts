@@ -19,11 +19,14 @@ export const LINE_KEYS: ReadonlyArray<{ key: string; when: string }> = [
   { key: "click", when: "the user clicked you" },
   { key: "drag", when: "the user is dragging you around the screen" },
   { key: "drop", when: "the user dropped a file on you" },
+  // Nothing says morning lines yet; the proactive scheduler (0.5) will.
   { key: "morning", when: "the first time the user shows up in the morning" },
   { key: "night", when: "it is late at night and the user is still working" },
 ];
 
 export const LINES_PER_KEY = 30;
+/** The prompt asks for under 60 characters; the filter allows twice
+ *  that so a slightly long line survives and a paragraph does not. */
 const MAX_LINE_CHARS = 120;
 
 export function linesRequest(systemPrompt: string): Request {
@@ -37,6 +40,7 @@ export function linesRequest(systemPrompt: string): Request {
     "",
     `Reply with one JSON object only, no prose and no code fence: the keys above, each an array of ${LINES_PER_KEY} strings.`,
   ].join("\n");
+  // 15 keys by 30 lines at roughly 25 tokens each is about 11k tokens.
   return { purpose: "lines", system: systemPrompt, user, maxTokens: 16000 };
 }
 

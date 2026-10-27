@@ -12,7 +12,7 @@
         font: 13px/1.35 -apple-system, system-ui, sans-serif; color: #1d1d1f;
         background: rgba(255,255,255,.96); border-radius: 14px; padding: 8px 12px;
         box-shadow: 0 4px 14px rgba(0,0,0,.14), 0 0 0 .5px rgba(0,0,0,.08);
-        text-align: center; word-break: break-word;
+        text-align: center; word-break: break-word; white-space: pre-line;
         opacity: 0; transform: translateY(6px) scale(.96);
         transition: opacity .16s ease, transform .16s ease;
         pointer-events: none;
@@ -46,6 +46,6 @@
     <div id="bubble" hidden></div>
     <canvas id="pet" width="192" height="208"></canvas>
     <div id="label">…</div>
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/pet/main.ts"></script>
   </body>
 </html>

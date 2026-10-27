@@ -1,4 +1,5 @@
 import { parseJson, readBundled, readUser } from "./brain/files";
+import type { Manifest } from "./generated/Manifest";
 import { detectLang } from "./i18n";
 import { Lines, type LinesFile } from "./lines";
 
@@ -26,13 +27,7 @@ export const ROW = {
   review: 8,
 } as const;
 
-export interface Manifest {
-  id: string;
-  displayName: string;
-  description?: string;
-  spritesheetPath: string;
-  "x-sidepaw"?: { persona?: string; personaText?: string; lines?: string; voice?: string };
-}
+export type { Manifest };
 
 export interface Pack {
   manifest: Manifest;

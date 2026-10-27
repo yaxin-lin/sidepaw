@@ -5,7 +5,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { invoke } from "@tauri-apps/api/core";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-import type { Model } from "../generated/Model";
+import type { ModelConfig } from "../generated/ModelConfig";
+import { sha256Hex } from "./digest";
 
 export type Purpose = "chat" | "lines" | "persona";
 
@@ -26,6 +27,9 @@ export interface Provider {
   local: boolean;
 }
 
+/** Default models are each provider's cheap general model, except
+ *  Anthropic where the API guidance is the current Opus; a user who
+ *  wants Haiku names it in the model field. */
 export const PROVIDERS: Record<string, Provider> = {
   deepseek: { label: "DeepSeek", baseUrl: "https://api.deepseek.com/v1", defaultModel: "deepseek-chat", needsKey: true, local: false },
   openai: { label: "OpenAI", baseUrl: "https://api.openai.com/v1", defaultModel: "gpt-5-mini", needsKey: true, local: false },
@@ -34,7 +38,8 @@ export const PROVIDERS: Record<string, Provider> = {
   custom: { label: "OpenAI-compatible URL", baseUrl: "", defaultModel: "", needsKey: false, local: false },
 };
 
-export interface Resolved {
+/** A config with defaults filled in: where a request goes. */
+export interface Endpoint {
   provider: string;
   model: string;
   baseUrl: string;
@@ -43,7 +48,7 @@ export interface Resolved {
 
 /** Fills in defaults and rejects a config that cannot be used, with a
  *  message the setup window shows as is. */
-export function resolve(cfg: Model): Resolved {
+export function resolve(cfg: ModelConfig): Endpoint {
   const p = PROVIDERS[cfg.provider];
   if (!p) throw new Error(cfg.provider ? `unknown provider "${cfg.provider}"` : "no model provider configured");
   const model = cfg.model.trim() || p.defaultModel;
@@ -72,11 +77,15 @@ export interface Preview {
  *  character, everything else about four characters per token. */
 export function approxTokens(text: string): number {
   let cjk = 0;
-  for (const ch of text) if (/[　-鿿豈-﫿]/.test(ch)) cjk++;
+  for (const ch of text) if (CJK.test(ch)) cjk++;
   return Math.ceil(cjk + (text.length - cjk) / 4);
 }
 
-export function preview(cfg: Model, req: Request): Preview {
+// U+3000 (CJK punctuation) through the unified ideographs, plus the
+// compatibility ideographs block.
+const CJK = /[\u3000-\u9fff\uf900-\ufaff]/;
+
+export function preview(cfg: ModelConfig, req: Request): Preview {
   const r = resolve(cfg);
   const text = `[system]\n${req.system}\n\n[user]\n${req.user}`;
   return {
@@ -90,15 +99,10 @@ export function preview(cfg: Model, req: Request): Preview {
   };
 }
 
-export async function sha256Hex(text: string): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
 /** Request body for an OpenAI-compatible `chat/completions` call. OpenAI
  *  itself rejects `max_tokens` on current models; everyone else still
  *  wants it. */
-export function openaiBody(r: Resolved, req: Request): Record<string, unknown> {
+export function openaiBody(r: Endpoint, req: Request): Record<string, unknown> {
   const body: Record<string, unknown> = {
     model: r.model,
     messages: [
@@ -142,7 +146,7 @@ async function errorText(res: Response): Promise<string> {
 
 /** One request, one text reply. The audit row is written before the
  *  request goes out so a crash mid-flight still leaves a record. */
-export async function complete(cfg: Model, req: Request, key: string | null, deps: Deps = live): Promise<string> {
+export async function complete(cfg: ModelConfig, req: Request, key: string | null, deps: Deps = live): Promise<string> {
   const r = resolve(cfg);
   const p = PROVIDERS[r.provider];
   if (p.needsKey && !key) throw new Error(`${p.label} needs an API key`);
@@ -156,6 +160,9 @@ export async function complete(cfg: Model, req: Request, key: string | null, dep
       dangerouslyAllowBrowser: true,
       maxRetries: 1,
     });
+    // Lines and one-liners are easy work, so the lowest effort; the
+    // fallback beta re-runs a refused request on another model inside
+    // the same call, which a pet should not surface as an error.
     const res = await client.beta.messages.create({
       model: r.model,
       max_tokens: req.maxTokens,

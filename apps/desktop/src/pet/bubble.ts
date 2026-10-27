@@ -1,7 +1,7 @@
-import type { PendingApproval } from "./generated/PendingApproval";
-import type { State } from "./generated/State";
-import { t } from "./i18n";
-import { keysFor, Lines } from "./lines";
+import type { PendingApproval } from "../generated/PendingApproval";
+import type { State } from "../generated/State";
+import { t } from "../i18n";
+import { keysFor, Lines } from "../lines";
 
 /** How long a line stays up, scaled a little for longer text. Short
  *  enough that the pet never looks stuck mid-sentence. */

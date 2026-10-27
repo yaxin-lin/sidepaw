@@ -1,12 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { DayReport } from "./generated/DayReport";
-import type { Report } from "./generated/Report";
-import { applyToDom, t } from "./i18n";
-import { mountBrain } from "./setup-brain";
+import type { DayReport } from "../generated/DayReport";
+import type { Report } from "../generated/Report";
+import { applyToDom, t } from "../i18n";
+import { el, note } from "./dom";
+import { mountModel } from "./model";
+import { mountPet } from "./pet";
+import { renderAudit } from "./audit";
 
 const HOST = "claude-code";
-
-const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 function render(r: Report) {
   const badge = el<HTMLSpanElement>("cc-badge");
@@ -20,15 +21,12 @@ function render(r: Report) {
 }
 
 async function run(cmd: "host_status" | "host_install" | "host_remove", done: string) {
-  const msg = el("cc-msg");
-  msg.className = "msg";
   try {
     const r = await invoke<Report>(cmd, { hostName: HOST });
     render(r);
-    msg.textContent = done;
+    note("cc-msg", done);
   } catch (e) {
-    msg.className = "msg err";
-    msg.textContent = String(e);
+    note("cc-msg", String(e), true);
   }
 }
 
@@ -83,14 +81,11 @@ async function renderLevels() {
 }
 
 async function setLevel(n: number) {
-  const msg = el("level-msg");
   try {
     await invoke("set_level", { level: n });
-    msg.className = "msg";
-    msg.textContent = t("level.saved", { n });
+    note("level-msg", t("level.saved", { n }));
   } catch (e) {
-    msg.className = "msg err";
-    msg.textContent = String(e);
+    note("level-msg", String(e), true);
   }
 }
 
@@ -103,16 +98,9 @@ async function main() {
   setInterval(() => void renderToday(), 10_000);
   await renderLevels();
   el("notify-test").addEventListener("click", () => {
-    const msg = el("level-msg");
     invoke("test_notification").then(
-      () => {
-        msg.className = "msg";
-        msg.textContent = t("notify.sent");
-      },
-      (e) => {
-        msg.className = "msg err";
-        msg.textContent = String(e);
-      },
+      () => note("level-msg", t("notify.sent")),
+      (e) => note("level-msg", String(e), true),
     );
   });
   await run("host_status", "");
@@ -120,19 +108,15 @@ async function main() {
   act.checked = await invoke<boolean>("get_host_act", { hostName: HOST });
   act.addEventListener("change", () => {
     invoke("set_host_act", { hostName: HOST, act: act.checked }).then(
-      () => {
-        el("cc-msg").className = "msg";
-        el("cc-msg").textContent = t("act.saved");
-      },
-      (e) => {
-        el("cc-msg").className = "msg err";
-        el("cc-msg").textContent = String(e);
-      },
+      () => note("cc-msg", t("act.saved")),
+      (e) => note("cc-msg", String(e), true),
     );
   });
   el("cc-install").addEventListener("click", () => void run("host_install", t("cc.written")));
   el("cc-remove").addEventListener("click", () => void run("host_remove", t("cc.removed")));
-  await mountBrain();
+  await mountModel();
+  await mountPet();
+  await renderAudit();
 }
 
 void main();

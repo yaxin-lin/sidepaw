@@ -13,7 +13,7 @@ use std::path::Path;
 #[derive(Debug, Clone, Deserialize, Default, PartialEq)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
-    pub model: Model,
+    pub model: ModelConfig,
     pub pet: Pet,
     pub quiet: Quiet,
     pub hosts: BTreeMap<String, HostConfig>,
@@ -26,7 +26,7 @@ pub struct Config {
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 #[serde(default, deny_unknown_fields)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
-pub struct Model {
+pub struct ModelConfig {
     pub provider: String,
     pub model: String,
     pub base_url: Option<String>,
@@ -130,7 +130,7 @@ impl Config {
     /// Set `[model]` the same way `write_level` does. An empty `model`
     /// means the provider's default and is written as such so the file
     /// shows the user where to put a choice.
-    pub fn write_model(dir: &Path, model: &Model) -> Result<()> {
+    pub fn write_model(dir: &Path, model: &ModelConfig) -> Result<()> {
         edit(dir, |doc| {
             if !doc.contains_table("model") {
                 doc["model"] = toml_edit::table();
@@ -243,6 +243,13 @@ fn path_contains(root: &str, cwd: &str) -> bool {
 mod tests {
     use super::*;
 
+    /// A fresh directory per test, so tests can run in parallel.
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("sidepaw-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        dir
+    }
+
     const EXAMPLE: &str = r#"
 [model]
 provider = "deepseek"
@@ -315,8 +322,7 @@ port = 4242
 
     #[test]
     fn write_level_keeps_the_rest_of_the_file() {
-        let dir = std::env::temp_dir().join(format!("sidepaw-config-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = scratch("config");
         Config::write_level(&dir, Level::Notify).unwrap();
         assert_eq!(Config::load(&dir).unwrap().pet.level, Level::Notify);
 
@@ -338,8 +344,7 @@ port = 4242
 
     #[test]
     fn write_host_act_creates_the_host_table() {
-        let dir = std::env::temp_dir().join(format!("sidepaw-act-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = scratch("act");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("config.toml"), "[pet]\nlevel = 4\n").unwrap();
         Config::write_host_act(&dir, Host::ClaudeCode, true).unwrap();
@@ -354,16 +359,15 @@ port = 4242
 
     #[test]
     fn write_model_replaces_the_table_and_drops_an_empty_base_url() {
-        let dir = std::env::temp_dir().join(format!("sidepaw-model-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        let m = Model {
+        let dir = scratch("model");
+        let m = ModelConfig {
             provider: "ollama".into(),
             model: "qwen3:8b".into(),
             base_url: Some("http://127.0.0.1:11434".into()),
         };
         Config::write_model(&dir, &m).unwrap();
         assert_eq!(Config::load(&dir).unwrap().model, m);
-        let m = Model {
+        let m = ModelConfig {
             provider: "deepseek".into(),
             model: String::new(),
             base_url: Some("  ".into()),

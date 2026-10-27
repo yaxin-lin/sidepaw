@@ -11,7 +11,7 @@
 
 use crate::adapters;
 use crate::clock::{now_ms, now_rfc3339, start_of_today_rfc3339};
-use crate::config::{Config, Model};
+use crate::config::{Config, ModelConfig};
 use crate::home::{self, DaemonState};
 use crate::redact;
 use crate::registry::{PendingApproval, Registry, Snapshot};
@@ -178,11 +178,11 @@ impl Shared {
             .report_since(&start_of_today_rfc3339())
     }
 
-    pub fn model(&self) -> Model {
+    pub fn model(&self) -> ModelConfig {
         self.app.lock().unwrap().config.model.clone()
     }
 
-    pub fn set_model(&self, model: Model) -> Result<()> {
+    pub fn set_model(&self, model: ModelConfig) -> Result<()> {
         Config::write_model(&home::dir()?, &model)?;
         self.app.lock().unwrap().config.model = model;
         Ok(())

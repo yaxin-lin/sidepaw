@@ -300,6 +300,15 @@ pub fn status(host: Host, port: u16, token: &str) -> Result<Report> {
     Ok(report(host, &path, status, &block))
 }
 
+/// Nothing is hooked up yet: the desktop app shows the setup window
+/// instead of a pet that never moves. Only Claude Code counts until
+/// another host can be installed from the app.
+pub fn is_first_run(port: u16, token: &str) -> bool {
+    status(Host::ClaudeCode, port, token)
+        .map(|r| matches!(r.status, Status::Absent | Status::NoFile))
+        .unwrap_or(false)
+}
+
 pub fn apply(host: Host, port: u16, token: &str) -> Result<Report> {
     let (path, block) = target(host, port, token)?;
     let mut settings = read(&path)?.unwrap_or_else(|| json!({}));

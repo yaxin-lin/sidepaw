@@ -7,11 +7,21 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { currentMonitor, getCurrentWindow, PhysicalPosition } from "@tauri-apps/api/window";
 import type { Bubble } from "./bubble";
 import type { IdleBehaviour } from "./idle";
-import { LOOP_MS, ROW } from "./pack";
+import { LOOP_MS, ROW } from "../pack";
 import { airborne, atRest, type Body, type Bounds, FLING_SPEED, type Sample, step, velocityFrom } from "./physics";
 import type { SpriteRenderer } from "./renderer";
 
+/** Mirrors `CursorRelative` in src-tauri/src/hit.rs: logical pixels
+ *  relative to the window's origin. */
+interface CursorRelative {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 const SAMPLE_MS = 16;
+const CLICK_MS = 250;
 const HOVER_MS = 1500;
 const NEAR_MS = 700;
 const FLEE_COOLDOWN_MS = 6000;
@@ -22,9 +32,10 @@ const DRAG_MIN_PX = 20;
 export class DesktopLife {
   private win = getCurrentWindow();
   private pressed = false;
+  private pressedAt = 0;
+  private scale = 1;
   private samples: Sample[] = [];
   private sampler = 0;
-  private flinging = false;
   private hoverTimer = 0;
   private nearSince = 0;
   private fleeAfter = 0;
@@ -36,15 +47,19 @@ export class DesktopLife {
     private canvas: HTMLCanvasElement,
   ) {}
 
-  /** Wires the DOM and Tauri events. The native drag still comes from
-   *  `startDragging` in main.ts; this only watches where it goes. */
+  /** Wires the DOM and Tauri events. The window has no decorations, so
+   *  the pet is its own drag handle: every press starts a native drag
+   *  and the release decides whether it was a click, a drag or a throw. */
   async attach() {
     this.canvas.addEventListener("mousedown", (e) => {
-      if (e.button !== 0 || this.flinging) return;
+      if (e.button !== 0 || this.idle.hold) return;
       this.pressed = true;
+      this.pressedAt = Date.now();
       this.samples = [];
       clearInterval(this.sampler);
+      void this.win.scaleFactor().then((s) => (this.scale = s));
       this.sampler = window.setInterval(() => void this.sample(), SAMPLE_MS);
+      void this.win.startDragging();
     });
     this.canvas.addEventListener("mouseup", (e) => {
       if (e.button === 0) void this.release();
@@ -53,7 +68,7 @@ export class DesktopLife {
     this.canvas.addEventListener("mouseenter", () => {
       clearTimeout(this.hoverTimer);
       this.hoverTimer = window.setTimeout(() => {
-        if (this.idle.isIdle() && !this.pressed && !this.flinging) this.renderer.play(ROW.review, LOOP_MS);
+        if (this.idle.isIdle() && !this.pressed && !this.idle.hold) this.renderer.play(ROW.review, LOOP_MS);
       }, HOVER_MS);
     });
     this.canvas.addEventListener("mouseleave", () => clearTimeout(this.hoverTimer));
@@ -69,11 +84,12 @@ export class DesktopLife {
   private async sample() {
     if (!this.pressed) return;
     const p = await this.win.outerPosition();
-    const scale = await this.win.scaleFactor();
-    this.samples.push({ t: performance.now(), x: p.x / scale, y: p.y / scale });
+    this.samples.push({ t: performance.now(), x: p.x / this.scale, y: p.y / this.scale });
     if (this.samples.length > 16) this.samples.shift();
   }
 
+  /** A short press that did not move is a click; a long or moving one
+   *  is a drag; a fast release is a throw. */
   private async release() {
     if (!this.pressed) return;
     this.pressed = false;
@@ -84,6 +100,10 @@ export class DesktopLife {
     const v = velocityFrom(this.samples);
     if (Math.hypot(v.vx, v.vy) >= FLING_SPEED) await this.fling(v.vx, v.vy);
     else if (moved >= DRAG_MIN_PX) this.bubble.onInteraction("drag");
+    else if (Date.now() - this.pressedAt < CLICK_MS) {
+      this.bubble.onInteraction("click");
+      this.idle.onClick();
+    }
   }
 
   /** Integrates until the pet rests on the bottom of the work area. A
@@ -103,7 +123,6 @@ export class DesktopLife {
       maxY: (area.position.y + area.size.height - size.height) / scale,
     };
     let body: Body = { x: pos.x / scale, y: pos.y / scale, vx, vy };
-    this.flinging = true;
     this.idle.hold = true;
     this.renderer.play(ROW.jumping, FLING_MAX_MS);
     const t0 = performance.now();
@@ -122,26 +141,18 @@ export class DesktopLife {
     });
     this.renderer.stopOverride();
     this.idle.hold = false;
-    this.flinging = false;
   }
 
   /** A cursor hovering just beside the pet for a moment makes it step
    *  away; over the pet is hover, handled by the DOM events. */
   private async watchCursor() {
-    if (!this.idle.isIdle() || this.pressed || this.flinging || performance.now() < this.fleeAfter) return;
-    let cursor: [number, number];
-    try {
-      cursor = await invoke<[number, number]>("cursor_position");
-    } catch {
-      return;
-    }
-    const pos = await this.win.outerPosition();
-    const size = await this.win.outerSize();
-    const [cx, cy] = cursor;
-    const inside = cx >= pos.x && cx < pos.x + size.width && cy >= pos.y && cy < pos.y + size.height;
-    const sameBand = cy >= pos.y && cy < pos.y + size.height;
-    const dx = cx - (pos.x + size.width / 2);
-    const near = !inside && sameBand && Math.abs(dx) < size.width * 1.2;
+    if (!this.idle.isIdle() || this.pressed || this.idle.hold || performance.now() < this.fleeAfter) return;
+    const c = await invoke<CursorRelative | null>("cursor_relative");
+    if (!c) return;
+    const inside = c.x >= 0 && c.x < c.width && c.y >= 0 && c.y < c.height;
+    const sameBand = c.y >= 0 && c.y < c.height;
+    const dx = c.x - c.width / 2;
+    const near = !inside && sameBand && Math.abs(dx) < c.width * 1.2;
     const now = performance.now();
     if (!near) {
       this.nearSince = 0;

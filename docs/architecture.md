@@ -132,12 +132,12 @@ Shared types (`State`, `Snapshot`, `Event`, ...) are generated from the
 Rust definitions with ts-rs into `src/generated` (`pnpm gen:types`), so
 the renderer cannot drift from the model.
 
-`desktop.ts` gives the pet a life on the desktop with nothing but the
+`pet/desktop.ts` gives the pet a life on the desktop with nothing but the
 window APIs: a drag's last samples become a release velocity, and a
 fast release plays out in `physics.ts` (gravity, wall and floor
 bounces, floor friction) until the pet rests on the work area's bottom
 edge, while a gentle release leaves it where it was put. The same OS
-cursor the click-through poller reads (`cursor_position` command)
+cursor the click-through poller reads (`cursor_relative` command, one call per poll)
 drives a flinch when the cursor lingers beside the pet; the hover look
 and file drops come from the web view's own events.
 
@@ -155,6 +155,11 @@ release procedure.
 Right-click on the pet, or the first run with no hooks installed, opens
 the setup window (`setup.html`), which calls the `host_*` commands.
 
+`src/pet/` is the pet window (renderer, bubble, idle behaviour,
+desktop life, hit mask), `src/setup/` the setup window (one module per
+section), `src/brain/` the brain, and the root holds what both windows
+share (`i18n`, `lines`, `pack`, `generated/`).
+
 The brain is `src/brain/`: `persona.ts` compiles `persona.json` plus
 `persona.md` into the system prompt, `llm.ts` is the only code that
 talks to a model (one provider per ADR 5, OpenAI-compatible endpoints
@@ -163,7 +168,7 @@ the web view's origin rules do not apply), and `linegen.ts` turns the
 compiled persona into `lines.json` in one call. Every remote call shows
 a preview first and writes an `audit` row through the `audit_call`
 command; local providers (Ollama, loopback URLs) skip the preview. The
-setup window's model and pet sections (`setup-brain.ts`) save the
+setup window's model and pet sections (`setup/model.ts`, `setup/pet.ts`) save the
 provider to `config.toml`, the key to the credential store, and the
 persona and generated lines to `~/.sidepaw/pets/<id>/`, where they
 override the pack's files; it then emits `pack-changed` and the pet

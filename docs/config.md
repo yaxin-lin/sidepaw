@@ -55,10 +55,9 @@ Data directory layout:
 ```
 ~/.sidepaw/
   config.toml
-  state.json        port, token id, first-run flag
+  state.json        port and token of the running server
   sidepaw.sqlite    events, state changes, approvals, audit rows
   pets/<id>/        persona.json, persona.md, lines.json overriding the pack's
-  logs/
 ```
 
 Override the directory with `SIDEPAW_HOME`.

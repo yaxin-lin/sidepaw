@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // jsdom has no requestAnimationFrame; run callbacks on the fake clock.
 globalThis.requestAnimationFrame = (cb) => window.setTimeout(() => cb(0), 16);
 import { Bubble } from "./bubble";
-import { Lines } from "./lines";
+import { Lines } from "../lines";
 
 const file = {
   version: 1,
@@ -70,5 +70,13 @@ describe("Bubble", () => {
     expect(el.textContent).toBe("yes?");
     bubble.onInteraction("drag");
     expect(el.textContent).toBe("yes?"); // no drag lines in this pack: keeps the last line;
+  });
+
+  it("borrows click lines for a drop and always shows the file name", () => {
+    bubble.onInteraction("drop", "a.txt");
+    expect(el.textContent).toBe("a.txt\nyes?");
+    const quiet = new Bubble(el, Lines.empty(), () => clock);
+    quiet.onInteraction("drop", "b.txt");
+    expect(el.textContent).toBe("b.txt");
   });
 });

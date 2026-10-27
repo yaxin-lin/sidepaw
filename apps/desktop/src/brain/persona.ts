@@ -1,3 +1,5 @@
+import { sha256Hex } from "./digest";
+
 /** `persona.json` as docs/contracts/persona.schema.json defines it. */
 export interface Persona {
   version: 1;
@@ -125,8 +127,6 @@ export function compileSystemPrompt(persona: Persona, personaMd?: string): strin
 
 /** Lines are generated once per persona change; this is the cache key
  *  the pack stores in lines.json as generatedFrom. */
-export async function personaDigest(persona: Persona, personaMd?: string): Promise<string> {
-  const text = JSON.stringify(persona) + "\n" + (personaMd ?? "");
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+export function personaDigest(persona: Persona, personaMd?: string): Promise<string> {
+  return sha256Hex(JSON.stringify(persona) + "\n" + (personaMd ?? ""));
 }

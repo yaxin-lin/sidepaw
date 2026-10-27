@@ -27,6 +27,7 @@ pub const ROW_NAMES: [&str; ROWS as usize] = [
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Manifest {
     pub id: String,
     pub display_name: String,
@@ -39,6 +40,7 @@ pub struct Manifest {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Extension {
     #[serde(default = "one")]
     pub version: u8,
@@ -57,6 +59,7 @@ pub struct Extension {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Attribution {
     pub role: String,
     pub name: String,

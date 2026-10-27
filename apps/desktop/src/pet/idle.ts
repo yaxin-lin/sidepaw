@@ -1,6 +1,6 @@
 import { currentMonitor, getCurrentWindow, PhysicalPosition } from "@tauri-apps/api/window";
-import type { State } from "./generated/State";
-import { LOOP_MS, ROW } from "./pack";
+import type { State } from "../generated/State";
+import { LOOP_MS, ROW } from "../pack";
 import type { SpriteRenderer } from "./renderer";
 
 /** Idle flourishes within what the Codex sheet can show: short walks
@@ -48,14 +48,15 @@ export class IdleBehaviour {
   /** A quick step away from something, further and faster than a stroll. */
   async flee(dir: -1 | 1) {
     if (this.walking || this.hold || this.state !== "idle") return;
-    await this.walk(dir, 120 + this.random() * 60, 160);
+    await this.walk({ dir, distance: 120 + this.random() * 60, speed: 160 });
   }
 
   private scheduleWalk(now = Date.now()) {
     this.nextWalkAt = now + 20_000 + this.random() * 40_000;
   }
 
-  private async walk(forced?: -1 | 1, logicalDistance?: number, logicalSpeed = 60) {
+  /** Logical pixels and pixels per second; a stroll picks its own. */
+  private async walk(opts: { dir?: -1 | 1; distance?: number; speed?: number } = {}) {
     const win = getCurrentWindow();
     const monitor = await currentMonitor();
     if (!monitor) return;
@@ -65,12 +66,12 @@ export class IdleBehaviour {
     const minX = monitor.workArea.position.x;
     const maxX = monitor.workArea.position.x + monitor.workArea.size.width - size.width;
 
-    let dir: -1 | 1 = forced ?? (this.random() < 0.5 ? -1 : 1);
-    const distance = (logicalDistance ?? 40 + this.random() * 80) * scale;
+    let dir: -1 | 1 = opts.dir ?? (this.random() < 0.5 ? -1 : 1);
+    const distance = (opts.distance ?? 40 + this.random() * 80) * scale;
     // Turn around rather than walk off the screen.
     if (start.x + dir * distance < minX || start.x + dir * distance > maxX) dir = dir === 1 ? -1 : 1;
     const target = Math.max(minX, Math.min(maxX, start.x + dir * distance));
-    const speed = logicalSpeed * scale; // physical px per second
+    const speed = (opts.speed ?? 60) * scale; // physical px per second
     const duration = (Math.abs(target - start.x) / speed) * 1000;
     if (duration < 200) return;
 

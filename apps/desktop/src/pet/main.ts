@@ -1,13 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import type { Snapshot } from "./generated/Snapshot";
+import type { Snapshot } from "../generated/Snapshot";
 import { Bubble } from "./bubble";
 import { DesktopLife } from "./desktop";
 import { HitMaskSource } from "./hitmask";
-import { t } from "./i18n";
+import { t } from "../i18n";
 import { IdleBehaviour } from "./idle";
-import { DEFAULT_PACK, loadLines, loadPack } from "./pack";
+import { DEFAULT_PACK, loadLines, loadPack } from "../pack";
 import { SpriteRenderer } from "./renderer";
 
 const POLL_MS = 500;
@@ -49,21 +48,8 @@ async function main() {
     );
   });
 
-  // The window has no decorations, so the pet itself is the drag handle
-  // and right-click is the only way in to settings. A click that does
-  // not turn into a drag gets a line.
-  let pressedAt = 0;
-  canvas.addEventListener("mousedown", (e) => {
-    if (e.button !== 0) return;
-    pressedAt = Date.now();
-    void getCurrentWindow().startDragging();
-  });
-  canvas.addEventListener("mouseup", (e) => {
-    if (e.button === 0 && Date.now() - pressedAt < 250) {
-      bubble.onInteraction("click");
-      idle.onClick();
-    }
-  });
+  // Presses, drags, throws and drops: see desktop.ts. Right-click is
+  // the only way in to settings.
   await new DesktopLife(renderer, idle, bubble, canvas).attach();
 
   canvas.addEventListener("contextmenu", (e) => {

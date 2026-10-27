@@ -4,4 +4,4 @@
  * `[model]`: the one provider the brain talks to (ADR 5). The API key
  * is not here, see `secret`.
  */
-export type Model = { provider: string, model: string, base_url: string | null, };
+export type ModelConfig = { provider: string, model: string, base_url: string | null, };
