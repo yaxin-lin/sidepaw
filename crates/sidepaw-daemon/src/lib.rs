@@ -10,6 +10,7 @@ pub mod config;
 pub mod home;
 pub mod hook;
 pub mod install;
+pub mod origin;
 pub mod pets;
 pub mod redact;
 pub mod registry;

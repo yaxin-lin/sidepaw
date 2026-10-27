@@ -5,6 +5,7 @@
 mod hit;
 mod notify;
 mod shelf;
+mod terminal;
 mod text;
 mod tray;
 mod update;
@@ -190,6 +191,20 @@ fn cursor_relative(app: AppHandle, window: tauri::WebviewWindow) -> Option<hit::
     hit::cursor_relative(&app, &window)
 }
 
+/// Bring the terminal of a session to the front.
+#[tauri::command]
+fn focus_session(server: State<'_, Running>, key: String) -> Result<(), String> {
+    focus_by_key(&server, &key)
+}
+
+pub(crate) fn focus_by_key(server: &Running, key: &str) -> Result<(), String> {
+    let origin = server
+        .shared
+        .session_origin(key)
+        .ok_or("the session's terminal is not known yet")?;
+    terminal::focus(&origin)
+}
+
 /// Other apps' windows and whether the one in front is full screen,
 /// in the pet window's physical pixels.
 #[tauri::command]
@@ -303,6 +318,7 @@ pub fn run() {
             recent_events,
             cursor_relative,
             scene,
+            focus_session,
             open_setup,
             open_chat
         ])

@@ -55,7 +55,20 @@ async function main() {
 
   // Presses, drags, throws and drops: see desktop.ts. Right-click is
   // the only way in to settings.
-  await new DesktopLife(renderer, idle, bubble, canvas).attach();
+  // A click while an agent waits for you is a request to go there.
+  let latest: Snapshot | null = null;
+  const jumpToWaiting = async () => {
+    const waiting = latest?.sessions.find((s) => s.state === "waiting" && s.origin);
+    if (!waiting) return false;
+    try {
+      await invoke("focus_session", { key: waiting.key });
+      return true;
+    } catch (err) {
+      console.warn(String(err));
+      return false;
+    }
+  };
+  await new DesktopLife(renderer, idle, bubble, canvas, jumpToWaiting).attach();
 
   canvas.addEventListener("contextmenu", (e) => {
     e.preventDefault();
@@ -65,6 +78,7 @@ async function main() {
   const poll = async () => {
     try {
       const snap = await invoke<Snapshot>("snapshot");
+      latest = snap;
       renderer.setState(snap.overall);
       const pending = snap.pending[0];
       if (pending) {

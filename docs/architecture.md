@@ -22,6 +22,7 @@ built in is in [roadmap.md](roadmap.md).
 | Idle behaviour: walks, dozing, click hop | built |
 | Desktop life: fling physics, flinch from a near cursor, hover look, file drop | built, no OS permissions |
 | Window awareness: lands on other apps' windows, falls when they go, hides behind a full-screen app | built (macOS, Windows); Linux has no window list |
+| Jump to a session's terminal: click the pet while it waits, or the session in the tray | built (macOS: exact Terminal.app or iTerm2 tab, else the host app; Windows: the host's window) |
 | Speech bubble with local lines from the pack | built (0.4) |
 | Persona compiler (sliders, tags, free text to system prompt), persona editor in the setup window | built (0.4) |
 | Model provider (`[model]`, key in the OS credential store), LLM client with preview before send and `audit` rows | built (0.4) |
@@ -118,6 +119,10 @@ SQLite and the adapters.
 - `clock`: the only place that asks what time it is
 - `store`: SQLite via rusqlite, schema in `contracts/schema.sql`
 - `adapters/`: one module per host
+- `origin`: which process sent a session's hooks and which tty it
+  runs on, found through the loopback connection's client port with
+  `lsof`, `ss` or `netstat` once per session, before the reply closes
+  the connection
 - `home`: the data directory and `state.json` (port and token)
 - `hook`: `sidepaw hook --host <h>` reads one native payload from
   stdin and posts it, so users never install a script;
@@ -151,6 +156,14 @@ watcher hides the pet while it does. The same OS
 cursor the click-through poller reads (`cursor_relative` command, one call per poll)
 drives a flinch when the cursor lingers beside the pet; the hover look
 and file drops come from the web view's own events.
+
+`terminal.rs` turns a session's origin into a window in front: on
+macOS the tab whose tty matches, asked of iTerm2 and Terminal.app
+through AppleScript (the first use prompts for Automation access), else
+the nearest ancestor process that is a regular app (VS Code, Warp,
+Ghostty); on Windows the nearest ancestor that owns a visible window
+(Windows Terminal, VS Code). A click on the pet while a session waits
+for the user, or a session in the tray menu, goes there.
 
 Click-through works per pixel: after each drawn frame the renderer
 sends a 4 by 4 logical-pixel opacity mask to Rust (`hit.rs`), and a

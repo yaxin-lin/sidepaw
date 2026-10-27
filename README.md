@@ -66,6 +66,11 @@ right-click, a setup window offers to install the Claude Code hooks into
 `~/.claude/settings.json` (a backup is written next to it). The same
 thing from a terminal: `sidepaw install --host claude-code --apply`.
 
+When an agent waits for you, click the pet and the terminal it runs
+in comes to the front (the exact tab in Terminal.app or iTerm2, else
+the app's window); the tray lists every session and clicking one does
+the same.
+
 The pet talks from `lines.json` in its pack, so nothing needs a model.
 To give it a personality of your own, the setup window has a persona
 editor (sliders, tags, free text) and, once a model provider is

@@ -54,6 +54,9 @@ export class DesktopLife {
     private idle: IdleBehaviour,
     private bubble: Bubble,
     private canvas: HTMLCanvasElement,
+    /** First say in a click; true means it was used up (a jump to a
+     *  terminal) and the pet should not also hop. */
+    private onClick: () => Promise<boolean> = async () => false,
   ) {}
 
   /** Wires the DOM and Tauri events. The window has no decorations, so
@@ -118,6 +121,7 @@ export class DesktopLife {
         return;
       }
       this.lastClickAt = now;
+      if (await this.onClick()) return;
       this.bubble.onInteraction("click");
       this.idle.onClick();
     }

@@ -108,6 +108,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
   up a cursor that hovers, says a line (`drop`, falling back to
   `click`) when a file is dropped on it, and hides while the app in
   front is full screen. macOS and Windows; no OS permission is asked.
+- Jump to the terminal: click the pet while an agent waits, or a
+  session in the tray, and its terminal comes to the front. The daemon
+  finds the host process through the hook's loopback connection, once
+  per session; on macOS the exact Terminal.app or iTerm2 tab is
+  selected, otherwise the host app's window (Windows: the window of
+  the nearest ancestor process).
 - Language setting (`[ui] language`: follow the system, 中文, English)
   in the setup window, applied at once to every window, the tray and
   notifications. A persona without a `language` now speaks the UI

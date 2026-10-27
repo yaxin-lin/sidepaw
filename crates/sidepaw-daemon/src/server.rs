@@ -13,11 +13,12 @@ use crate::adapters;
 use crate::clock::{now_ms, now_rfc3339, start_of_today_rfc3339};
 use crate::config::{Config, ModelConfig, UiLanguage};
 use crate::home::{self, DaemonState};
+use crate::origin::{self, Origin};
 use crate::redact;
 use crate::registry::{PendingApproval, Registry, Snapshot};
 use crate::store::{AuditRow, DayReport, EventRow, Store};
 use anyhow::{Context, Result};
-use axum::extract::{Path, State};
+use axum::extract::{ConnectInfo, FromRequestParts, Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
@@ -26,6 +27,7 @@ use axum::{Json, Router};
 use sidepaw_core::{Event, Host, Kind, Level};
 use std::collections::HashMap;
 use std::future::IntoFuture;
+use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::oneshot;
@@ -217,6 +219,27 @@ impl Shared {
         self.app.lock().unwrap().store.audit_recent(limit)
     }
 
+    pub fn session_origin(&self, key: &str) -> Option<Origin> {
+        self.app.lock().unwrap().registry.origin(key).cloned()
+    }
+
+    /// Looks the host process up through its connection, so it has to
+    /// run before the reply closes that connection. The system tools
+    /// take tens of milliseconds, once per session; the lookup runs on
+    /// a blocking thread so other requests are not held up.
+    async fn resolve_origin(&self, key: Option<String>, peer_port: Option<u16>) {
+        let (Some(key), Some(port)) = (key, peer_port) else {
+            return;
+        };
+        let app = self.app.clone();
+        let _ = tokio::task::spawn_blocking(move || {
+            if let Some(origin) = origin::resolve(port) {
+                app.lock().unwrap().registry.set_origin(&key, origin);
+            }
+        })
+        .await;
+    }
+
     /// Read-only, for the brain's context (ADR 7).
     pub fn recent_events(&self, limit: u32) -> Result<Vec<EventRow>> {
         self.app.lock().unwrap().store.recent_events(limit)
@@ -263,7 +286,13 @@ pub async fn start(port: u16) -> Result<Running> {
     tracing::info!("listening on 127.0.0.1:{port}, data in {}", dir.display());
 
     tokio::spawn(tick_loop(shared.app.clone()));
-    tokio::spawn(axum::serve(listener, router(shared.clone())).into_future());
+    tokio::spawn(
+        axum::serve(
+            listener,
+            router(shared.clone()).into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .into_future(),
+    );
     Ok(Running { port, shared })
 }
 
@@ -330,13 +359,40 @@ async fn auth(
     }
 }
 
-async fn post_event(State(shared): State<Shared>, Json(event): Json<Event>) -> StatusCode {
-    ingest(&shared, event)
+/// The client port of the connection, when the server was started with
+/// connect info; tests drive the router directly and get `None`.
+struct Peer(Option<u16>);
+
+impl<S: Send + Sync> FromRequestParts<S> for Peer {
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        _state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        Ok(Peer(
+            parts
+                .extensions
+                .get::<ConnectInfo<SocketAddr>>()
+                .map(|c| c.0.port()),
+        ))
+    }
+}
+
+async fn post_event(
+    State(shared): State<Shared>,
+    peer: Peer,
+    Json(event): Json<Event>,
+) -> StatusCode {
+    let (status, needs_origin) = ingest(&shared, event);
+    shared.resolve_origin(needs_origin, peer.0).await;
+    status
 }
 
 async fn post_native(
     State(shared): State<Shared>,
     Path(host): Path<String>,
+    peer: Peer,
     Json(payload): Json<serde_json::Value>,
 ) -> Response {
     let Ok(host) = host.parse::<Host>() else {
@@ -364,7 +420,8 @@ async fn post_native(
     let summary = event.text.as_deref().map(redact::text);
     let window_ms = shared.app.lock().unwrap().config.host(host).act_window_s * 1000;
 
-    let status = ingest(&shared, event);
+    let (status, needs_origin) = ingest(&shared, event);
+    shared.resolve_origin(needs_origin, peer.0).await;
     if !hold || status != StatusCode::ACCEPTED {
         return status.into_response();
     }
@@ -443,10 +500,13 @@ async fn get_report_today(State(shared): State<Shared>) -> Response {
 /// Redact, filter, store, advance the state machine. The order matters:
 /// the level is resolved from the full event (it needs `cwd`), and
 /// nothing reaches the store before redaction and the level filter.
-fn ingest(shared: &Shared, mut event: Event) -> StatusCode {
+/// Returns the session key when its origin is still unknown, so the
+/// caller can resolve it while the host's connection is still open.
+fn ingest(shared: &Shared, mut event: Event) -> (StatusCode, Option<String>) {
+    let key = event.session_key();
     let mut app = shared.app.lock().unwrap();
     if !app.config.host_enabled(event.host) {
-        return StatusCode::NO_CONTENT;
+        return (StatusCode::NO_CONTENT, None);
     }
     let level = app.config.effective_level(event.host, event.cwd.as_deref());
     redact::event(&mut event);
@@ -460,7 +520,7 @@ fn ingest(shared: &Shared, mut event: Event) -> StatusCode {
     }
     if let Err(e) = app.store.insert_event(&event) {
         tracing::error!("store: {e}");
-        return StatusCode::INTERNAL_SERVER_ERROR;
+        return (StatusCode::INTERNAL_SERVER_ERROR, None);
     }
     if let Some((key, state)) = app.registry.apply(&event, now_ms()) {
         tracing::debug!("{key} -> {state:?}");
@@ -468,7 +528,8 @@ fn ingest(shared: &Shared, mut event: Event) -> StatusCode {
             tracing::error!("store: {e}");
         }
     }
-    StatusCode::ACCEPTED
+    let wants_origin = event.kind != Kind::SessionEnd && app.registry.origin(&key).is_none();
+    (StatusCode::ACCEPTED, wants_origin.then_some(key))
 }
 
 async fn tick_loop(app: Arc<Mutex<App>>) {

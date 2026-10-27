@@ -1,6 +1,7 @@
 //! All live sessions and their state machines, plus the combined view
 //! the desktop app renders.
 
+use crate::origin::Origin;
 use serde::Serialize;
 use sidepaw_core::{Event, Kind, Session, State};
 use std::collections::HashMap;
@@ -14,6 +15,8 @@ struct Entry {
     session: Session,
     /// Last path segment of `cwd`, present only when the level kept `cwd`.
     project: Option<String>,
+    /// The host process and its terminal, once resolved.
+    origin: Option<Origin>,
 }
 
 fn project_name(cwd: &str) -> Option<String> {
@@ -70,6 +73,10 @@ pub struct SessionView {
     /// Milliseconds since the host last reported anything for it.
     #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub quiet_ms: u64,
+    /// Present once the host process is known, so the UI can offer to
+    /// jump to its terminal.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<Origin>,
 }
 
 impl Snapshot {
@@ -94,11 +101,23 @@ impl Registry {
         let entry = self.sessions.entry(key.clone()).or_insert_with(|| Entry {
             session: Session::new(now_ms),
             project: None,
+            origin: None,
         });
         if let Some(name) = event.cwd.as_deref().and_then(project_name) {
             entry.project = Some(name);
         }
         entry.session.apply(event, now_ms).map(|s| (key, s))
+    }
+
+    pub fn origin(&self, key: &str) -> Option<&Origin> {
+        self.sessions.get(key).and_then(|e| e.origin.as_ref())
+    }
+
+    /// Ignored for a session that has already ended.
+    pub fn set_origin(&mut self, key: &str, origin: Origin) {
+        if let Some(e) = self.sessions.get_mut(key) {
+            e.origin = Some(origin);
+        }
     }
 
     /// Advance decay timers. Returns every change.
@@ -119,6 +138,7 @@ impl Registry {
                 state: e.session.state(),
                 for_ms: e.session.in_state_for(now_ms),
                 quiet_ms: now_ms.saturating_sub(e.session.last_event_ms()),
+                origin: e.origin.clone(),
             })
             .collect();
         sessions.sort_by_key(|s| (s.state != State::Waiting, s.quiet_ms, s.key.clone()));

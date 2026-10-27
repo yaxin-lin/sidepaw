@@ -49,7 +49,13 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
                 }
             }
             QUIT => app.exit(0),
-            _ => {}
+            id => {
+                if let Some(key) = id.strip_prefix("session:") {
+                    if let Err(e) = super::focus_by_key(&app.state::<Running>(), key) {
+                        tracing::warn!("focus {key}: {e}");
+                    }
+                }
+            }
         })
         .build(app)?;
     spawn_refresher(app.clone(), tray);
@@ -77,7 +83,7 @@ fn build_menu(
             app,
             id,
             session_line(s),
-            false,
+            s.origin.is_some(),
             None::<&str>,
         )?)?;
     }
