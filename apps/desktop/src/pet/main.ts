@@ -97,7 +97,7 @@ async function main() {
   await scheduler.start();
   const life = new DesktopLife(renderer, idle, bubble, canvas, jumpToWaiting);
   await life.attach();
-  new Roam(life, idle).start(() => latest);
+  new Roam(life, idle, () => void scheduler.say("hop")).start(() => latest);
   // What the app in front means for the pet: quiet in a meeting, a
   // little dance when music comes up.
   const appKind = () => categorize(life.world0()?.scene.front_app ?? null);

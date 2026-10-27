@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { airborne, atRest, type Bounds, floorFor, launch, ledges, step, support, velocityFrom } from "./physics";
+import { airborne, atRest, type Bounds, floorFor, HOP_HEIGHT, HOP_MAX, hopLift, hopTarget, ledges, step, support, velocityFrom } from "./physics";
 
 const bounds: Bounds = { minX: 0, maxX: 1000, minY: 0, maxY: 600, pet: { width: 100, height: 100 }, shelves: [] };
 
@@ -42,16 +42,14 @@ describe("ledges and support", () => {
   });
 });
 
-describe("launch", () => {
-  it("lands where it was aimed", () => {
-    const shelved: Bounds = { ...bounds, shelves: [{ x: 600, y: 300, width: 300, height: 300 }] };
-    const from = { x: 100, y: 500 };
-    const v = launch(from, 650, 200);
-    expect(v.vy).toBeLessThan(0);
-    let b = { ...from, vx: v.vx, vy: v.vy };
-    for (let i = 0; i < 300 && !atRest(b, shelved); i++) b = step(b, 1 / 60, shelved, true);
-    expect(b.y).toBe(200);
-    expect(Math.abs(b.x - 650)).toBeLessThan(20);
+describe("hop", () => {
+  it("is a small arc back to the same height, and stays in range", () => {
+    expect(hopLift(0)).toBe(0);
+    expect(hopLift(1)).toBe(0);
+    expect(hopLift(0.5)).toBe(HOP_HEIGHT);
+    expect(HOP_HEIGHT).toBeLessThanOrEqual(40);
+    expect(hopTarget(500, 400, { minX: 0, maxX: 1000 })).toBe(500 + HOP_MAX);
+    expect(hopTarget(500, -60, { minX: 480, maxX: 1000 })).toBe(480);
   });
 });
 

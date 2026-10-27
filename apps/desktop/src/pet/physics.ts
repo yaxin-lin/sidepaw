@@ -104,14 +104,6 @@ export function support(bounds: Bounds, x: number, y: number): { y: number; ledg
   return best;
 }
 
-/** A launch that lands at (`tx`, `ty`), an origin position, in about
- *  `t` seconds, rising first so it clears what is in between. */
-export function launch(from: { x: number; y: number }, tx: number, ty: number): { vx: number; vy: number; t: number } {
-  const dist = Math.hypot(tx - from.x, ty - from.y);
-  const t = Math.min(1.1, Math.max(0.55, 0.45 + dist / 1600));
-  return { vx: (tx - from.x) / t, vy: (ty - from.y - 0.5 * GRAVITY * t * t) / t, t };
-}
-
 export interface Body extends Velocity {
   x: number;
   y: number;
@@ -126,9 +118,7 @@ export const FLING_SPEED = 500;
 const REST_SPEED = 30;
 const SETTLE_VY = 200;
 
-/** `stick`: an aimed jump stops dead on its first landing instead of
- *  bouncing and sliding like a throw. */
-export function step(b: Body, dt: number, bounds: Bounds, stick = false): Body {
+export function step(b: Body, dt: number, bounds: Bounds): Body {
   let { x, y, vx, vy } = b;
   vy += GRAVITY * dt;
   x += vx * dt;
@@ -148,7 +138,6 @@ export function step(b: Body, dt: number, bounds: Bounds, stick = false): Body {
     vy = Math.abs(vy) * WALL_BOUNCE;
   } else if (y >= floor) {
     y = floor;
-    if (stick && vy > 0) return { x, y, vx: 0, vy: 0 };
     vy = vy > SETTLE_VY ? -vy * FLOOR_BOUNCE : 0;
     const slow = Math.min(Math.abs(vx), FLOOR_FRICTION * dt);
     vx -= Math.sign(vx) * slow;
@@ -162,4 +151,21 @@ export function airborne(b: Body, bounds: Bounds): boolean {
 
 export function atRest(b: Body, bounds: Bounds): boolean {
   return !airborne(b, bounds) && Math.abs(b.vx) < REST_SPEED && Math.abs(b.vy) < REST_SPEED;
+}
+
+export const HOP_HEIGHT = 34;
+export const HOP_MS = 380;
+export const HOP_MAX = 100;
+
+/** Height above the start, in logical pixels, `k` (0 to 1) through a
+ *  small hop: a parabola peaking at `HOP_HEIGHT` halfway. */
+export function hopLift(k: number): number {
+  return 4 * HOP_HEIGHT * k * (1 - k);
+}
+
+/** Where a sideways hop of `dx` may land: no further than `HOP_MAX`,
+ *  and inside `range` (the edge the pet stands on, or the floor). */
+export function hopTarget(x: number, dx: number, range: { minX: number; maxX: number }): number {
+  const d = Math.max(-HOP_MAX, Math.min(HOP_MAX, dx));
+  return Math.max(range.minX, Math.min(range.maxX, x + d));
 }

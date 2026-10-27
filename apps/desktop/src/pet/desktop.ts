@@ -10,7 +10,7 @@ import { Dock } from "./dock";
 import { t } from "../i18n";
 import type { IdleBehaviour } from "./idle";
 import { LOOP_MS, ROW } from "../pack";
-import { airborne, atRest, type Body, type Bounds, FLING_SPEED, launch, type Ledge, type Rect, type Sample, step, support, velocityFrom } from "./physics";
+import { airborne, atRest, type Body, type Bounds, FLING_SPEED, HOP_MS, hopLift, hopTarget, type Ledge, type Rect, type Sample, step, support, velocityFrom } from "./physics";
 import type { SpriteRenderer } from "./renderer";
 
 /** Mirrors `CursorRelative` in src-tauri/src/hit.rs: logical pixels
@@ -169,17 +169,35 @@ export class DesktopLife {
    *  your choosing still works. */
   private async fling(vx: number, vy: number) {
     const world = await this.world();
-    if (world) await this.fly(world, vx, vy, false);
+    if (world) await this.fly(world, vx, vy);
   }
 
-  /** Jump to stand at (`x`, `y`), an origin position in logical pixels,
-   *  landing there instead of sliding on. For the behaviour planner. */
-  async jumpTo(x: number, y: number): Promise<boolean> {
+  /** A small hop on the spot or a little to the side, landing on the
+   *  same edge it stood on. Returns false when the pet is busy. */
+  async hop(dx: number): Promise<boolean> {
     if (this.pressed || this.idle.hold || this.idle.isWalking() || this.dock.isParked()) return false;
     const world = await this.world();
     if (!world) return false;
-    const v = launch(world.pet, x, y);
-    await this.fly(world, v.vx, v.vy, true);
+    const { scale, pet, bounds } = world;
+    const edge = this.walkRange();
+    const range = edge ? { minX: edge.minX / scale, maxX: edge.maxX / scale } : { minX: bounds.minX, maxX: bounds.maxX };
+    const x1 = hopTarget(pet.x, dx, range);
+    this.idle.hold = true;
+    this.renderer.play(ROW.jumping, HOP_MS);
+    const t0 = performance.now();
+    await new Promise<void>((resolve) => {
+      const frame = async () => {
+        const k = Math.min(1, (performance.now() - t0) / HOP_MS);
+        const x = pet.x + (x1 - pet.x) * k;
+        const y = pet.y - hopLift(k);
+        await this.win.setPosition(new PhysicalPosition(Math.round(x * scale), Math.round(y * scale)));
+        if (k >= 1) resolve();
+        else requestAnimationFrame(() => void frame());
+      };
+      void frame();
+    });
+    this.renderer.stopOverride();
+    this.idle.hold = false;
     return true;
   }
 
@@ -199,7 +217,7 @@ export class DesktopLife {
     return this.lastWorld;
   }
 
-  private async fly(world: World, vx: number, vy: number, stick: boolean) {
+  private async fly(world: World, vx: number, vy: number) {
     const { bounds, scale } = world;
     let body: Body = { ...world.pet, vx, vy };
     this.riding = null;
@@ -211,7 +229,7 @@ export class DesktopLife {
       const frame = async (t: number) => {
         const dt = Math.min(0.05, (t - last) / 1000);
         last = t;
-        body = step(body, dt, bounds, stick);
+        body = step(body, dt, bounds);
         await this.win.setPosition(new PhysicalPosition(Math.round(body.x * scale), Math.round(body.y * scale)));
         if (!airborne(body, bounds)) this.renderer.stopOverride();
         if (atRest(body, bounds) || t - t0 > FLING_MAX_MS) resolve();

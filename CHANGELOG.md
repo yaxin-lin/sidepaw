@@ -113,11 +113,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   up a cursor that hovers, says a line (`drop`, falling back to
   `click`) when a file is dropped on it, and hides while the app in
   front is full screen. macOS and Windows; no OS permission is asked.
-- The pet gets around on its own: it rides the window it stands on
-  when you drag it, strolls only along the visible part of its top
-  edge, hops up onto the window you are working in now and then and
-  down or across again, jumps onto the terminal of a session that is
-  waiting for you, and curls up in a corner at night. It knows the
+- The pet moves on its own: it rides the window it stands on when you
+  drag it, strolls only along the visible part of its top edge, does a
+  small hop now and then with a line that invites you to click or
+  chat, and hops once when a session starts waiting. It knows the
   kind of app in front by name: quiet in Zoom, Teams, Tencent Meeting
   and FaceTime, a dance when music comes up, and now and then a line
   when you switch apps (Tray > Chattiness 3 and up).

@@ -103,8 +103,8 @@ three days of use.
 
 ## 0.6 It lives on the desktop
 
-Done: riding windows, roaming between them, going to the waiting
-session's terminal, a corner to sleep in, front-app reactions.
+Done: riding windows, small hops with inviting lines, a hop when a
+session starts waiting, front-app reactions.
 
 The permission-gated tier of item 9 (global input, screen reading),
 each behind its own switch, and Pack v2 art for looking at the cursor.

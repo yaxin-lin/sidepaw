@@ -104,12 +104,29 @@ export class Scheduler {
     }
   }
 
-  private async evaluate(snap: Snapshot, due: TriggerId[], now: number) {
+  /** A line for something the pet did itself (a hop), through the same
+   *  gate as every unprompted line. */
+  async say(id: "hop") {
+    if (this.evaluating) return;
+    this.evaluating = true;
+    try {
+      const now = Date.now();
+      const gate = this.gate(now);
+      if (!mayFire(id, { ...gate, stat: this.stats.get(id) })) return;
+      const line = this.lines().pick([id, "click"]);
+      if (line === null) return;
+      if (!this.bubble.nudge(line, (answered) => void this.react(id, answered, this.onAnswer))) return;
+      this.spoken.push(now);
+      await this.record(id, "fired", TRIGGERS[id].baseS);
+    } finally {
+      this.evaluating = false;
+    }
+  }
+
+  private gate(now: number): Omit<Gate, "stat"> {
     const d = new Date(now);
-    if (now - this.lastEval < EVAL_MS && !due.some((id) => TRIGGERS[id].needsYou)) return;
-    this.lastEval = now;
     this.spoken = this.spoken.filter((t) => now - t < 3600_000);
-    const gate: Omit<Gate, "stat"> = {
+    return {
       chatty: this.chatty,
       dnd: this.dnd,
       quiet: inQuietHours(this.quiet.from, this.quiet.to, d),
@@ -120,6 +137,12 @@ export class Scheduler {
       lastHour: this.spoken.length,
       dayOf: (iso) => localDay(new Date(iso)),
     };
+  }
+
+  private async evaluate(snap: Snapshot, due: TriggerId[], now: number) {
+    if (now - this.lastEval < EVAL_MS && !due.some((id) => TRIGGERS[id].needsYou)) return;
+    this.lastEval = now;
+    const gate = this.gate(now);
     for (const id of due) {
       if (!mayFire(id, { ...gate, stat: this.stats.get(id) })) continue;
       // Small talk is a chance, not a schedule.

@@ -28,6 +28,7 @@ export const LINE_KEYS: ReadonlyArray<{ key: string; when: string }> = [
   { key: "break", when: "the user has worked for two hours without a pause; suggest a short break" },
   { key: "back", when: "the user just came back after being away for a while" },
   { key: "chatter", when: "nothing in particular is happening; idle small talk in character" },
+  { key: "hop", when: "you just did a little hop on your own; say something short that invites the user to click you or chat" },
   { key: "app.terminal", when: "the user just switched to a terminal" },
   { key: "app.editor", when: "the user just switched to a code editor" },
   { key: "app.browser", when: "the user just switched to a web browser (maybe to look something up, maybe not)" },

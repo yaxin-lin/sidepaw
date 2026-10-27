@@ -7,7 +7,7 @@ import type { SessionView } from "../generated/SessionView";
 import type { State } from "../generated/State";
 import type { TriggerStat } from "../generated/TriggerStat";
 
-export type TriggerId = "waiting_long" | "errors" | "long_done" | "report" | "morning" | "night" | "break" | "back" | "app" | "chatter";
+export type TriggerId = "waiting_long" | "errors" | "long_done" | "report" | "morning" | "night" | "break" | "back" | "app" | "hop" | "chatter";
 
 export interface TriggerDef {
   /** The lowest chattiness (0 to 5) at which it may fire. */
@@ -33,6 +33,8 @@ export const TRIGGERS: Record<TriggerId, TriggerDef> = {
   back: { chatty: 3, baseS: 3600 },
   /** Switching to a kind of app (`app` in the observation). */
   app: { chatty: 3, baseS: 900 },
+  /** A line with one of the pet's own small hops (`pet/roam.ts`). */
+  hop: { chatty: 2, baseS: 240 },
   chatter: { chatty: 4, baseS: 1200 },
 };
 
