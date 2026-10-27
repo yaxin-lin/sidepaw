@@ -4,6 +4,7 @@ import type { Report } from "../generated/Report";
 import { applyToDom, initLang, onLangChange, setLang, t, type Key } from "../i18n";
 import type { UiLanguage } from "../generated/UiLanguage";
 import { el, note } from "./dom";
+import { mountCli } from "./cli";
 import { mountModel } from "./model";
 import { mountPet } from "./pet";
 import { renderAudit } from "./audit";
@@ -137,6 +138,7 @@ async function main() {
   });
   el("cc-install").addEventListener("click", () => void run("host_install", t("cc.written")));
   el("cc-remove").addEventListener("click", () => void run("host_remove", t("cc.removed")));
+  await mountCli();
   await mountModel();
   await mountPet();
   await renderAudit();

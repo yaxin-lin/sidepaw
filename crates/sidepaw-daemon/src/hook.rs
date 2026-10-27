@@ -9,7 +9,8 @@
 
 use crate::home::DaemonState;
 use anyhow::{bail, Result};
-use sidepaw_core::Host;
+use serde::Serialize;
+use sidepaw_core::{Event, Host};
 use std::io::Read;
 
 pub fn forward_stdin(host: Host) -> Result<()> {
@@ -22,15 +23,23 @@ pub fn forward_stdin(host: Host) -> Result<()> {
             return Ok(());
         }
     };
+    post(&format!("/v1/native/{}", host.as_str()), &payload);
+    Ok(())
+}
+
+/// Post a unified event; used by `sidepaw run`.
+pub fn post_event(event: &Event) {
+    post("/v1/events", event);
+}
+
+/// Best effort: a missing or unreachable app is logged and ignored,
+/// because whatever called us must carry on either way.
+fn post(path: &str, body: &impl Serialize) {
     let state = match DaemonState::load() {
         Ok(s) => s,
-        Err(_) => return Ok(()), // daemon not running; nothing to do
+        Err(_) => return, // the app is not running; nothing to do
     };
-    let url = format!(
-        "http://127.0.0.1:{}/v1/native/{}",
-        state.port,
-        host.as_str()
-    );
+    let url = format!("http://127.0.0.1:{}{path}", state.port);
     // The target is always loopback. ureq would otherwise honour
     // HTTP_PROXY, and a local proxy (Clash, Surge, ...) that refuses or
     // mangles localhost traffic would silently eat every event.
@@ -42,11 +51,12 @@ pub fn forward_stdin(host: Host) -> Result<()> {
     let result = agent
         .post(&url)
         .header("Authorization", &format!("Bearer {}", state.token))
-        .send_json(&payload);
+        .send_json(body);
+    // Debug, not warn: with the app closed every wrapped command and
+    // hook would otherwise print this into someone's terminal.
     if let Err(e) = result {
-        tracing::warn!("could not reach daemon: {e}");
+        tracing::debug!("could not reach the app: {e}");
     }
-    Ok(())
 }
 
 pub fn install_snippet(host: Host) -> Result<String> {

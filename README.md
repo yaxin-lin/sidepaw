@@ -71,6 +71,9 @@ in comes to the front (the exact tab in Terminal.app or iTerm2, else
 the app's window); the tray lists every session and clicking one does
 the same.
 
+Other tools: put `sidepaw run --` in front of any command, or post
+events from a hook or plugin. See [docs/integrations.md](docs/integrations.md).
+
 The pet talks from `lines.json` in its pack, so nothing needs a model.
 To give it a personality of your own, the setup window has a persona
 editor (sliders, tags, free text) and, once a model provider is

@@ -26,7 +26,9 @@ toggles for do-not-disturb, mini mode, size and start at login.
    system language; packs may ship `lines.<lang>.json`.
 6. Done: model provider, persona editor, generated `lines.json`, with
    preview before send and audit rows.
-7. Codex adapter and `sidepaw run -- <cmd>`.
+7. Codex adapter. Done: `sidepaw run -- <cmd>`, the installed app as
+   the CLI with a setup button to put it on PATH, and
+   docs/integrations.md for tools that post events themselves.
 8. One pet per project.
 9. Desktop life. Done: throw it (fling physics, bounces off the work
    area), it steps away from a cursor that lingers beside it and sizes

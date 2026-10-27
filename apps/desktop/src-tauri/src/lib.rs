@@ -14,6 +14,7 @@ mod update;
 use hit::{HitMask, Mask};
 use sidepaw_core::event::UnknownHost;
 use sidepaw_core::{Host, Level};
+use sidepaw_daemon::command;
 use sidepaw_daemon::config::{ModelConfig, PetPrefs, UiLanguage};
 use sidepaw_daemon::install::{self, Report};
 use sidepaw_daemon::pets;
@@ -197,6 +198,25 @@ fn cursor_relative(app: AppHandle, window: tauri::WebviewWindow) -> Option<hit::
     hit::cursor_relative(&app, &window)
 }
 
+fn exe() -> Result<std::path::PathBuf, String> {
+    std::env::current_exe().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn command_status() -> Result<command::CommandLink, String> {
+    command::status(&exe()?).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn command_install() -> Result<command::CommandLink, String> {
+    command::install(&exe()?).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn command_remove() -> Result<command::CommandLink, String> {
+    command::remove(&exe()?).map_err(|e| e.to_string())
+}
+
 /// Bring the terminal of a session to the front.
 #[tauri::command]
 fn focus_session(server: State<'_, Running>, key: String) -> Result<(), String> {
@@ -332,6 +352,9 @@ pub fn run() {
             cursor_relative,
             scene,
             focus_session,
+            command_status,
+            command_install,
+            command_remove,
             open_setup,
             open_chat
         ])

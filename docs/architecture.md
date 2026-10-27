@@ -13,7 +13,8 @@ built in is in [roadmap.md](roadmap.md).
 | `sidepaw-core`: event, state machine, permission filter, pack manifest | built, tested |
 | `sidepaw-daemon`: HTTP ingest, SQLite store, redactor, `hook` shim | built, tested |
 | Claude Code adapter | built, hand-written fixtures |
-| Other host adapters | planned |
+| Any tool: `sidepaw run -- <cmd>` and `POST /v1/events` (docs/integrations.md) | built |
+| Other built-in host adapters | planned |
 | `config.toml`, per-host and per-project permission levels, `raw` size cap | built (0.3) |
 | SSE state stream | not needed in-process; `GET /v1/state` snapshot stays for the headless path |
 | System notifications (level 3+), level picker in the setup window | built |
@@ -125,6 +126,12 @@ SQLite and the adapters.
   `lsof`, `ss` or `netstat` once per session, before the reply closes
   the connection
 - `home`: the data directory and `state.json` (port and token)
+- `cli`: the command line, run by the `sidepaw` binary and by the
+  desktop executable when started with a subcommand, so the installed
+  app is the CLI too
+- `run`: `sidepaw run -- <cmd>` wraps a command in events (host
+  `wrapped`) and passes its exit status through
+- `command`: links the executable onto PATH as `sidepaw`
 - `hook`: `sidepaw hook --host <h>` reads one native payload from
   stdin and posts it, so users never install a script;
   `sidepaw install --host <h>` prints the hook snippet

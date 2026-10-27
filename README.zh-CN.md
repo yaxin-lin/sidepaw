@@ -62,6 +62,9 @@ pnpm --filter sidepaw-desktop tauri dev # 启动桌宠窗口
 agent 等你批准时点一下宠物，它所在的终端就会到最前面（Terminal.app 和
 iTerm2 精确到标签页，其他程序切到窗口）；托盘里列出的会话点一下也一样。
 
+其他工具：在任意命令前加 `sidepaw run --`，或者从 hook、插件里直接发事件，
+见 [docs/integrations.md](docs/integrations.md)。
+
 宠物的台词来自素材包里的 `lines.json`，不需要模型。想要自己的人格，设置
 窗口里有人格编辑器（滑块、标签、自由文本）；配好模型服务商后（DeepSeek、
 OpenAI、Anthropic、Ollama 或任意 OpenAI 兼容地址，key 存系统钥匙串），

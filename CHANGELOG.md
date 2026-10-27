@@ -108,6 +108,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   up a cursor that hovers, says a line (`drop`, falling back to
   `click`) when a file is dropped on it, and hides while the app in
   front is full screen. macOS and Windows; no OS permission is asked.
+- `sidepaw run -- <command>`: the pet shows any command as busy, then
+  done, failed or interrupted; the exit status is passed through. The
+  installed app is the CLI (it runs it when started with a
+  subcommand), and Setup > Command line puts it on PATH.
+  `docs/integrations.md` explains posting events from any tool.
 - Tray toggles: Do Not Disturb (no notifications or unprompted lines;
   clicks and permission prompts still work), Mini Mode (the pet parks
   at the right screen edge and slides out on hover or when an agent

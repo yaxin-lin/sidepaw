@@ -5,7 +5,9 @@
 //! exposes the same code as a headless daemon and as the hook shim.
 
 pub mod adapters;
+pub mod cli;
 pub mod clock;
+pub mod command;
 pub mod config;
 pub mod home;
 pub mod hook;
@@ -14,6 +16,7 @@ pub mod origin;
 pub mod pets;
 pub mod redact;
 pub mod registry;
+pub mod run;
 pub mod secret;
 pub mod server;
 pub mod store;
