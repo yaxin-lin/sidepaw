@@ -11,6 +11,8 @@ import { activePack, FALLBACK_PACK } from "../brain/files";
 import { loadLines, loadPack, LOOP_MS, type Pack, ROW } from "../pack";
 import { label as describe } from "./label";
 import { SpriteRenderer } from "./renderer";
+import { categorize } from "./apps";
+import { Roam } from "./roam";
 import { Scheduler } from "./scheduler";
 
 const POLL_MS = 500;
@@ -95,6 +97,12 @@ async function main() {
   await scheduler.start();
   const life = new DesktopLife(renderer, idle, bubble, canvas, jumpToWaiting);
   await life.attach();
+  new Roam(life, idle).start(() => latest);
+  // What the app in front means for the pet: quiet in a meeting, a
+  // little dance when music comes up.
+  const appKind = () => categorize(life.world0()?.scene.front_app ?? null);
+  scheduler.appKind = appKind;
+  let lastApp: string | null = null;
 
   // Size is applied on the Rust side (window and zoom together); this
   // window carries out do-not-disturb and mini mode. See prefs.rs.
@@ -142,6 +150,12 @@ async function main() {
         });
       } else {
         bubble.clearApproval();
+      }
+      const app = appKind();
+      bubble.quiet = prefs.dnd || app === "meeting";
+      if (app !== lastApp) {
+        if (app === "music" && idle.isIdle()) renderer.play(ROW.waving, 3 * LOOP_MS);
+        lastApp = app;
       }
       bubble.onState(snap.overall);
       idle.onState(snap.overall);

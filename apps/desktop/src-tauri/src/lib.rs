@@ -394,6 +394,17 @@ fn focus_session(server: State<'_, Running>, key: String) -> Result<(), String> 
     focus_by_key(&server, &key)
 }
 
+/// The processes whose windows can belong to a session: its own and
+/// its ancestors'. Empty while the session's process is unknown.
+#[tauri::command]
+fn session_pids(server: State<'_, Running>, key: String) -> Vec<u32> {
+    server
+        .shared
+        .session_origin(&key)
+        .map(|o| terminal::lineage(&o))
+        .unwrap_or_default()
+}
+
 pub(crate) fn focus_by_key(server: &Running, key: &str) -> Result<(), String> {
     let origin = server
         .shared
@@ -577,6 +588,7 @@ pub fn run() {
             cursor_relative,
             scene,
             focus_session,
+            session_pids,
             command_status,
             command_install,
             command_remove,

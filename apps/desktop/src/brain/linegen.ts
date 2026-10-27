@@ -28,6 +28,12 @@ export const LINE_KEYS: ReadonlyArray<{ key: string; when: string }> = [
   { key: "break", when: "the user has worked for two hours without a pause; suggest a short break" },
   { key: "back", when: "the user just came back after being away for a while" },
   { key: "chatter", when: "nothing in particular is happening; idle small talk in character" },
+  { key: "app.terminal", when: "the user just switched to a terminal" },
+  { key: "app.editor", when: "the user just switched to a code editor" },
+  { key: "app.browser", when: "the user just switched to a web browser (maybe to look something up, maybe not)" },
+  { key: "app.music", when: "the user just put on music; you like it" },
+  { key: "app.video", when: "the user just started watching a video" },
+  { key: "app.chat", when: "the user just switched to a chat app" },
   { key: "offer_level", when: "asking once whether the user will let you read error messages (permission level 2) so you can explain failures; end by telling them to click you" },
 ];
 
@@ -47,8 +53,8 @@ export function linesRequest(systemPrompt: string): Request {
     "",
     `Reply with one JSON object only, no prose and no code fence: the keys above, each an array of ${LINES_PER_KEY} strings.`,
   ].join("\n");
-  // 22 keys by 30 lines at roughly 25 tokens each is about 17k tokens.
-  return { purpose: "lines", system: systemPrompt, user, maxTokens: 24000 };
+  // 29 keys by 30 lines at roughly 25 tokens each is about 22k tokens.
+  return { purpose: "lines", system: systemPrompt, user, maxTokens: 32000 };
 }
 
 /** Takes what a model returns, including fences or prose around the

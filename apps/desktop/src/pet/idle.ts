@@ -12,6 +12,9 @@ export class IdleBehaviour {
   private state: State["state"] = "idle";
   /** Set while something else moves the window (a throw). */
   hold = false;
+  /** Physical x range the pet may walk in right now, when it stands
+   *  on a window: walks stay on that window's visible edge. */
+  limits: (() => { minX: number; maxX: number } | null) | null = null;
 
   constructor(
     private renderer: SpriteRenderer,
@@ -67,8 +70,10 @@ export class IdleBehaviour {
     const scale = monitor.scaleFactor;
     const start = await win.outerPosition();
     const size = await win.outerSize();
-    const minX = monitor.workArea.position.x;
-    const maxX = monitor.workArea.position.x + monitor.workArea.size.width - size.width;
+    const edge = this.limits?.() ?? null;
+    const minX = Math.max(monitor.workArea.position.x, edge?.minX ?? -Infinity);
+    const maxX = Math.min(monitor.workArea.position.x + monitor.workArea.size.width - size.width, edge?.maxX ?? Infinity);
+    if (maxX - minX < 20 * scale) return;
 
     let dir: -1 | 1 = opts.dir ?? (this.random() < 0.5 ? -1 : 1);
     const distance = (opts.distance ?? 40 + this.random() * 80) * scale;

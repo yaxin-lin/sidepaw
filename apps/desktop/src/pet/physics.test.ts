@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { airborne, atRest, type Bounds, floorFor, step, velocityFrom } from "./physics";
+import { airborne, atRest, type Bounds, floorFor, launch, ledges, step, support, velocityFrom } from "./physics";
 
 const bounds: Bounds = { minX: 0, maxX: 1000, minY: 0, maxY: 600, pet: { width: 100, height: 100 }, shelves: [] };
 
@@ -18,6 +18,40 @@ describe("velocityFrom", () => {
   it("reads a still or too-short tail as no throw", () => {
     expect(velocityFrom([{ t: 0, x: 0, y: 0 }])).toEqual({ vx: 0, vy: 0 });
     expect(velocityFrom([{ t: 0, x: 0, y: 0 }, { t: 5, x: 90, y: 0 }])).toEqual({ vx: 0, vy: 0 });
+  });
+});
+
+describe("ledges and support", () => {
+  it("keeps only the visible part of each top edge", () => {
+    // A front window covers the middle of the top edge of the one behind.
+    const front = { x: 300, y: 100, width: 200, height: 400, id: 1 };
+    const back = { x: 100, y: 200, width: 600, height: 300, id: 2 };
+    expect(ledges([front, back])).toEqual([
+      { x1: 300, x2: 500, y: 100, id: 1 },
+      { x1: 100, x2: 300, y: 200, id: 2 },
+      { x1: 500, x2: 700, y: 200, id: 2 },
+    ]);
+    // A window below the edge does not hide it.
+    expect(ledges([{ x: 0, y: 300, width: 900, height: 100 }, back])).toHaveLength(2);
+  });
+
+  it("says which ledge holds the pet", () => {
+    const b: Bounds = { ...bounds, shelves: [{ x: 200, y: 300, width: 400, height: 300, id: 7 }] };
+    expect(support(b, 300, 0)).toEqual({ y: 200, ledge: { x1: 200, x2: 600, y: 300, id: 7 } });
+    expect(support(b, 800, 0).ledge).toBeNull();
+  });
+});
+
+describe("launch", () => {
+  it("lands where it was aimed", () => {
+    const shelved: Bounds = { ...bounds, shelves: [{ x: 600, y: 300, width: 300, height: 300 }] };
+    const from = { x: 100, y: 500 };
+    const v = launch(from, 650, 200);
+    expect(v.vy).toBeLessThan(0);
+    let b = { ...from, vx: v.vx, vy: v.vy };
+    for (let i = 0; i < 300 && !atRest(b, shelved); i++) b = step(b, 1 / 60, shelved, true);
+    expect(b.y).toBe(200);
+    expect(Math.abs(b.x - 650)).toBeLessThan(20);
   });
 });
 

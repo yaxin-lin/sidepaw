@@ -32,6 +32,40 @@ export interface Rect {
   y: number;
   width: number;
   height: number;
+  /** The window's id, when it is one; see `Shelf` in shelf.rs. */
+  id?: number;
+}
+
+/** The part of a window's top edge nothing in front of it covers: what
+ *  the pet can actually be seen standing on. */
+export interface Ledge {
+  x1: number;
+  x2: number;
+  y: number;
+  id?: number;
+}
+
+const LEDGE_MIN = 40;
+
+/** Visible top edges of `shelves`, which come front to back. A window
+ *  hidden behind another is not a place to stand, even where its frame
+ *  would be. */
+export function ledges(shelves: Rect[]): Ledge[] {
+  const out: Ledge[] = [];
+  shelves.forEach((s, i) => {
+    let parts: [number, number][] = [[s.x, s.x + s.width]];
+    for (const f of shelves.slice(0, i)) {
+      if (!(f.y <= s.y && s.y < f.y + f.height)) continue;
+      const a = f.x;
+      const b = f.x + f.width;
+      parts = parts.flatMap(([p, q]): [number, number][] => {
+        if (b <= p || a >= q) return [[p, q]];
+        return ([[p, Math.min(a, q)], [Math.max(b, p), q]] as [number, number][]).filter(([u, v]) => v - u > 0);
+      });
+    }
+    for (const [x1, x2] of parts) if (x2 - x1 >= LEDGE_MIN) out.push({ x1, x2, y: s.y, id: s.id });
+  });
+  return out;
 }
 
 /** Where the window's origin may go: the work area minus the window,
@@ -51,16 +85,31 @@ export interface Bounds {
  *  work area's floor. A window whose top is above the pet's feet is
  *  around the pet, not under it, and does not count. */
 export function floorFor(bounds: Bounds, x: number, y: number): number {
+  return support(bounds, x, y).y;
+}
+
+/** Where the pet would rest from here and on what: the highest visible
+ *  ledge under it that it overlaps by a third of its width, else the
+ *  work area's floor (`ledge` null). */
+export function support(bounds: Bounds, x: number, y: number): { y: number; ledge: Ledge | null } {
   const { width, height } = bounds.pet;
-  let floor = bounds.maxY;
-  for (const s of bounds.shelves) {
-    const overlap = Math.min(x + width, s.x + s.width) - Math.max(x, s.x);
+  let best: { y: number; ledge: Ledge | null } = { y: bounds.maxY, ledge: null };
+  for (const l of ledges(bounds.shelves)) {
+    const overlap = Math.min(x + width, l.x2) - Math.max(x, l.x1);
     if (overlap < width / 3) continue;
-    const top = s.y - height;
-    if (top < y - 1) continue;
-    floor = Math.min(floor, top);
+    const top = l.y - height;
+    if (top < y - 1 || top >= best.y) continue;
+    best = { y: top, ledge: l };
   }
-  return floor;
+  return best;
+}
+
+/** A launch that lands at (`tx`, `ty`), an origin position, in about
+ *  `t` seconds, rising first so it clears what is in between. */
+export function launch(from: { x: number; y: number }, tx: number, ty: number): { vx: number; vy: number; t: number } {
+  const dist = Math.hypot(tx - from.x, ty - from.y);
+  const t = Math.min(1.1, Math.max(0.55, 0.45 + dist / 1600));
+  return { vx: (tx - from.x) / t, vy: (ty - from.y - 0.5 * GRAVITY * t * t) / t, t };
 }
 
 export interface Body extends Velocity {
@@ -77,7 +126,9 @@ export const FLING_SPEED = 500;
 const REST_SPEED = 30;
 const SETTLE_VY = 200;
 
-export function step(b: Body, dt: number, bounds: Bounds): Body {
+/** `stick`: an aimed jump stops dead on its first landing instead of
+ *  bouncing and sliding like a throw. */
+export function step(b: Body, dt: number, bounds: Bounds, stick = false): Body {
   let { x, y, vx, vy } = b;
   vy += GRAVITY * dt;
   x += vx * dt;
@@ -97,6 +148,7 @@ export function step(b: Body, dt: number, bounds: Bounds): Body {
     vy = Math.abs(vy) * WALL_BOUNCE;
   } else if (y >= floor) {
     y = floor;
+    if (stick && vy > 0) return { x, y, vx: 0, vy: 0 };
     vy = vy > SETTLE_VY ? -vy * FLOOR_BOUNCE : 0;
     const slow = Math.min(Math.abs(vx), FLOOR_FRICTION * dt);
     vx -= Math.sign(vx) * slow;

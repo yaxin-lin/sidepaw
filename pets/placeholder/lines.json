@@ -23,5 +23,11 @@
   "break": ["Two hours straight. Stretch?", "Water break?", "Your eyes would like a minute."],
   "back": ["Oh, you're back.", "Welcome back. Nothing exploded.", "There you are."],
   "chatter": ["Quiet day.", "I counted the pixels on this screen. Twice.", "Is it snack time yet?"],
+  "app.terminal": ["Back to the terminal.", "Terminal time. I'll watch."],
+  "app.editor": ["Editing by hand? Brave.", "Ooh, real typing."],
+  "app.browser": ["Looking something up, or just looking?", "Don't get lost in tabs."],
+  "app.music": ["Music! I'm dancing.", "Good song. Probably."],
+  "app.video": ["Are we watching something?", "I'll pretend not to look."],
+  "app.chat": ["Say hi from me.", "Chatting while it works. Efficient."],
   "offer_level": ["I could read the error messages and tell you why things fail. Want to give me level 2? Click me."]
 }

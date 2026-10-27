@@ -25,6 +25,8 @@ built in is in [roadmap.md](roadmap.md).
 | Idle behaviour: walks, dozing, click hop | built |
 | Desktop life: fling physics, flinch from a near cursor, hover look, file drop | built, no OS permissions |
 | Window awareness: lands on other apps' windows, falls when they go, hides behind a full-screen app | built (macOS, Windows); Linux has no window list |
+| Roaming: rides the window it stands on, stays on its visible edge, hops onto the front window and off again, goes to the terminal of a waiting session, sleeps in a corner at night | built |
+| Front app: quiet in meetings, a dance for music, gated lines on switching to a kind of app | built (names only, no permission) |
 | Jump to a session's terminal: click the pet while it waits, or the session in the tray | built (macOS: exact Terminal.app or iTerm2 tab, else the host app; Windows: the host's window) |
 | Speech bubble with local lines from the pack | built (0.4) |
 | Persona compiler (sliders, tags, free text to system prompt), persona editor in the setup window | built (0.4) |
@@ -234,6 +236,22 @@ in the bubble; clicks and permission prompts still answer. Mini mode
 is `pet/dock.ts`: the pet parks at the right edge with 40 % showing,
 slides out when the cursor reaches it or a session waits, and tucks
 back in after a moment. Start at login is `tauri-plugin-autostart`.
+
+`shelf.rs` also gives each window its id and owning process and names
+the app in front (bundle id on macOS, executable on Windows). Only the
+visible part of each window's top edge is a ledge (`physics.ledges`):
+an edge hidden behind a window in front is not somewhere to stand.
+While the pet stands on a ledge it moves with that window when it is
+dragged, and its strolls stay on that ledge. `pet/roam.ts` plans where
+it goes on its own every second and a half: up to the window of a
+session that waits for the user (its process or an ancestor's, from
+`session_pids`), now and then up onto the front window or down again
+or across to a neighbouring one, and to the bottom right corner once a
+night; jumps are aimed (`physics.launch`) and stick their landing.
+`pet/apps.ts` sorts the front app into a few kinds: a meeting app
+keeps the pet quiet as quiet hours would, music gets a little dance,
+and switching to a kind can get an `app.<kind>` line through the
+proactive gate.
 
 Click-through works per pixel: after each drawn frame the renderer
 sends a 4 by 4 logical-pixel opacity mask to Rust (`hit.rs`), and a

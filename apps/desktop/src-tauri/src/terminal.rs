@@ -10,6 +10,12 @@ pub fn focus(origin: &Origin) -> Result<(), String> {
     imp::focus(origin)
 }
 
+/// The session's process and its ancestors, nearest first: whichever of
+/// them owns a window is the window the session runs in.
+pub fn lineage(origin: &Origin) -> Vec<u32> {
+    imp::lineage(origin.pid)
+}
+
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 const NO_WINDOW: &str = "no window found for the session's terminal";
 
@@ -127,6 +133,10 @@ return "false""#
         Err(NO_WINDOW.into())
     }
 
+    pub fn lineage(pid: u32) -> Vec<u32> {
+        std::iter::once(pid).chain(ancestors(pid)).collect()
+    }
+
     pub fn focus(origin: &Origin) -> Result<(), String> {
         if let Some(tty) = &origin.tty {
             let dev = format!("/dev/{tty}");
@@ -202,10 +212,10 @@ mod imp {
         BOOL(1)
     }
 
-    pub fn focus(origin: &Origin) -> Result<(), String> {
+    pub fn lineage(pid: u32) -> Vec<u32> {
         let parents = parents();
-        let mut pids = vec![origin.pid];
-        let mut cur = origin.pid;
+        let mut pids = vec![pid];
+        let mut cur = pid;
         for _ in 0..12 {
             match parents.get(&cur) {
                 Some(&p) if p > 0 && p != cur => {
@@ -215,6 +225,11 @@ mod imp {
                 _ => break,
             }
         }
+        pids
+    }
+
+    pub fn focus(origin: &Origin) -> Result<(), String> {
+        let pids = lineage(origin.pid);
         let mut find = Find { pids, best: None };
         let _ = unsafe { EnumWindows(Some(visit), LPARAM(&mut find as *mut Find as isize)) };
         let Some((_, hwnd)) = find.best else {
@@ -237,5 +252,9 @@ mod imp {
 
     pub fn focus(_origin: &Origin) -> Result<(), String> {
         Err("jumping to the terminal is not supported on Linux yet".into())
+    }
+
+    pub fn lineage(pid: u32) -> Vec<u32> {
+        vec![pid]
     }
 }

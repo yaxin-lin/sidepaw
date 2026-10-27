@@ -18,6 +18,20 @@ pub struct Shelf {
     pub height: f64,
     /// Belongs to the app in front.
     pub front: bool,
+    /// Stable while the window lives, so the pet can tell that the
+    /// window under it moved rather than that another one appeared.
+    pub id: u64,
+    /// The owning process, to find the window of a waiting session.
+    pub pid: u32,
+}
+
+/// The app in front, by name only: enough to tell a meeting from a
+/// music player, nothing about what is in it.
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct FrontApp {
+    pub name: String,
+    /// The bundle id on macOS, the executable's file name on Windows.
+    pub id: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
@@ -26,6 +40,7 @@ pub struct Scene {
     pub shelves: Vec<Shelf>,
     /// The app in front covers a whole display.
     pub fullscreen: bool,
+    pub front_app: Option<FrontApp>,
 }
 
 /// `scale` turns the platform's window units into the pet window's
@@ -41,7 +56,7 @@ const MIN_SIDE: f64 = 40.0;
 
 #[cfg(target_os = "macos")]
 mod imp {
-    use super::{Scene, Shelf, MIN_SIDE};
+    use super::{FrontApp, Scene, Shelf, MIN_SIDE};
     use core_foundation::base::{CFType, TCFType};
     use core_foundation::dictionary::{CFDictionary, CFDictionaryRef};
     use core_foundation::number::CFNumber;
@@ -61,9 +76,17 @@ mod imp {
             .to_f64()
     }
 
-    fn front_pid() -> Option<f64> {
+    fn front() -> Option<(f64, FrontApp)> {
         let app = NSWorkspace::sharedWorkspace().frontmostApplication()?;
-        Some(app.processIdentifier() as f64)
+        let name = app
+            .localizedName()
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+        let id = app
+            .bundleIdentifier()
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+        Some((app.processIdentifier() as f64, FrontApp { name, id }))
     }
 
     fn covers_a_display(displays: &[CGRect], x: f64, y: f64, w: f64, h: f64) -> bool {
@@ -80,7 +103,8 @@ mod imp {
         ) else {
             return scene;
         };
-        let front = front_pid();
+        let (front, front_app) = front().unzip();
+        scene.front_app = front_app;
         let me = std::process::id() as f64;
         let displays: Vec<CGRect> = CGDisplay::active_displays()
             .unwrap_or_default()
@@ -127,6 +151,8 @@ mod imp {
                 width: w * scale,
                 height: h * scale,
                 front: is_front,
+                id: number(&dict, "kCGWindowNumber").unwrap_or(0.0) as u64,
+                pid: pid.unwrap_or(0.0) as u32,
             });
         }
         scene
@@ -135,14 +161,18 @@ mod imp {
 
 #[cfg(target_os = "windows")]
 mod imp {
-    use super::{Scene, Shelf, MIN_SIDE};
-    use windows::core::BOOL;
+    use super::{FrontApp, Scene, Shelf, MIN_SIDE};
+    use windows::core::{BOOL, PWSTR};
     use windows::Win32::Foundation::{HWND, LPARAM, RECT};
     use windows::Win32::Graphics::Dwm::{
         DwmGetWindowAttribute, DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS,
     };
     use windows::Win32::Graphics::Gdi::{
         GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+    };
+    use windows::Win32::System::Threading::{
+        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
+        PROCESS_QUERY_LIMITED_INFORMATION,
     };
     use windows::Win32::UI::WindowsAndMessaging::{
         EnumWindows, GetForegroundWindow, GetWindowLongPtrW, GetWindowThreadProcessId, IsIconic,
@@ -230,8 +260,30 @@ mod imp {
             width: w,
             height: h,
             front,
+            id: hwnd.0 as usize as u64,
+            pid,
         });
         BOOL(1)
+    }
+
+    /// The executable's file name, `Zoom.exe`; Windows has no cheap
+    /// display name, so it serves as both.
+    fn exe_name(pid: u32) -> Option<String> {
+        let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }.ok()?;
+        let mut buf = [0u16; 512];
+        let mut len = buf.len() as u32;
+        let ok = unsafe {
+            QueryFullProcessImageNameW(
+                process,
+                PROCESS_NAME_WIN32,
+                PWSTR(buf.as_mut_ptr()),
+                &mut len,
+            )
+        };
+        let _ = unsafe { windows::Win32::Foundation::CloseHandle(process) };
+        ok.ok()?;
+        let path = String::from_utf16_lossy(&buf[..len as usize]);
+        path.rsplit('\\').next().map(str::to_owned)
     }
 
     pub fn scene(_scale: f64) -> Scene {
@@ -243,6 +295,12 @@ mod imp {
         // EnumWindows walks top to bottom in z-order, which is the order
         // the scene promises.
         let _ = unsafe { EnumWindows(Some(visit), LPARAM(&mut walk as *mut Walk as isize)) };
+        let mut pid = 0u32;
+        unsafe { GetWindowThreadProcessId(walk.front, Some(&mut pid)) };
+        walk.scene.front_app = exe_name(pid).map(|exe| FrontApp {
+            name: exe.trim_end_matches(".exe").to_owned(),
+            id: exe,
+        });
         walk.scene
     }
 }
@@ -268,7 +326,7 @@ mod tests {
     #[ignore]
     fn prints_the_scene() {
         let s = scene(1.0);
-        println!("fullscreen: {}", s.fullscreen);
+        println!("fullscreen: {}, front app: {:?}", s.fullscreen, s.front_app);
         for w in &s.shelves {
             println!("{:?}", w);
         }

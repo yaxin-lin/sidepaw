@@ -7,7 +7,7 @@ import type { SessionView } from "../generated/SessionView";
 import type { State } from "../generated/State";
 import type { TriggerStat } from "../generated/TriggerStat";
 
-export type TriggerId = "waiting_long" | "errors" | "long_done" | "report" | "morning" | "night" | "break" | "back" | "chatter";
+export type TriggerId = "waiting_long" | "errors" | "long_done" | "report" | "morning" | "night" | "break" | "back" | "app" | "chatter";
 
 export interface TriggerDef {
   /** The lowest chattiness (0 to 5) at which it may fire. */
@@ -31,6 +31,8 @@ export const TRIGGERS: Record<TriggerId, TriggerDef> = {
   night: { chatty: 3, baseS: 3600, daily: true },
   break: { chatty: 3, baseS: 7200 },
   back: { chatty: 3, baseS: 3600 },
+  /** Switching to a kind of app (`app` in the observation). */
+  app: { chatty: 3, baseS: 900 },
   chatter: { chatty: 4, baseS: 1200 },
 };
 
@@ -52,6 +54,8 @@ export interface Observation {
   sessions: SessionView[];
   /** When the cursor last moved, ms since epoch. */
   userActiveAt: number;
+  /** The kind of app in front (`pet/apps.ts`), when known. */
+  app?: string | null;
 }
 
 const busy = (s: State) => s.state !== "idle" && s.state !== "sleeping" && s.state !== "done";
@@ -69,6 +73,10 @@ export class Watcher {
   private lastWork = 0;
   private lastUserActive = 0;
   private backAt = 0;
+  private app: string | null = null;
+  private appAt = 0;
+  /** The kind of app just switched to, for the `app` line's key. */
+  switchedTo: string | null = null;
 
   observe(o: Observation): TriggerId[] {
     const out: TriggerId[] = [];
@@ -103,6 +111,17 @@ export class Watcher {
     }
     if (this.backAt && o.now - this.backAt < 60_000) out.push("back");
 
+    if (o.app !== undefined && o.app !== this.app) {
+      // The first look is where the user already was, not a switch.
+      if (this.appAt && o.app) {
+        this.switchedTo = o.app;
+        this.appAt = o.now;
+      }
+      if (!this.appAt) this.appAt = o.now;
+      this.app = o.app;
+    }
+    if (this.switchedTo && o.now - this.appAt < 20_000 && this.switchedTo === this.app) out.push("app");
+
     const recentlyActive = o.now - o.userActiveAt < 60_000;
     if (o.hour >= 18 && (o.sessions.length > 0 || this.lastWork > 0) && recentlyActive) out.push("report");
     if (o.hour >= 5 && o.hour < 11 && recentlyActive) out.push("morning");
@@ -118,6 +137,7 @@ export class Watcher {
     if (id === "long_done") this.longDoneAt = 0;
     if (id === "break") this.workSince = now;
     if (id === "back") this.backAt = 0;
+    if (id === "app") this.switchedTo = null;
   }
 }
 
@@ -138,6 +158,8 @@ export interface Gate {
   chatty: number;
   dnd: boolean;
   quiet: boolean;
+  /** A meeting app is in front: like quiet hours, for its duration. */
+  meeting?: boolean;
   now: number;
   /** Local day of `now`, `YYYY-MM-DD`. */
   today: string;
@@ -154,7 +176,7 @@ export interface Gate {
 export function mayFire(id: TriggerId, g: Gate): boolean {
   const def = TRIGGERS[id];
   if (g.dnd || g.chatty < def.chatty) return false;
-  if (g.quiet && !def.needsYou) return false;
+  if ((g.quiet || g.meeting) && !def.needsYou) return false;
   if (!def.needsYou) {
     if (g.now - g.lastSpokeAt < (g.chatty >= 5 ? 60_000 : 120_000)) return false;
     if (id === "chatter" && g.chatty === 4 && g.lastHour >= 3) return false;

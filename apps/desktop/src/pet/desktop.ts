@@ -10,7 +10,7 @@ import { Dock } from "./dock";
 import { t } from "../i18n";
 import type { IdleBehaviour } from "./idle";
 import { LOOP_MS, ROW } from "../pack";
-import { airborne, atRest, type Body, type Bounds, FLING_SPEED, floorFor, type Rect, type Sample, step, velocityFrom } from "./physics";
+import { airborne, atRest, type Body, type Bounds, FLING_SPEED, launch, type Ledge, type Rect, type Sample, step, support, velocityFrom } from "./physics";
 import type { SpriteRenderer } from "./renderer";
 
 /** Mirrors `CursorRelative` in src-tauri/src/hit.rs: logical pixels
@@ -22,16 +22,32 @@ interface CursorRelative {
   height: number;
 }
 
-/** Mirrors `Scene` in src-tauri/src/shelf.rs, physical pixels. */
-interface Scene {
-  shelves: Rect[];
+/** Mirrors `Shelf` and `Scene` in src-tauri/src/shelf.rs, physical pixels. */
+export interface Shelf extends Rect {
+  id: number;
+  pid: number;
+  front: boolean;
+}
+
+export interface Scene {
+  shelves: Shelf[];
   fullscreen: boolean;
+  front_app: { name: string; id: string } | null;
+}
+
+/** The pet and its surroundings in logical pixels, from one look. */
+export interface World {
+  bounds: Bounds;
+  scale: number;
+  pet: { x: number; y: number };
+  scene: Scene;
 }
 
 const SAMPLE_MS = 16;
 const CLICK_MS = 250;
 const DOUBLE_CLICK_MS = 350;
-const SUPPORT_MS = 500;
+/** Often enough that the pet keeps up with a window being dragged. */
+const SUPPORT_MS = 150;
 const HOVER_MS = 1500;
 const NEAR_MS = 700;
 const FLEE_COOLDOWN_MS = 6000;
@@ -51,6 +67,10 @@ export class DesktopLife {
   private hoverTimer = 0;
   private nearSince = 0;
   private fleeAfter = 0;
+  /** The window the pet stands on and where it was, to ride along. */
+  private riding: { id: number; x: number; y: number } | null = null;
+  private lastWorld: World | null = null;
+  private checking = false;
 
   constructor(
     private renderer: SpriteRenderer,
@@ -66,6 +86,7 @@ export class DesktopLife {
    *  the pet is its own drag handle: every press starts a native drag
    *  and the release decides whether it was a click, a drag or a throw. */
   async attach() {
+    this.idle.limits = () => this.walkRange();
     this.canvas.addEventListener("mousedown", (e) => {
       const parked = this.dock.isParked();
       if (e.button !== 0 || (this.idle.hold && !parked)) return;
@@ -148,9 +169,40 @@ export class DesktopLife {
    *  your choosing still works. */
   private async fling(vx: number, vy: number) {
     const world = await this.world();
-    if (!world) return;
+    if (world) await this.fly(world, vx, vy, false);
+  }
+
+  /** Jump to stand at (`x`, `y`), an origin position in logical pixels,
+   *  landing there instead of sliding on. For the behaviour planner. */
+  async jumpTo(x: number, y: number): Promise<boolean> {
+    if (this.pressed || this.idle.hold || this.idle.isWalking() || this.dock.isParked()) return false;
+    const world = await this.world();
+    if (!world) return false;
+    const v = launch(world.pet, x, y);
+    await this.fly(world, v.vx, v.vy, true);
+    return true;
+  }
+
+  /** The physical x range of the visible edge the pet stands on, so a
+   *  stroll stays on it; null on the floor. */
+  walkRange(): { minX: number; maxX: number } | null {
+    const w = this.lastWorld;
+    if (!w) return null;
+    const l = support(w.bounds, w.pet.x, w.pet.y).ledge;
+    if (!l) return null;
+    const pw = w.bounds.pet.width;
+    return { minX: (l.x1 - pw / 3) * w.scale, maxX: (l.x2 - (pw * 2) / 3) * w.scale };
+  }
+
+  /** The last look around, refreshed several times a second. */
+  world0(): World | null {
+    return this.lastWorld;
+  }
+
+  private async fly(world: World, vx: number, vy: number, stick: boolean) {
     const { bounds, scale } = world;
     let body: Body = { ...world.pet, vx, vy };
+    this.riding = null;
     this.idle.hold = true;
     this.renderer.play(ROW.jumping, FLING_MAX_MS);
     const t0 = performance.now();
@@ -159,7 +211,7 @@ export class DesktopLife {
       const frame = async (t: number) => {
         const dt = Math.min(0.05, (t - last) / 1000);
         last = t;
-        body = step(body, dt, bounds);
+        body = step(body, dt, bounds, stick);
         await this.win.setPosition(new PhysicalPosition(Math.round(body.x * scale), Math.round(body.y * scale)));
         if (!airborne(body, bounds)) this.renderer.stopOverride();
         if (atRest(body, bounds) || t - t0 > FLING_MAX_MS) resolve();
@@ -173,7 +225,7 @@ export class DesktopLife {
 
   /** The pet and what it can land on, in logical pixels. Other apps'
    *  windows come from the OS each time; they move and close. */
-  private async world(): Promise<{ bounds: Bounds; scale: number; pet: { x: number; y: number } } | null> {
+  private async world(): Promise<World | null> {
     const monitor = await currentMonitor();
     if (!monitor) return null;
     const scale = monitor.scaleFactor;
@@ -185,9 +237,10 @@ export class DesktopLife {
       minY: area.position.y / scale,
       maxY: (area.position.y + area.size.height - size.height) / scale,
       pet: { width: size.width / scale, height: size.height / scale },
-      shelves: scene.shelves.map((r) => ({ x: r.x / scale, y: r.y / scale, width: r.width / scale, height: r.height / scale })),
+      shelves: scene.shelves.map((r) => ({ x: r.x / scale, y: r.y / scale, width: r.width / scale, height: r.height / scale, id: r.id })),
     };
-    return { bounds, scale, pet: { x: pos.x / scale, y: pos.y / scale } };
+    this.lastWorld = { bounds, scale, pet: { x: pos.x / scale, y: pos.y / scale }, scene };
+    return this.lastWorld;
   }
 
   /** Mini mode on or off. Walks, throws and the support check stop
@@ -210,11 +263,41 @@ export class DesktopLife {
    *  is under it any more, it falls. Not while a walk or a throw is
    *  moving the window. */
   private async checkSupport() {
-    if (this.pressed || this.idle.hold || this.idle.isWalking()) return;
+    if (this.checking) return;
+    this.checking = true;
+    try {
+      await this.followSupport();
+    } finally {
+      this.checking = false;
+    }
+  }
+
+  /** Rides the window it stands on when that window moves, and falls
+   *  when it closes, shrinks away or goes behind another. */
+  private async followSupport() {
+    if (this.pressed || this.idle.hold || this.dock.isParked()) return;
     const world = await this.world();
-    if (!world) return;
-    const floor = floorFor(world.bounds, world.pet.x, world.pet.y);
-    if (world.pet.y < floor - 2) await this.fling(0, 0);
+    if (!world || this.idle.isWalking()) {
+      this.riding = null;
+      return;
+    }
+    const { bounds, pet, scale } = world;
+    if (this.riding) {
+      const now = bounds.shelves.find((s) => s.id === this.riding?.id);
+      if (now && (now.x !== this.riding.x || now.y !== this.riding.y)) {
+        const x = pet.x + (now.x - this.riding.x);
+        const y = pet.y + (now.y - this.riding.y);
+        this.riding = { id: this.riding.id, x: now.x, y: now.y };
+        await this.win.setPosition(new PhysicalPosition(Math.round(x * scale), Math.round(y * scale)));
+        return;
+      }
+    }
+    const under = support(bounds, pet.x, pet.y);
+    if (pet.y < under.y - 2) {
+      await this.fling(0, 0);
+      return;
+    }
+    this.riding = ledgeRide(under.ledge, bounds.shelves);
   }
 
   /** A cursor hovering just beside the pet for a moment makes it step
@@ -238,4 +321,10 @@ export class DesktopLife {
     this.fleeAfter = now + FLEE_COOLDOWN_MS;
     await this.idle.flee(dx > 0 ? -1 : 1);
   }
+}
+
+function ledgeRide(ledge: Ledge | null, shelves: Rect[]): { id: number; x: number; y: number } | null {
+  if (!ledge || ledge.id === undefined) return null;
+  const s = shelves.find((r) => r.id === ledge.id);
+  return s ? { id: ledge.id, x: s.x, y: s.y } : null;
 }

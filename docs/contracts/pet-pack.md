@@ -137,7 +137,13 @@ filled from today's counters.
   "break": ["…"],
   "back": ["…"],
   "chatter": ["…"],
-  "offer_level": ["…"]
+  "offer_level": ["…"],
+  "app.terminal": ["…"],
+  "app.editor": ["…"],
+  "app.browser": ["…"],
+  "app.music": ["…"],
+  "app.video": ["…"],
+  "app.chat": ["…"]
 }
 ```
 

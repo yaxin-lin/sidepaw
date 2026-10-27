@@ -54,6 +54,9 @@ export class Scheduler {
   /** `[pet] live_lines`, on only after the user accepted the preview. */
   liveLines = false;
 
+  /** The kind of app in front, from the pet's last look at the screen. */
+  appKind: () => string | null = () => null;
+
   constructor(
     private bubble: Bubble,
     private lines: () => Lines,
@@ -84,7 +87,14 @@ export class Scheduler {
     // Every snapshot is observed, so no state change is missed while a
     // line is being decided; only the deciding waits its turn.
     const now = Date.now();
-    const due = this.watcher.observe({ now, hour: new Date(now).getHours(), overall: snap.overall, sessions: snap.sessions, userActiveAt: this.userActiveAt });
+    const due = this.watcher.observe({
+      now,
+      hour: new Date(now).getHours(),
+      overall: snap.overall,
+      sessions: snap.sessions,
+      userActiveAt: this.userActiveAt,
+      app: this.appKind(),
+    });
     if (this.evaluating) return;
     this.evaluating = true;
     try {
@@ -103,6 +113,7 @@ export class Scheduler {
       chatty: this.chatty,
       dnd: this.dnd,
       quiet: inQuietHours(this.quiet.from, this.quiet.to, d),
+      meeting: this.appKind() === "meeting",
       now,
       today: localDay(d),
       lastSpokeAt: this.spoken.at(-1) ?? 0,
@@ -113,7 +124,8 @@ export class Scheduler {
       if (!mayFire(id, { ...gate, stat: this.stats.get(id) })) continue;
       // Small talk is a chance, not a schedule.
       if (id === "chatter" && Math.random() > 0.3) continue;
-      const packLine = this.lines().pick(id);
+      const key = id === "app" ? `app.${this.watcher.switchedTo}` : id;
+      const packLine = this.lines().pick(key);
       const live = LIVE.has(id) ? await this.liveLine(id, snap) : null;
       const line = live ?? packLine;
       if (line === null) continue; // this pack has nothing to say here

@@ -93,6 +93,26 @@ describe("mayFire", () => {
   });
 });
 
+describe("app switches", () => {
+  it("offers a line for a switch, not for the app the user started in", () => {
+    const w = new Watcher();
+    expect(w.observe(obs(t0, { state: "idle" }, { app: "editor" }))).not.toContain("app");
+    expect(w.observe(obs(t0 + 1000, { state: "idle" }, { app: "music" }))).toContain("app");
+    expect(w.switchedTo).toBe("music");
+    w.consume("app", t0 + 1000);
+    expect(w.observe(obs(t0 + 2000, { state: "idle" }, { app: "music" }))).not.toContain("app");
+    // Unknown apps change nothing worth a line.
+    expect(w.observe(obs(t0 + 3000, { state: "idle" }, { app: null }))).not.toContain("app");
+  });
+
+  it("keeps quiet in a meeting except for what needs the user", () => {
+    const g = { chatty: 5, dnd: false, quiet: false, meeting: true, now: t0, today: "2026-10-27", lastSpokeAt: 0, lastHour: 0, dayOf: (iso: string) => iso.slice(0, 10) };
+    expect(mayFire("chatter", g)).toBe(false);
+    expect(mayFire("app", g)).toBe(false);
+    expect(mayFire("waiting_long", g)).toBe(true);
+  });
+});
+
 describe("shouldOfferLevel", () => {
   const day = 86_400_000;
   const base = { level: 1, daysActive: 3, firstEventAt: t0 - 4 * day, now: t0 };
