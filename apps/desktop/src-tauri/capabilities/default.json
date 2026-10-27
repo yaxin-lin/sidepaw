@@ -1,10 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The pet window reads state and drags itself; the setup window edits host configs through commands.",
+  "description": "The pet window reads state and drags itself; the setup and chat windows work through commands.",
   "windows": [
     "pet",
-    "setup"
+    "setup",
+    "chat"
   ],
   "permissions": [
     "core:default",

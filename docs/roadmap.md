@@ -70,8 +70,11 @@ notarization in CI. Exit criterion: fully usable with no API key.
 Brain in TypeScript (ADR 7). Done: speech bubble with pack lines,
 persona compiler, one provider (config and key), line generation into
 `lines.json` with the digest as cache key, persona editor in the setup
-window, preview before send, audit rows. Remaining: streamed chat,
-context builder, read-only query endpoints on the server.
+window, preview before send, audit rows, streamed chat window with a
+context builder over the server's read-only queries (in-process
+commands rather than HTTP routes, since the brain is in the same
+process). Exit criterion met: the pet can be asked what the agents did
+today and answers in character.
 
 ## 0.5 It speaks first
 

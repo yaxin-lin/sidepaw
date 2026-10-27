@@ -34,6 +34,9 @@ fn pick(en: &'static str, zh: &'static str) -> &'static str {
 pub fn no_sessions() -> &'static str {
     pick("No active sessions", "没有活跃会话")
 }
+pub fn chat() -> &'static str {
+    pick("Chat...", "聊天…")
+}
 pub fn setup() -> &'static str {
     pick("Setup...", "设置…")
 }

@@ -19,6 +19,7 @@ use tauri::{AppHandle, Manager};
 // blank in the macOS menu bar.
 const ICON: &[u8] = include_bytes!("../icons/32x32.png");
 
+const CHAT: &str = "chat";
 const SETUP: &str = "setup";
 const TOGGLE: &str = "toggle";
 const QUIT: &str = "quit";
@@ -35,6 +36,9 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         .show_menu_on_left_click(true)
         .tooltip("sidepaw")
         .on_menu_event(|app, event| match event.id().as_ref() {
+            CHAT => {
+                let _ = super::open_chat(app.clone());
+            }
             SETUP => {
                 let _ = super::open_setup(app.clone());
             }
@@ -78,6 +82,13 @@ fn build_menu(
         )?)?;
     }
     menu.append(&PredefinedMenuItem::separator(app)?)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        CHAT,
+        text::chat(),
+        true,
+        None::<&str>,
+    )?)?;
     menu.append(&MenuItem::with_id(
         app,
         SETUP,

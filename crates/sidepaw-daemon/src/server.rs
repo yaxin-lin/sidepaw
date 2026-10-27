@@ -15,7 +15,7 @@ use crate::config::{Config, ModelConfig};
 use crate::home::{self, DaemonState};
 use crate::redact;
 use crate::registry::{PendingApproval, Registry, Snapshot};
-use crate::store::{AuditRow, DayReport, Store};
+use crate::store::{AuditRow, DayReport, EventRow, Store};
 use anyhow::{Context, Result};
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -205,6 +205,11 @@ impl Shared {
 
     pub fn audit_recent(&self, limit: u32) -> Result<Vec<AuditRow>> {
         self.app.lock().unwrap().store.audit_recent(limit)
+    }
+
+    /// Read-only, for the brain's context (ADR 7).
+    pub fn recent_events(&self, limit: u32) -> Result<Vec<EventRow>> {
+        self.app.lock().unwrap().store.recent_events(limit)
     }
 }
 

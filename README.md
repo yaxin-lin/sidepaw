@@ -72,8 +72,10 @@ editor (sliders, tags, free text) and, once a model provider is
 configured there (DeepSeek, OpenAI, Anthropic, Ollama or any
 OpenAI-compatible URL; the key goes to the system credential store),
 "Generate lines" writes a `lines.json` in that voice to
-`~/.sidepaw/pets/<id>/`. Every remote call shows what it will send
-first and is listed under "Sent to the model".
+`~/.sidepaw/pets/<id>/`, and double-clicking the pet opens a chat
+where it answers questions about what the agents did today. Every
+remote call shows what it will send first and is listed under "Sent
+to the model".
 
 ## Troubleshooting
 

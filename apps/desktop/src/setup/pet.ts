@@ -2,7 +2,7 @@
  *  overrides under ~/.sidepaw/pets/<id>/; the pack itself is never
  *  written. */
 import { emit } from "@tauri-apps/api/event";
-import { parseJson, readBundled, readUser, writeUser } from "../brain/files";
+import { loadPersona, parseJson, readBundled, readUser, writeUser } from "../brain/files";
 import { countLines, linesRequest, parseLines } from "../brain/linegen";
 import { compileSystemPrompt, FLAW_TAGS, personaDigest, SLIDERS, STRENGTH_TAGS, type Persona, type Slider } from "../brain/persona";
 import { t, type Key } from "../i18n";
@@ -110,16 +110,6 @@ function buildControls() {
   el("p-md").addEventListener("input", mdHint);
 }
 
-/** The user's override, else the pack's file, else a blank persona. */
-async function loadPersona(): Promise<{ persona: Persona; md: string }> {
-  const persona =
-    parseJson<Persona>(await readUser(PACK, "persona.json")) ??
-    parseJson<Persona>(await readBundled(PACK, "persona.json")) ??
-    ({ version: 1, name: "Pet" } as Persona);
-  const md = (await readUser(PACK, "persona.md")) ?? (await readBundled(PACK, "persona.md")) ?? "";
-  return { persona, md };
-}
-
 /** Whether lines.json matches the saved persona; the caller passes
  *  what it just loaded or wrote so this does not read it again. */
 async function renderLinesStatus(persona: Persona, md: string) {
@@ -135,7 +125,7 @@ async function renderLinesStatus(persona: Persona, md: string) {
 
 export async function mountPet() {
   buildControls();
-  const saved = await loadPersona();
+  const saved = await loadPersona(PACK);
   fillForm(saved.persona, saved.md);
   await renderLinesStatus(saved.persona, saved.md);
 
@@ -153,7 +143,7 @@ export async function mountPet() {
   el("p-reset").addEventListener("click", () =>
     busy("p-msg", async () => {
       for (const name of ["persona.json", "persona.md", "lines.json"] as const) await writeUser(PACK, name, "");
-      const fresh = await loadPersona();
+      const fresh = await loadPersona(PACK);
       fillForm(fresh.persona, fresh.md);
       await emit("pack-changed");
       await renderLinesStatus(fresh.persona, fresh.md);
@@ -164,7 +154,7 @@ export async function mountPet() {
   el("p-generate").addEventListener("click", () =>
     busy("p-msg", async () => {
       // Generate from what is saved, so generatedFrom means what it says.
-      const { persona, md } = await loadPersona();
+      const { persona, md } = await loadPersona(PACK);
       const text = await send(modelFromForm, linesRequest(compileSystemPrompt(persona, md)), () => void renderAudit());
       if (text === null) return;
       const file = parseLines(text, await personaDigest(persona, md));

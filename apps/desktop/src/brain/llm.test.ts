@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { approxTokens, complete, openaiBody, openaiText, preview, resolve, type Deps } from "./llm";
+import { approxTokens, complete, openaiBody, openaiText, preview, resolve, sseDeltas, stream, type Deps } from "./llm";
 
 describe("resolve", () => {
   it("fills provider defaults and rejects what cannot work", () => {
@@ -50,11 +50,49 @@ describe("preview and tokens", () => {
     expect(approxTokens("你好abcd")).toBe(3);
   });
 
-  it("shows exactly what goes out", () => {
+  it("shows exactly what goes out, history included", () => {
     const p = preview({ provider: "deepseek", model: "", base_url: null }, { purpose: "chat", system: "S", user: "U", maxTokens: 1 });
     expect(p.text).toBe("[system]\nS\n\n[user]\nU");
+    const withHistory = preview(
+      { provider: "deepseek", model: "", base_url: null },
+      { purpose: "chat", system: "S", history: [{ role: "user", content: "a" }, { role: "assistant", content: "b" }], user: "U", maxTokens: 1 },
+    );
+    expect(withHistory.text).toBe("[system]\nS\n\n[user]\na\n\n[assistant]\nb\n\n[user]\nU");
     expect(p.bytes).toBe(p.text.length);
     expect(p.local).toBe(false);
+  });
+});
+
+describe("sseDeltas", () => {
+  it("collects content deltas and skips noise", () => {
+    const lines = [
+      "event: ping",
+      'data: {"choices":[{"delta":{"role":"assistant"}}]}',
+      'data: {"choices":[{"delta":{"content":"Hel"}}]}',
+      "data: not json",
+      'data: {"choices":[{"delta":{"content":"lo"}}]}',
+      "data: [DONE]",
+    ].join("\n");
+    expect(sseDeltas(lines)).toEqual(["Hel", "lo"]);
+  });
+});
+
+describe("stream", () => {
+  it("delivers deltas across chunk boundaries and audits once", async () => {
+    const audits: unknown[] = [];
+    const chunks = ['data: {"choices":[{"delta":{"content":"a"}}]}\ndata: {"choi', 'ces":[{"delta":{"content":"b"}}]}\n\ndata: [DONE]\n'];
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        for (const ch of chunks) c.enqueue(new TextEncoder().encode(ch));
+        c.close();
+      },
+    });
+    const deps: Deps = { fetch: async () => new Response(body, { status: 200 }), audit: async (...a) => void audits.push(a) };
+    const got: string[] = [];
+    const text = await stream({ provider: "deepseek", model: "", base_url: null }, { purpose: "chat", system: "S", user: "U", maxTokens: 5 }, "k", (d) => got.push(d), deps);
+    expect(got).toEqual(["a", "b"]);
+    expect(text).toBe("ab");
+    expect(audits).toHaveLength(1);
   });
 });
 

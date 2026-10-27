@@ -142,6 +142,13 @@ const STRINGS = {
     "audit.sub": "Every remote call, newest first. Size and digest only; the text itself is not stored.",
     "audit.empty": "Nothing sent yet.",
     "working": "Working...",
+    "chat.placeholder": "Ask about what the agents did...",
+    "chat.send": "Send",
+    "chat.sending": "Sent with each message: {n} recent events, about {tokens} tokens.",
+    "chat.show": "Show what is sent",
+    "chat.no_model": "No model provider configured. Chat needs one; everything else works without.",
+    "chat.open_setup": "Open setup",
+    "chat.failed": "That did not go through: {error}",
   },
   "zh-CN": {
     "setup.title": "sidepaw 设置",
@@ -282,6 +289,13 @@ const STRINGS = {
     "audit.sub": "每次调用远端模型都记一行，最新在前。只记大小和摘要，不存原文。",
     "audit.empty": "还没有发送过。",
     "working": "处理中…",
+    "chat.placeholder": "问问它 agent 都干了什么…",
+    "chat.send": "发送",
+    "chat.sending": "每条消息会附带：最近 {n} 条事件，约 {tokens} token。",
+    "chat.show": "查看发送的原文",
+    "chat.no_model": "还没配置模型服务商。对话需要它，其他功能不需要。",
+    "chat.open_setup": "打开设置",
+    "chat.failed": "没发出去：{error}",
   },
 } as const;
 

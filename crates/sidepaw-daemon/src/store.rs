@@ -48,6 +48,22 @@ pub struct AuditRow {
     pub level: u8,
 }
 
+/// One stored event as the brain reads it back. Rows hold only what
+/// the permission level allowed at ingest, so reading them is safe at
+/// any level; `project` is the folder name of the session's `cwd`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct EventRow {
+    pub ts: String,
+    pub host: String,
+    pub project: Option<String>,
+    pub kind: String,
+    pub tool_name: Option<String>,
+    pub text: Option<String>,
+    pub error_type: Option<String>,
+    pub error_msg: Option<String>,
+}
+
 const SCHEMA: &str = include_str!("../../../docs/contracts/schema.sql");
 
 pub struct Store {
@@ -178,6 +194,29 @@ impl Store {
         Ok(())
     }
 
+    /// Newest first.
+    pub fn recent_events(&self, limit: u32) -> Result<Vec<EventRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT e.ts, s.host, s.cwd, e.kind, e.tool_name, e.text, e.error_type, e.error_msg
+             FROM events e JOIN sessions s ON s.id = e.session_id
+             ORDER BY e.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit], |r| {
+            let cwd: Option<String> = r.get(2)?;
+            Ok(EventRow {
+                ts: r.get(0)?,
+                host: r.get(1)?,
+                project: cwd.as_deref().and_then(project_name),
+                kind: r.get(3)?,
+                tool_name: r.get(4)?,
+                text: r.get(5)?,
+                error_type: r.get(6)?,
+                error_msg: r.get(7)?,
+            })
+        })?;
+        Ok(rows.collect::<std::result::Result<_, _>>()?)
+    }
+
     /// Most recent first.
     pub fn audit_recent(&self, limit: u32) -> Result<Vec<AuditRow>> {
         let mut stmt = self.conn.prepare(
@@ -284,6 +323,16 @@ impl Store {
             .query_row("SELECT COUNT(*) FROM sessions", [], |r| r.get::<_, i64>(0))?
             as u64)
     }
+}
+
+// The last path segment, with either separator, so a Windows cwd reads
+// the same as a POSIX one.
+fn project_name(cwd: &str) -> Option<String> {
+    cwd.trim_end_matches(['/', '\\'])
+        .rsplit(['/', '\\'])
+        .next()
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
 }
 
 #[cfg(test)]
@@ -434,5 +483,24 @@ mod tests {
         assert_eq!(rows[0].purpose, "chat");
         assert_eq!(rows[1].bytes, 100);
         assert_eq!(store.audit_recent(1).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn recent_events_read_back_newest_first_with_the_project_name() {
+        let mut store = Store::in_memory().unwrap();
+        let mut first = ev(Kind::ToolStart);
+        first.text = Some("cargo test".into());
+        store.insert_event(&first).unwrap();
+        let mut second = ev(Kind::ToolFail);
+        second.ts = "2026-10-25T00:00:01.000Z".into();
+        store.insert_event(&second).unwrap();
+        let rows = store.recent_events(5).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].kind, "tool_fail");
+        assert_eq!(rows[1].text.as_deref(), Some("cargo test"));
+        assert_eq!(rows[1].project.as_deref(), Some("p"));
+        assert_eq!(rows[1].host, "dsh");
+        assert_eq!(project_name("C:\\work\\app\\"), Some("app".into()));
+        assert_eq!(project_name("/"), None);
     }
 }

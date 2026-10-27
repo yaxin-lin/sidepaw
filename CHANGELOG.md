@@ -101,6 +101,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   up a cursor that hovers, says a line (`drop`, falling back to
   `click`) when a file is dropped on it, and hides while the app in
   front is full screen. macOS and Windows; no OS permission is asked.
+- Chat: double-click the pet (or Tray > Chat) to ask it what the
+  agents did. Each message carries the current sessions, today's
+  counters and the last twelve stored events; the line under the log
+  says how much and opens to the exact text. Replies stream in.
 - Model provider: `[model]` in `config.toml` (DeepSeek, OpenAI,
   Anthropic, Ollama or any OpenAI-compatible URL, one at a time per
   ADR 5) with the API key in the OS credential store or

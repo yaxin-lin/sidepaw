@@ -10,9 +10,16 @@ import { sha256Hex } from "./digest";
 
 export type Purpose = "chat" | "lines" | "persona";
 
+export interface Turn {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface Request {
   purpose: Purpose;
   system: string;
+  /** Earlier turns of a chat, oldest first; empty for one-shot calls. */
+  history?: Turn[];
   user: string;
   maxTokens: number;
 }
@@ -87,7 +94,8 @@ const CJK = /[\u3000-\u9fff\uf900-\ufaff]/;
 
 export function preview(cfg: ModelConfig, req: Request): Preview {
   const r = resolve(cfg);
-  const text = `[system]\n${req.system}\n\n[user]\n${req.user}`;
+  const turns = (req.history ?? []).map((t) => `[${t.role}]\n${t.content}\n\n`).join("");
+  const text = `[system]\n${req.system}\n\n${turns}[user]\n${req.user}`;
   return {
     provider: r.provider,
     model: r.model,
@@ -102,14 +110,11 @@ export function preview(cfg: ModelConfig, req: Request): Preview {
 /** Request body for an OpenAI-compatible `chat/completions` call. OpenAI
  *  itself rejects `max_tokens` on current models; everyone else still
  *  wants it. */
-export function openaiBody(r: Endpoint, req: Request): Record<string, unknown> {
+export function openaiBody(r: Endpoint, req: Request, stream = false): Record<string, unknown> {
   const body: Record<string, unknown> = {
     model: r.model,
-    messages: [
-      { role: "system", content: req.system },
-      { role: "user", content: req.user },
-    ],
-    stream: false,
+    messages: [{ role: "system", content: req.system }, ...(req.history ?? []), { role: "user", content: req.user }],
+    stream,
   };
   body[r.provider === "openai" ? "max_completion_tokens" : "max_tokens"] = req.maxTokens;
   return body;
@@ -120,6 +125,26 @@ export function openaiText(json: unknown): string {
   const content = choices?.[0]?.message?.content;
   if (typeof content !== "string") throw new Error("the reply had no text");
   return content;
+}
+
+/** Text deltas in a run of server-sent events from a streaming
+ *  `chat/completions` call. Takes whole lines only; the caller keeps
+ *  the unterminated tail for the next chunk. */
+export function sseDeltas(lines: string): string[] {
+  const out: string[] = [];
+  for (const line of lines.split("\n")) {
+    if (!line.startsWith("data:")) continue;
+    const data = line.slice(5).trim();
+    if (!data || data === "[DONE]") continue;
+    try {
+      const json = JSON.parse(data) as { choices?: Array<{ delta?: { content?: unknown } }> };
+      const delta = json.choices?.[0]?.delta?.content;
+      if (typeof delta === "string" && delta) out.push(delta);
+    } catch {
+      // A malformed event is dropped rather than ending the reply.
+    }
+  }
+  return out;
 }
 
 export interface Deps {
@@ -144,50 +169,99 @@ async function errorText(res: Response): Promise<string> {
   return text.slice(0, 300);
 }
 
-/** One request, one text reply. The audit row is written before the
- *  request goes out so a crash mid-flight still leaves a record. */
-export async function complete(cfg: ModelConfig, req: Request, key: string | null, deps: Deps = live): Promise<string> {
+/** Everything before a request goes out: defaults filled, key checked,
+ *  the audit row written. Written first so a crash mid-flight still
+ *  leaves a record. */
+async function prepare(cfg: ModelConfig, req: Request, key: string | null, deps: Deps): Promise<Endpoint> {
   const r = resolve(cfg);
   const p = PROVIDERS[r.provider];
   if (p.needsKey && !key) throw new Error(`${p.label} needs an API key`);
   const pv = preview(cfg, req);
   await deps.audit(r.provider, req.purpose, pv.bytes, await sha256Hex(pv.text));
+  return r;
+}
 
-  if (r.provider === "anthropic") {
-    const client = new Anthropic({
-      apiKey: key ?? "",
-      fetch: deps.fetch,
-      dangerouslyAllowBrowser: true,
-      maxRetries: 1,
-    });
-    // Lines and one-liners are easy work, so the lowest effort; the
-    // fallback beta re-runs a refused request on another model inside
-    // the same call, which a pet should not surface as an error.
-    const res = await client.beta.messages.create({
-      model: r.model,
-      max_tokens: req.maxTokens,
-      system: req.system,
-      messages: [{ role: "user", content: req.user }],
-      output_config: { effort: "low" },
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-    });
-    if (res.stop_reason === "refusal") throw new Error("the model declined this request");
-    const text = res.content
-      .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("");
-    if (!text) throw new Error("the reply had no text");
-    return text;
-  }
+function anthropic(key: string | null, deps: Deps) {
+  return new Anthropic({ apiKey: key ?? "", fetch: deps.fetch, dangerouslyAllowBrowser: true, maxRetries: 1 });
+}
 
+// Lines and chat replies are easy work, so the lowest effort; the
+// fallback beta re-runs a refused request on another model inside the
+// same call, which a pet should not surface as an error.
+function anthropicParams(r: Endpoint, req: Request) {
+  return {
+    model: r.model,
+    max_tokens: req.maxTokens,
+    system: req.system,
+    messages: [...(req.history ?? []), { role: "user" as const, content: req.user }],
+    output_config: { effort: "low" as const },
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default" as const,
+  };
+}
+
+function anthropicText(msg: Anthropic.Beta.BetaMessage): string {
+  if (msg.stop_reason === "refusal") throw new Error("the model declined this request");
+  const text = msg.content
+    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+  if (!text) throw new Error("the reply had no text");
+  return text;
+}
+
+async function openaiFetch(r: Endpoint, req: Request, key: string | null, deps: Deps, stream: boolean): Promise<Response> {
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (key) headers.authorization = `Bearer ${key}`;
   const res = await deps.fetch(`${r.baseUrl}/chat/completions`, {
     method: "POST",
     headers,
-    body: JSON.stringify(openaiBody(r, req)),
+    body: JSON.stringify(openaiBody(r, req, stream)),
   });
-  if (!res.ok) throw new Error(`${p.label}: HTTP ${res.status} ${await errorText(res)}`);
-  return openaiText(await res.json());
+  if (!res.ok) throw new Error(`${PROVIDERS[r.provider].label}: HTTP ${res.status} ${await errorText(res)}`);
+  return res;
+}
+
+/** One request, one text reply. */
+export async function complete(cfg: ModelConfig, req: Request, key: string | null, deps: Deps = live): Promise<string> {
+  const r = await prepare(cfg, req, key, deps);
+  if (r.provider === "anthropic") {
+    return anthropicText(await anthropic(key, deps).beta.messages.create(anthropicParams(r, req)));
+  }
+  return openaiText(await (await openaiFetch(r, req, key, deps, false)).json());
+}
+
+/** The same call with the reply arriving in pieces; resolves to the
+ *  whole text once it is complete. */
+export async function stream(cfg: ModelConfig, req: Request, key: string | null, onDelta: (text: string) => void, deps: Deps = live): Promise<string> {
+  const r = await prepare(cfg, req, key, deps);
+  if (r.provider === "anthropic") {
+    const s = anthropic(key, deps).beta.messages.stream(anthropicParams(r, req));
+    s.on("text", onDelta);
+    return anthropicText(await s.finalMessage());
+  }
+  const res = await openaiFetch(r, req, key, deps, true);
+  if (!res.body) throw new Error("the reply had no body");
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let tail = "";
+  let all = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    tail += decoder.decode(value, { stream: true });
+    const cut = tail.lastIndexOf("\n");
+    if (cut < 0) continue;
+    for (const d of sseDeltas(tail.slice(0, cut))) {
+      all += d;
+      onDelta(d);
+    }
+    tail = tail.slice(cut + 1);
+  }
+  for (const d of sseDeltas(tail)) {
+    all += d;
+    onDelta(d);
+  }
+  if (!all) throw new Error("the reply had no text");
+  return all;
 }

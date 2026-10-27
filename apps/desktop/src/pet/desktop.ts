@@ -28,6 +28,7 @@ interface Scene {
 
 const SAMPLE_MS = 16;
 const CLICK_MS = 250;
+const DOUBLE_CLICK_MS = 350;
 const SUPPORT_MS = 500;
 const HOVER_MS = 1500;
 const NEAR_MS = 700;
@@ -40,6 +41,7 @@ export class DesktopLife {
   private win = getCurrentWindow();
   private pressed = false;
   private pressedAt = 0;
+  private lastClickAt = 0;
   private scale = 1;
   private samples: Sample[] = [];
   private sampler = 0;
@@ -109,6 +111,13 @@ export class DesktopLife {
     if (Math.hypot(v.vx, v.vy) >= FLING_SPEED) await this.fling(v.vx, v.vy);
     else if (moved >= DRAG_MIN_PX) this.bubble.onInteraction("drag");
     else if (Date.now() - this.pressedAt < CLICK_MS) {
+      const now = Date.now();
+      if (now - this.lastClickAt < DOUBLE_CLICK_MS) {
+        this.lastClickAt = 0;
+        void invoke("open_chat");
+        return;
+      }
+      this.lastClickAt = now;
       this.bubble.onInteraction("click");
       this.idle.onClick();
     }

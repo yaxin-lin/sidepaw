@@ -26,7 +26,8 @@ built in is in [roadmap.md](roadmap.md).
 | Persona compiler (sliders, tags, free text to system prompt), persona editor in the setup window | built (0.4) |
 | Model provider (`[model]`, key in the OS credential store), LLM client with preview before send and `audit` rows | built (0.4) |
 | `lines.json` generated from the persona in one call, user overrides under `~/.sidepaw/pets/<id>/` | built (0.4) |
-| Brain: streamed chat, context builder, proactive, memory | planned |
+| Chat window: streamed replies, context from sessions, counters and recent events, shown before it is sent | built (0.4) |
+| Brain: proactive triggers, memory | planned |
 | `apps/desktop`: transparent always-on-top window, spritesheet renderer, embedded server, TS types from Rust | built (0.1) |
 | Click-through of transparent pixels, self-update, release workflow | built (0.2) |
 | Setup window: install, update, remove Claude Code hooks | built (0.2) |
@@ -79,8 +80,10 @@ persona compiler, the LLM client and line generation.
    state change.
 7. The desktop app reads the state (snapshot today, SSE planned) and
    animates.
-8. Planned: the brain reacts to state changes (proactive scheduler) and
-   serves chat, building context from the store.
+8. The chat window builds its context from the snapshot, today's
+   counters and the last stored events (`recent_events`, which returns
+   only what the level let into the store) and streams the reply.
+9. Planned: the brain reacts to state changes (proactive scheduler).
 
 Everything after step 2 is host-independent. Adding a host means
 writing one adapter and one fixture directory.
@@ -176,6 +179,11 @@ the web view's origin rules do not apply), and `linegen.ts` turns the
 compiled persona into `lines.json` in one call. Every remote call shows
 a preview first and writes an `audit` row through the `audit_call`
 command; local providers (Ollama, loopback URLs) skip the preview. The
+chat window (`chat.html`, `src/chat/`, opened by double-clicking the
+pet or from the tray) sends each message with the compiled persona and
+`brain/context.ts`'s summary of the sessions, today's counters and the
+last twelve events, streamed back through `llm.ts`; the line under the
+log says how much goes out and opens to the exact text. The
 setup window's model and pet sections (`setup/model.ts`, `setup/pet.ts`) save the
 provider to `config.toml`, the key to the credential store, and the
 persona and generated lines to `~/.sidepaw/pets/<id>/`, where they

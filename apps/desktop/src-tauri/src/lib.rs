@@ -18,7 +18,7 @@ use sidepaw_daemon::pets;
 use sidepaw_daemon::registry::Snapshot;
 use sidepaw_daemon::secret::{self, KeySource};
 use sidepaw_daemon::server::{self, Running};
-use sidepaw_daemon::store::{AuditRow, DayReport};
+use sidepaw_daemon::store::{AuditRow, DayReport, EventRow};
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 #[tauri::command]
@@ -159,6 +159,14 @@ fn audit_recent(server: State<'_, Running>, limit: u32) -> Result<Vec<AuditRow>,
     server.shared.audit_recent(limit).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn recent_events(server: State<'_, Running>, limit: u32) -> Result<Vec<EventRow>, String> {
+    server
+        .shared
+        .recent_events(limit)
+        .map_err(|e| e.to_string())
+}
+
 /// The cursor relative to the pet window, for reactions to a cursor
 /// that is near but not over it (the web view only sees the cursor
 /// while it is over opaque pixels).
@@ -174,21 +182,36 @@ fn scene(window: tauri::WebviewWindow) -> shelf::Scene {
     shelf::scene(window.scale_factor().unwrap_or(1.0))
 }
 
-/// The setup window is created on demand and reused while open.
-#[tauri::command]
-fn open_setup(app: AppHandle) -> Result<(), String> {
-    if let Some(w) = app.get_webview_window("setup") {
+/// Secondary windows are created on demand and reused while open.
+fn open_window(
+    app: &AppHandle,
+    label: &str,
+    page: &str,
+    title: &str,
+    size: (f64, f64),
+) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window(label) {
         w.show()
             .and_then(|_| w.set_focus())
             .map_err(|e| e.to_string())?;
         return Ok(());
     }
-    WebviewWindowBuilder::new(&app, "setup", WebviewUrl::App("setup.html".into()))
-        .title("sidepaw setup")
-        .inner_size(560.0, 760.0)
+    WebviewWindowBuilder::new(app, label, WebviewUrl::App(page.into()))
+        .title(title)
+        .inner_size(size.0, size.1)
         .build()
         .map(|_| ())
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn open_setup(app: AppHandle) -> Result<(), String> {
+    open_window(&app, "setup", "setup.html", "sidepaw setup", (560.0, 760.0))
+}
+
+#[tauri::command]
+fn open_chat(app: AppHandle) -> Result<(), String> {
+    open_window(&app, "chat", "chat.html", "sidepaw", (380.0, 540.0))
 }
 
 pub fn run() {
@@ -254,9 +277,11 @@ pub fn run() {
             pet_file_write,
             audit_call,
             audit_recent,
+            recent_events,
             cursor_relative,
             scene,
-            open_setup
+            open_setup,
+            open_chat
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
