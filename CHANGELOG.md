@@ -113,6 +113,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
   up a cursor that hovers, says a line (`drop`, falling back to
   `click`) when a file is dropped on it, and hides while the app in
   front is full screen. macOS and Windows; no OS permission is asked.
+- More life in every pet: it breathes at rest (slower when asleep),
+  crouches before a hop and squashes on landing, leans into a walk,
+  and swings like a charm while you drag it. The bundled blob is
+  redrawn: smooth edges, shading, a face with pupils that look where
+  it is going, blinks, happy eyes when waving, crossed eyes and a
+  sweat drop on errors, a question mark when it waits, circling dots
+  while thinking, a magnifying glass while reading, and a full crouch,
+  stretch and squash jump.
 - The pet moves on its own: it rides the window it stands on when you
   drag it, strolls only along the visible part of its top edge, does a
   small hop now and then with a line that invites you to click or

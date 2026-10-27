@@ -12,6 +12,7 @@ import { loadLines, loadPack, LOOP_MS, type Pack, ROW } from "../pack";
 import { label as describe } from "./label";
 import { SpriteRenderer } from "./renderer";
 import { categorize } from "./apps";
+import { Juice } from "./juice";
 import { Roam } from "./roam";
 import { Scheduler } from "./scheduler";
 
@@ -95,7 +96,10 @@ async function main() {
   let lines = pack.lines;
   const scheduler = new Scheduler(bubble, () => lines, () => void invoke("open_chat"));
   await scheduler.start();
-  const life = new DesktopLife(renderer, idle, bubble, canvas, jumpToWaiting);
+  const juice = new Juice(canvas);
+  juice.start();
+  idle.onLean = (dir) => juice.lean(dir);
+  const life = new DesktopLife(renderer, idle, bubble, canvas, jumpToWaiting, juice);
   await life.attach();
   new Roam(life, idle, () => void scheduler.say("hop")).start(() => latest);
   // What the app in front means for the pet: quiet in a meeting, a
@@ -159,6 +163,8 @@ async function main() {
       }
       bubble.onState(snap.overall);
       idle.onState(snap.overall);
+      // Breathing is for a pet at rest; a busy or failed one has its own row.
+      juice.breathing = snap.overall.state === "sleeping" ? "asleep" : snap.overall.state === "idle" || snap.overall.state === "done" ? "awake" : "none";
       life.setAttention(snap.sessions.some((s) => s.state === "waiting"));
       void scheduler.onSnapshot(snap);
       label.textContent = prefs.dnd ? `${describe(snap)} · ${t("dnd")}` : describe(snap);

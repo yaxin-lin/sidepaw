@@ -63,6 +63,10 @@ export class SpriteRenderer {
     this.override = null;
   }
 
+  isOverridden(): boolean {
+    return this.override !== null;
+  }
+
   /** Draw the frame currently on screen into another context at
    *  `w` by `h`, for callers that need its shape at low resolution. */
   drawCurrentInto(ctx: CanvasRenderingContext2D, w: number, h: number) {

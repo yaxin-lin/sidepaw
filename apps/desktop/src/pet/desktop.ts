@@ -11,6 +11,7 @@ import { t } from "../i18n";
 import type { IdleBehaviour } from "./idle";
 import { LOOP_MS, ROW } from "../pack";
 import { airborne, atRest, type Body, type Bounds, FLING_SPEED, HOP_MS, hopLift, hopTarget, type Ledge, type Rect, type Sample, step, support, velocityFrom } from "./physics";
+import { CROUCH_MS, type Juice } from "./juice";
 import type { SpriteRenderer } from "./renderer";
 
 /** Mirrors `CursorRelative` in src-tauri/src/hit.rs: logical pixels
@@ -80,6 +81,7 @@ export class DesktopLife {
     /** First say in a click; true means it was used up (a jump to a
      *  terminal) and the pet should not also hop. */
     private onClick: () => Promise<boolean> = async () => false,
+    private juice: Juice | null = null,
   ) {}
 
   /** Wires the DOM and Tauri events. The window has no decorations, so
@@ -136,6 +138,7 @@ export class DesktopLife {
     const p = await this.win.outerPosition();
     this.samples.push({ t: performance.now(), x: p.x / this.scale, y: p.y / this.scale });
     if (this.samples.length > 16) this.samples.shift();
+    this.juice?.drag(velocityFrom(this.samples, 120).vx);
   }
 
   /** A short press that did not move is a click; a long or moving one
@@ -144,6 +147,7 @@ export class DesktopLife {
     if (!this.pressed) return;
     this.pressed = false;
     clearInterval(this.sampler);
+    this.juice?.drag(0);
     const first = this.samples[0];
     const last = this.samples[this.samples.length - 1];
     const moved = first && last ? Math.hypot(last.x - first.x, last.y - first.y) : 0;
@@ -183,6 +187,8 @@ export class DesktopLife {
     const range = edge ? { minX: edge.minX / scale, maxX: edge.maxX / scale } : { minX: bounds.minX, maxX: bounds.maxX };
     const x1 = hopTarget(pet.x, dx, range);
     this.idle.hold = true;
+    this.juice?.crouch();
+    await new Promise((r) => setTimeout(r, CROUCH_MS));
     this.renderer.play(ROW.jumping, HOP_MS);
     const t0 = performance.now();
     await new Promise<void>((resolve) => {
@@ -196,6 +202,7 @@ export class DesktopLife {
       };
       void frame();
     });
+    this.juice?.land();
     this.renderer.stopOverride();
     this.idle.hold = false;
     return true;
@@ -231,7 +238,10 @@ export class DesktopLife {
         last = t;
         body = step(body, dt, bounds);
         await this.win.setPosition(new PhysicalPosition(Math.round(body.x * scale), Math.round(body.y * scale)));
-        if (!airborne(body, bounds)) this.renderer.stopOverride();
+        if (!airborne(body, bounds) && this.renderer.isOverridden()) {
+          this.renderer.stopOverride();
+          this.juice?.land();
+        }
         if (atRest(body, bounds) || t - t0 > FLING_MAX_MS) resolve();
         else requestAnimationFrame((n) => void frame(n));
       };

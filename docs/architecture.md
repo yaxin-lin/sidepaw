@@ -26,6 +26,7 @@ built in is in [roadmap.md](roadmap.md).
 | Desktop life: fling physics, flinch from a near cursor, hover look, file drop | built, no OS permissions |
 | Window awareness: lands on other apps' windows, falls when they go, hides behind a full-screen app | built (macOS, Windows); Linux has no window list |
 | Own moves: rides the window it stands on, strolls on its visible edge, small hops with an inviting line, a hop for attention when a session starts waiting | built |
+| Motion on top of any pack: breathing, crouch and landing squash, lean into walks, sway while dragged | built (`pet/juice.ts`) |
 | Front app: quiet in meetings, a dance for music, gated lines on switching to a kind of app | built (names only, no permission) |
 | Jump to a session's terminal: click the pet while it waits, or the session in the tray | built (macOS: exact Terminal.app or iTerm2 tab, else the host app; Windows: the host's window) |
 | Speech bubble with local lines from the pack | built (0.4) |
@@ -253,6 +254,12 @@ being thrown around rather than living there.
 keeps the pet quiet as quiet hours would, music gets a little dance,
 and switching to a kind can get an `app.<kind>` line through the
 proactive gate.
+
+`pet/juice.ts` adds motion the spritesheet does not have, as a CSS
+transform on the canvas anchored at the feet: breathing at rest
+(slower and deeper asleep), a crouch before a hop and a squash on any
+landing, a five-degree lean while walking, and a sway against the
+direction of a drag. It is a few percent, which the hit mask ignores.
 
 Click-through works per pixel: after each drawn frame the renderer
 sends a 4 by 4 logical-pixel opacity mask to Rust (`hit.rs`), and a

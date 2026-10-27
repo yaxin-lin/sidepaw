@@ -12,6 +12,8 @@ export class IdleBehaviour {
   private state: State["state"] = "idle";
   /** Set while something else moves the window (a throw). */
   hold = false;
+  /** Told when a walk starts (-1 left, 1 right) and ends (0). */
+  onLean: (dir: number) => void = () => {};
   /** Physical x range the pet may walk in right now, when it stands
    *  on a window: walks stay on that window's visible edge. */
   limits: (() => { minX: number; maxX: number } | null) | null = null;
@@ -86,6 +88,7 @@ export class IdleBehaviour {
 
     this.walking = true;
     this.renderer.play(dir < 0 ? ROW.runningLeft : ROW.runningRight, duration);
+    this.onLean(dir);
     const t0 = performance.now();
     await new Promise<void>((resolve) => {
       const step = async () => {
@@ -98,6 +101,7 @@ export class IdleBehaviour {
       void step();
     });
     this.renderer.stopOverride();
+    this.onLean(0);
     this.walking = false;
   }
 }
