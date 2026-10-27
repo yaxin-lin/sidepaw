@@ -13,6 +13,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The pet could end up off every screen (found after opening and
+  closing chat in mini mode, at about 1980,1571 on a 1728x1080 screen)
+  and seem gone. A check every three seconds now brings it back to the
+  bottom right of the nearest screen when less than 30 % of it is
+  visible, and logs where it was so the cause can be traced.
+
 - After a restart the server waits up to three seconds for its previous
   port instead of moving to a new one, and rewrites its own Claude Code
   hooks when they still point at an old port, so hooks no longer fail

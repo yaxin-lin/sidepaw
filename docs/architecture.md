@@ -255,6 +255,11 @@ keeps the pet quiet as quiet hours would, music gets a little dance,
 and switching to a kind can get an `app.<kind>` line through the
 proactive gate.
 
+`pet/onscreen.ts` checks every three seconds that at least 30 % of the
+pet is on some screen's work area (mini mode leaves 40 % showing) and
+otherwise moves it to the bottom right of the nearest screen, logging
+where it was found.
+
 `pet/juice.ts` adds motion the spritesheet does not have, as a CSS
 transform on the canvas anchored at the feet: breathing at rest
 (slower and deeper asleep), a crouch before a hop and a squash on any

@@ -12,6 +12,7 @@ import { loadLines, loadPack, LOOP_MS, type Pack, ROW } from "../pack";
 import { label as describe } from "./label";
 import { SpriteRenderer } from "./renderer";
 import { categorize } from "./apps";
+import { keepOnScreen } from "./onscreen";
 import { Juice } from "./juice";
 import { Roam } from "./roam";
 import { Scheduler } from "./scheduler";
@@ -119,6 +120,11 @@ async function main() {
     if (next.mini !== previous?.mini || (next.mini && next.size !== previous?.size)) await life.setMini(next.mini);
   };
   await applyPrefs(prefs, null);
+  // After mini mode has parked it, so the dock's overhang is known.
+  // A rescued pet in mini mode parks again from where it landed.
+  keepOnScreen(() => {
+    if (prefs.mini) void life.setMini(true);
+  });
   await listen<PetPrefs>("prefs-changed", (e) => {
     const previous = prefs;
     prefs = e.payload;
