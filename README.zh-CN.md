@@ -77,7 +77,9 @@ OpenAI、Anthropic、Ollama 或任意 OpenAI 兼容地址，key 存系统钥匙�
   `settings.json` 的 `env` 里加上 `NO_PROXY=127.0.0.1,localhost`；如果你
   在别处设了代理，也要把回环地址排除。改完要开新的 Claude Code 会话，
   hook 配置只在启动时读取。
-- 设置窗口显示 `stale`：应用换了端口或 token，点一下 Update。
+- Claude Code 报 `connect ECONNREFUSED 127.0.0.1:<端口>`：hook 指向了应用
+  已不再监听的端口。sidepaw 启动时会自动重写自己的 hook，重启一下（或在
+  设置窗口点更新），然后新开一个 Claude Code 会话。
 
 ## 参与贡献
 

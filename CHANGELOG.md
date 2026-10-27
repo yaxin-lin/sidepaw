@@ -6,6 +6,13 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- After a restart the server waits up to three seconds for its previous
+  port instead of moving to a new one, and rewrites its own Claude Code
+  hooks when they still point at an old port, so hooks no longer fail
+  with `ECONNREFUSED` after the app comes back.
+
 ### Added
 
 - Workspace skeleton: `sidepaw-core` (event model, state machine) and

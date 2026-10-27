@@ -85,8 +85,10 @@ to the model".
   `settings.json`; if you set proxies elsewhere, exempt loopback there
   too. Start a new Claude Code session afterwards; hooks are read at
   startup.
-- The setup window says `stale`: the app moved to another port or
-  token. Click Update.
+- Claude Code prints `connect ECONNREFUSED 127.0.0.1:<port>`: the hooks
+  point at a port the app no longer listens on. sidepaw rewrites its
+  own hooks at startup when that happens, so restart it (or click
+  Update in the setup window), then start a new Claude Code session.
 
 ## Contributing
 

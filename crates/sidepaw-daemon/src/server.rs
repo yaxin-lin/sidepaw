@@ -241,7 +241,7 @@ pub async fn start(port: u16) -> Result<Running> {
         (0, Some(s)) if s.port != 0 => s.port,
         _ => port,
     };
-    let listener = match tokio::net::TcpListener::bind(("127.0.0.1", wanted)).await {
+    let listener = match bind_patiently(wanted).await {
         Ok(l) => l,
         Err(_) if wanted != port => tokio::net::TcpListener::bind(("127.0.0.1", port))
             .await
@@ -257,9 +257,33 @@ pub async fn start(port: u16) -> Result<Running> {
     Ok(Running { port, shared })
 }
 
-/// Headless mode: `start`, then block until Ctrl-C.
+/// Right after a restart (or a dev hot reload) the previous process
+/// may still hold the port for a moment. Moving to another port would
+/// leave every installed hook config pointing at the old one, so wait
+/// a little before giving up on it.
+async fn bind_patiently(port: u16) -> std::io::Result<tokio::net::TcpListener> {
+    const ATTEMPTS: u32 = 20;
+    const GAP: Duration = Duration::from_millis(150);
+    let mut last = None;
+    for _ in 0..ATTEMPTS {
+        match tokio::net::TcpListener::bind(("127.0.0.1", port)).await {
+            Ok(l) => return Ok(l),
+            Err(e) => last = Some(e),
+        }
+        tokio::time::sleep(GAP).await;
+    }
+    Err(last.unwrap())
+}
+
+/// Headless mode: `start`, refresh hooks that point at an old port,
+/// then block until Ctrl-C.
 pub async fn run(port: u16) -> Result<()> {
-    let _running = start(port).await?;
+    let running = start(port).await?;
+    if let Ok(Some(r)) =
+        crate::install::refresh_stale(Host::ClaudeCode, running.port, running.shared.token())
+    {
+        tracing::info!("rewrote stale hooks in {}", r.path);
+    }
     tokio::signal::ctrl_c().await?;
     Ok(())
 }

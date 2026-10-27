@@ -248,6 +248,11 @@ pub fn run() {
             update::check_in_background(app.handle().clone());
 
             let running = app.state::<Running>();
+            match install::refresh_stale(Host::ClaudeCode, running.port, running.shared.token()) {
+                Ok(Some(r)) => tracing::info!("rewrote stale hooks in {}", r.path),
+                Ok(None) => {}
+                Err(e) => tracing::warn!("could not refresh hooks: {e:#}"),
+            }
             if install::is_first_run(running.port, running.shared.token()) {
                 let _ = open_setup(app.handle().clone());
             }

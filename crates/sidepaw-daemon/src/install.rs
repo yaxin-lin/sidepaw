@@ -309,6 +309,17 @@ pub fn is_first_run(port: u16, token: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Hooks we installed earlier that point at an old port or token are
+/// ours to fix: rewrite them. Returns the report when something was
+/// rewritten. Hosts without a settings file or without our hooks are
+/// left alone; that is the user's call.
+pub fn refresh_stale(host: Host, port: u16, token: &str) -> Result<Option<Report>> {
+    match status(host, port, token)?.status {
+        Status::Stale => apply(host, port, token).map(Some),
+        _ => Ok(None),
+    }
+}
+
 pub fn apply(host: Host, port: u16, token: &str) -> Result<Report> {
     let (path, block) = target(host, port, token)?;
     let mut settings = read(&path)?.unwrap_or_else(|| json!({}));
