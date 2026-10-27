@@ -4,7 +4,7 @@ import type { Snapshot } from "../generated/Snapshot";
 import { Bubble } from "./bubble";
 import { DesktopLife } from "./desktop";
 import { HitMaskSource } from "./hitmask";
-import { t } from "../i18n";
+import { initLang, onLangChange, t } from "../i18n";
 import { IdleBehaviour } from "./idle";
 import { DEFAULT_PACK, loadLines, loadPack } from "../pack";
 import { SpriteRenderer } from "./renderer";
@@ -23,6 +23,7 @@ async function main() {
   const label = document.getElementById("label") as HTMLDivElement;
   const bubbleEl = document.getElementById("bubble") as HTMLDivElement;
 
+  await initLang();
   const pack = await loadPack(DEFAULT_PACK);
   const renderer = new SpriteRenderer(canvas, pack.sheet);
   const bubble = new Bubble(bubbleEl, pack.lines);
@@ -41,12 +42,16 @@ async function main() {
     }
   };
   renderer.start();
-  await listen("pack-changed", () => {
+  // Lines come per language, so both a pack edit and a language change
+  // reload them; the label re-reads its strings on the next poll.
+  const reloadLines = () => {
     loadLines(DEFAULT_PACK, pack.manifest).then(
       (lines) => bubble.setLines(lines),
       (err: unknown) => console.error(String(err)),
     );
-  });
+  };
+  await listen("pack-changed", reloadLines);
+  await onLangChange(reloadLines);
 
   // Presses, drags, throws and drops: see desktop.ts. Right-click is
   // the only way in to settings.

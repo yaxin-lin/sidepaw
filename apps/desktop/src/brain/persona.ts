@@ -87,8 +87,10 @@ function list(items: string[] | undefined): string[] {
 /** Sliders and tags plus optional free text become the system prompt
  *  used both for chat and for generating local lines, so one edit
  *  changes both. The free text goes last and verbatim, per the pack
- *  contract. */
-export function compileSystemPrompt(persona: Persona, personaMd?: string): string {
+ *  contract. A persona without a language speaks the UI's
+ *  (`uiLanguage`), and either way answers in whatever language the
+ *  user writes, so a bilingual user never has to flip a setting. */
+export function compileSystemPrompt(persona: Persona, personaMd?: string, uiLanguage?: string): string {
   const user = persona.callsUser?.trim() || "the user";
   const species = persona.species?.trim();
   const out: string[] = [];
@@ -96,7 +98,9 @@ export function compileSystemPrompt(persona: Persona, personaMd?: string): strin
     `You are ${persona.name}, a desktop pet${species ? ` (${species})` : ""} who watches ${user}'s AI coding agents work.`,
     `Call the user "${user}". Speak in the first person, in character, about what the agents are doing right now or did today.`,
   );
-  if (persona.language) out.push(`Reply in the language with code ${persona.language}.`);
+  const language = persona.language?.trim() || uiLanguage?.trim();
+  if (language) out.push(`Speak the language with code ${language} by default.`);
+  out.push("When the user writes to you in another language, answer in that language.");
 
   const sliders = persona.sliders ?? {};
   for (const key of Object.keys(SLIDER_TEXT) as Slider[]) {

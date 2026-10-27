@@ -13,12 +13,43 @@ use std::path::Path;
 #[derive(Debug, Clone, Deserialize, Default, PartialEq)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
+    pub ui: Ui,
     pub model: ModelConfig,
     pub pet: Pet,
     pub quiet: Quiet,
     pub hosts: BTreeMap<String, HostConfig>,
     pub projects: BTreeMap<String, ProjectConfig>,
     pub daemon: Daemon,
+}
+
+#[derive(Debug, Clone, Deserialize, Default, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Ui {
+    pub language: UiLanguage,
+}
+
+/// The language of everything sidepaw itself says: windows, tray,
+/// notifications. The pet's lines follow its persona instead.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub enum UiLanguage {
+    #[default]
+    #[serde(rename = "system")]
+    System,
+    #[serde(rename = "en")]
+    En,
+    #[serde(rename = "zh-CN")]
+    ZhCn,
+}
+
+impl UiLanguage {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            UiLanguage::System => "system",
+            UiLanguage::En => "en",
+            UiLanguage::ZhCn => "zh-CN",
+        }
+    }
 }
 
 /// `[model]`: the one provider the brain talks to (ADR 5). The API key
@@ -150,6 +181,16 @@ impl Config {
                     }
                 }
             }
+        })
+    }
+
+    /// Set `[ui] language` the same way `write_level` does.
+    pub fn write_ui_language(dir: &Path, language: UiLanguage) -> Result<()> {
+        edit(dir, |doc| {
+            if !doc.contains_table("ui") {
+                doc["ui"] = toml_edit::table();
+            }
+            doc["ui"]["language"] = toml_edit::value(language.as_str());
         })
     }
 
@@ -376,6 +417,18 @@ port = 4242
         let text = std::fs::read_to_string(dir.join("config.toml")).unwrap();
         assert!(!text.contains("base_url"), "{text}");
         assert_eq!(Config::load(&dir).unwrap().model.provider, "deepseek");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn ui_language_round_trips_and_rejects_unknown_tags() {
+        let dir = scratch("ui");
+        Config::write_ui_language(&dir, UiLanguage::ZhCn).unwrap();
+        assert_eq!(Config::load(&dir).unwrap().ui.language, UiLanguage::ZhCn);
+        let text = std::fs::read_to_string(dir.join("config.toml")).unwrap();
+        assert!(text.contains("language = \"zh-CN\""), "{text}");
+        assert_eq!(Config::default().ui.language, UiLanguage::System);
+        assert!(Config::parse("[ui]\nlanguage = \"fr\"\n").is_err());
         let _ = std::fs::remove_dir_all(&dir);
     }
 

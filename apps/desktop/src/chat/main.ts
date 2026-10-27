@@ -11,7 +11,7 @@ import type { DayReport } from "../generated/DayReport";
 import type { EventRow } from "../generated/EventRow";
 import type { ModelConfig } from "../generated/ModelConfig";
 import type { Snapshot } from "../generated/Snapshot";
-import { applyToDom, t } from "../i18n";
+import { applyToDom, detectLang, initLang, onLangChange, t } from "../i18n";
 import { DEFAULT_PACK } from "../pack";
 
 const HISTORY_TURNS = 10;
@@ -40,7 +40,9 @@ async function context(): Promise<string> {
 }
 
 async function main() {
+  await initLang();
   applyToDom();
+  await onLangChange(() => location.reload());
   const cfg = await invoke<ModelConfig>("get_model");
   try {
     resolve(cfg);
@@ -54,7 +56,7 @@ async function main() {
   }
 
   const { persona, md } = await loadPersona(DEFAULT_PACK);
-  const personaPrompt = compileSystemPrompt(persona, md);
+  const personaPrompt = compileSystemPrompt(persona, md, detectLang());
   const history: Turn[] = [];
   let ctx = "";
   let busy = false;

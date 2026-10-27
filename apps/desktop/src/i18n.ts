@@ -1,6 +1,39 @@
-/** UI strings. The language follows the system (navigator.language);
- *  pet lines follow the pack instead, see pack.ts. */
+/** UI strings. The language is `[ui] language` from config.toml, or
+ *  the system's (navigator.language) when that says `system`; pet
+ *  lines follow the pack instead, see pack.ts. */
+import { invoke } from "@tauri-apps/api/core";
+import { emit, listen } from "@tauri-apps/api/event";
+import type { UiLanguage } from "./generated/UiLanguage";
+
 export type Lang = "en" | "zh-CN";
+
+export const LANGUAGE_CHANGED = "language-changed";
+
+let setting: UiLanguage = "system";
+
+/** Reads the setting once; every window calls this before rendering. */
+export async function initLang(): Promise<void> {
+  try {
+    setting = await invoke<UiLanguage>("get_ui_language");
+  } catch {
+    setting = "system";
+  }
+}
+
+/** Saves the setting and tells every window. */
+export async function setLang(next: UiLanguage): Promise<void> {
+  await invoke("set_ui_language", { language: next });
+  setting = next;
+  await emit(LANGUAGE_CHANGED, next);
+}
+
+/** Follow changes made in another window. */
+export function onLangChange(handler: () => void): Promise<() => void> {
+  return listen<UiLanguage>(LANGUAGE_CHANGED, (e) => {
+    setting = e.payload;
+    handler();
+  });
+}
 
 const STRINGS = {
   en: {
@@ -142,6 +175,11 @@ const STRINGS = {
     "audit.sub": "Every remote call, newest first. Size and digest only; the text itself is not stored.",
     "audit.empty": "Nothing sent yet.",
     "working": "Working...",
+    "lang": "Language",
+    "lang.sub": "For sidepaw's own windows, tray and notifications. What the pet says follows its persona.",
+    "lang.system": "Follow the system",
+    "lang.en": "English",
+    "lang.zh-CN": "中文",
     "chat.placeholder": "Ask about what the agents did...",
     "chat.send": "Send",
     "chat.sending": "Sent with each message: {n} recent events, about {tokens} tokens.",
@@ -289,6 +327,11 @@ const STRINGS = {
     "audit.sub": "每次调用远端模型都记一行，最新在前。只记大小和摘要，不存原文。",
     "audit.empty": "还没有发送过。",
     "working": "处理中…",
+    "lang": "语言",
+    "lang.sub": "只管 sidepaw 自己的窗口、托盘和通知。宠物说什么话由人格决定。",
+    "lang.system": "跟随系统",
+    "lang.en": "English",
+    "lang.zh-CN": "中文",
     "chat.placeholder": "问问它 agent 都干了什么…",
     "chat.send": "发送",
     "chat.sending": "每条消息会附带：最近 {n} 条事件，约 {tokens} token。",
@@ -301,7 +344,8 @@ const STRINGS = {
 
 export type Key = keyof (typeof STRINGS)["en"];
 
-export function detectLang(tag = navigator.language): Lang {
+export function detectLang(tag = navigator.language, chosen: UiLanguage = setting): Lang {
+  if (chosen !== "system") return chosen;
   return tag.toLowerCase().startsWith("zh") ? "zh-CN" : "en";
 }
 

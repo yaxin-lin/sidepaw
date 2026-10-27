@@ -1,9 +1,11 @@
 //! The few strings the Rust side shows (tray menu, notifications).
 //! Everything in the web views goes through `src/i18n.ts`; the two
-//! tables must say the same things. The language is the system's,
-//! decided once at startup.
+//! tables must say the same things. The language is `[ui] language`
+//! from config.toml, or the system's when that says `system`.
 
 use sidepaw_core::State;
+use sidepaw_daemon::config::UiLanguage;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::OnceLock;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -12,7 +14,30 @@ pub enum Lang {
     ZhCn,
 }
 
+// 0 follows the system; the setting is applied at startup and whenever
+// the setup window changes it, so the tray refresher sees it next tick.
+static SETTING: AtomicU8 = AtomicU8::new(0);
+
+pub fn apply_setting(setting: UiLanguage) {
+    SETTING.store(
+        match setting {
+            UiLanguage::System => 0,
+            UiLanguage::En => 1,
+            UiLanguage::ZhCn => 2,
+        },
+        Ordering::Relaxed,
+    );
+}
+
 pub fn lang() -> Lang {
+    match SETTING.load(Ordering::Relaxed) {
+        1 => Lang::En,
+        2 => Lang::ZhCn,
+        _ => system(),
+    }
+}
+
+fn system() -> Lang {
     static LANG: OnceLock<Lang> = OnceLock::new();
     *LANG.get_or_init(|| {
         let tag = sys_locale::get_locale().unwrap_or_default().to_lowercase();

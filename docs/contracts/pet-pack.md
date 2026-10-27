@@ -90,7 +90,9 @@ re-encodes the image before use.
 
 Sliders are 0 to 1. Each strength and flaw tag maps to a short behaviour
 rule in the compiler. Unknown tags are kept as plain words in the
-prompt. The JSON Schema is `persona.schema.json`.
+prompt. `language` is optional: without it the pet speaks the app's UI
+language, and in chat it answers in whatever language the user writes
+either way. The JSON Schema is `persona.schema.json`.
 
 ## persona.md
 

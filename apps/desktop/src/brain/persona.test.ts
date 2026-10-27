@@ -20,6 +20,13 @@ describe("compileSystemPrompt", () => {
     expect(p).toContain("You are Mochi, a desktop pet (cat) who watches boss's AI coding agents work.");
     expect(p).toContain('Call the user "boss"');
     expect(p).toContain("language with code zh-CN");
+    expect(p).toContain("answer in that language");
+  });
+
+  it("falls back to the UI language only when the persona has none", () => {
+    expect(compileSystemPrompt({ version: 1, name: "X" }, undefined, "en")).toContain("code en by default");
+    expect(compileSystemPrompt(mochi, undefined, "en")).toContain("code zh-CN by default");
+    expect(compileSystemPrompt({ version: 1, name: "X" })).not.toContain("by default");
   });
 
   it("turns sliders into one sentence each, by thirds", () => {

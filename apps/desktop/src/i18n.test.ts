@@ -9,6 +9,12 @@ describe("i18n", () => {
     expect(detectLang("ja")).toBe("en");
   });
 
+  it("lets the setting override the system tag", () => {
+    expect(detectLang("ja", "zh-CN")).toBe("zh-CN");
+    expect(detectLang("zh-CN", "en")).toBe("en");
+    expect(detectLang("zh-CN", "system")).toBe("zh-CN");
+  });
+
   it("substitutes variables and falls back to English", () => {
     expect(t("level.saved", { n: 3 }, "zh-CN")).toBe("档位 3 已写入 config.toml。");
     expect(t("level.saved", { n: 3 }, "en")).toBe("Level 3 saved to config.toml.");

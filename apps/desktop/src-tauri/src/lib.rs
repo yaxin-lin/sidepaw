@@ -12,7 +12,7 @@ mod update;
 use hit::{HitMask, Mask};
 use sidepaw_core::event::UnknownHost;
 use sidepaw_core::{Host, Level};
-use sidepaw_daemon::config::ModelConfig;
+use sidepaw_daemon::config::{ModelConfig, UiLanguage};
 use sidepaw_daemon::install::{self, Report};
 use sidepaw_daemon::pets;
 use sidepaw_daemon::registry::Snapshot;
@@ -96,6 +96,21 @@ fn host_install(server: State<'_, Running>, host_name: String) -> Result<Report,
 fn host_remove(server: State<'_, Running>, host_name: String) -> Result<Report, String> {
     install::remove(host(&host_name)?, server.port, server.shared.token())
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_ui_language(server: State<'_, Running>) -> UiLanguage {
+    server.shared.ui_language()
+}
+
+#[tauri::command]
+fn set_ui_language(server: State<'_, Running>, language: UiLanguage) -> Result<(), String> {
+    server
+        .shared
+        .set_ui_language(language)
+        .map_err(|e| e.to_string())?;
+    text::apply_setting(language);
+    Ok(())
 }
 
 #[tauri::command]
@@ -232,6 +247,7 @@ pub fn run() {
             // async runtime is tokio, so the server lives as long as the app.
             let running = tauri::async_runtime::block_on(server::start(0))?;
             tracing::info!("embedded server on 127.0.0.1:{}", running.port);
+            text::apply_setting(running.shared.ui_language());
             app.manage(running);
             app.manage(HitMask::default());
             if let Some(window) = app.get_webview_window("pet") {
@@ -272,6 +288,8 @@ pub fn run() {
             host_status,
             host_install,
             host_remove,
+            get_ui_language,
+            set_ui_language,
             get_model,
             set_model,
             key_source,

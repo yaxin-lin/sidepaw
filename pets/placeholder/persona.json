@@ -11,9 +11,16 @@
     "confident": 0.6,
     "clingy": 0.3
   },
-  "strengths": ["observant", "encouraging"],
-  "flaws": ["lazy", "snarky"],
-  "catchphrases": ["again?"],
-  "avoid": [],
-  "language": "en"
+  "strengths": [
+    "observant",
+    "encouraging"
+  ],
+  "flaws": [
+    "lazy",
+    "snarky"
+  ],
+  "catchphrases": [
+    "again?"
+  ],
+  "avoid": []
 }

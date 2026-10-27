@@ -11,7 +11,7 @@
 
 use crate::adapters;
 use crate::clock::{now_ms, now_rfc3339, start_of_today_rfc3339};
-use crate::config::{Config, ModelConfig};
+use crate::config::{Config, ModelConfig, UiLanguage};
 use crate::home::{self, DaemonState};
 use crate::redact;
 use crate::registry::{PendingApproval, Registry, Snapshot};
@@ -176,6 +176,16 @@ impl Shared {
             .unwrap()
             .store
             .report_since(&start_of_today_rfc3339())
+    }
+
+    pub fn ui_language(&self) -> UiLanguage {
+        self.app.lock().unwrap().config.ui.language
+    }
+
+    pub fn set_ui_language(&self, language: UiLanguage) -> Result<()> {
+        Config::write_ui_language(&home::dir()?, language)?;
+        self.app.lock().unwrap().config.ui.language = language;
+        Ok(())
     }
 
     pub fn model(&self) -> ModelConfig {

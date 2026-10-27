@@ -5,7 +5,7 @@ import { emit } from "@tauri-apps/api/event";
 import { loadPersona, parseJson, readBundled, readUser, writeUser } from "../brain/files";
 import { countLines, linesRequest, parseLines } from "../brain/linegen";
 import { compileSystemPrompt, FLAW_TAGS, personaDigest, SLIDERS, STRENGTH_TAGS, type Persona, type Slider } from "../brain/persona";
-import { t, type Key } from "../i18n";
+import { detectLang, t, type Key } from "../i18n";
 import type { LinesFile } from "../lines";
 import { DEFAULT_PACK } from "../pack";
 import { renderAudit } from "./audit";
@@ -55,7 +55,7 @@ function mdFromForm(): string {
 /** What the form says right now, compiled; the model section's "Test"
  *  uses it so the two buttons agree. */
 export function currentPersonaPrompt(): string {
-  return compileSystemPrompt(personaFromForm(), mdFromForm());
+  return compileSystemPrompt(personaFromForm(), mdFromForm(), detectLang());
 }
 
 function fillForm(p: Persona, md: string) {
@@ -155,7 +155,7 @@ export async function mountPet() {
     busy("p-msg", async () => {
       // Generate from what is saved, so generatedFrom means what it says.
       const { persona, md } = await loadPersona(PACK);
-      const text = await send(modelFromForm, linesRequest(compileSystemPrompt(persona, md)), () => void renderAudit());
+      const text = await send(modelFromForm, linesRequest(compileSystemPrompt(persona, md, detectLang())), () => void renderAudit());
       if (text === null) return;
       const file = parseLines(text, await personaDigest(persona, md));
       await writeUser(PACK, "lines.json", JSON.stringify(file, null, 2) + "\n");

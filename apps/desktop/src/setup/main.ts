@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { DayReport } from "../generated/DayReport";
 import type { Report } from "../generated/Report";
-import { applyToDom, t } from "../i18n";
+import { applyToDom, initLang, onLangChange, setLang, t, type Key } from "../i18n";
+import type { UiLanguage } from "../generated/UiLanguage";
 import { el, note } from "./dom";
 import { mountModel } from "./model";
 import { mountPet } from "./pet";
@@ -89,9 +90,31 @@ async function setLevel(n: number) {
   }
 }
 
+const LANGUAGES: UiLanguage[] = ["system", "zh-CN", "en"];
+
+/** The whole page is static text plus a few built lists, so a language
+ *  change just reloads it. */
+async function renderLanguage() {
+  const select = el<HTMLSelectElement>("lang");
+  select.replaceChildren();
+  const current = await invoke<UiLanguage>("get_ui_language");
+  for (const l of LANGUAGES) {
+    const o = document.createElement("option");
+    o.value = l;
+    o.textContent = t(`lang.${l}` as Key);
+    o.selected = l === current;
+    select.append(o);
+  }
+  // setLang's event reaches this window too, so the reload is below.
+  select.addEventListener("change", () => void setLang(select.value as UiLanguage));
+  await onLangChange(() => location.reload());
+}
+
 async function main() {
+  await initLang();
   applyToDom();
   document.title = t("setup.title");
+  await renderLanguage();
   const port = await invoke<number>("server_port");
   el("server-addr").textContent = `127.0.0.1:${port}`;
   await renderToday();
