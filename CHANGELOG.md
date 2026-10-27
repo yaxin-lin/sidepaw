@@ -95,10 +95,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
   `env.NO_PROXY` in `settings.json`; a global-mode system proxy would
   otherwise swallow every hook request ("socket hang up").
 - Desktop life: throw the pet and it flies, bounces off the edges of
-  the work area and lands on the bottom; a gentle release leaves it
-  where it was put. It steps away from a cursor that lingers next to
-  it, sizes up a cursor that hovers, and says a line (`drop`, falling
-  back to `click`) when a file is dropped on it.
+  the work area and lands on the nearest thing under it: another app's
+  window or the bottom of the screen. When that window moves or closes
+  it falls. It steps away from a cursor that lingers next to it, sizes
+  up a cursor that hovers, says a line (`drop`, falling back to
+  `click`) when a file is dropped on it, and hides while the app in
+  front is full screen. macOS and Windows; no OS permission is asked.
 - Model provider: `[model]` in `config.toml` (DeepSeek, OpenAI,
   Anthropic, Ollama or any OpenAI-compatible URL, one at a time per
   ADR 5) with the API key in the OS credential store or

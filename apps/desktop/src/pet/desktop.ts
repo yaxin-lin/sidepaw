@@ -8,7 +8,7 @@ import { currentMonitor, getCurrentWindow, PhysicalPosition } from "@tauri-apps/
 import type { Bubble } from "./bubble";
 import type { IdleBehaviour } from "./idle";
 import { LOOP_MS, ROW } from "../pack";
-import { airborne, atRest, type Body, type Bounds, FLING_SPEED, type Sample, step, velocityFrom } from "./physics";
+import { airborne, atRest, type Body, type Bounds, FLING_SPEED, floorFor, type Rect, type Sample, step, velocityFrom } from "./physics";
 import type { SpriteRenderer } from "./renderer";
 
 /** Mirrors `CursorRelative` in src-tauri/src/hit.rs: logical pixels
@@ -20,8 +20,15 @@ interface CursorRelative {
   height: number;
 }
 
+/** Mirrors `Scene` in src-tauri/src/shelf.rs, physical pixels. */
+interface Scene {
+  shelves: Rect[];
+  fullscreen: boolean;
+}
+
 const SAMPLE_MS = 16;
 const CLICK_MS = 250;
+const SUPPORT_MS = 500;
 const HOVER_MS = 1500;
 const NEAR_MS = 700;
 const FLEE_COOLDOWN_MS = 6000;
@@ -73,6 +80,7 @@ export class DesktopLife {
     });
     this.canvas.addEventListener("mouseleave", () => clearTimeout(this.hoverTimer));
     setInterval(() => void this.watchCursor(), CURSOR_POLL_MS);
+    setInterval(() => void this.checkSupport(), SUPPORT_MS);
     await getCurrentWebview().onDragDropEvent((event) => {
       if (event.payload.type !== "drop" || event.payload.paths.length === 0) return;
       const name = event.payload.paths[0].split(/[\\/]/).pop() ?? "";
@@ -110,19 +118,10 @@ export class DesktopLife {
    *  gentle release never gets here, so placing the pet on a shelf of
    *  your choosing still works. */
   private async fling(vx: number, vy: number) {
-    const monitor = await currentMonitor();
-    if (!monitor) return;
-    const scale = monitor.scaleFactor;
-    const size = await this.win.outerSize();
-    const pos = await this.win.outerPosition();
-    const area = monitor.workArea;
-    const bounds: Bounds = {
-      minX: area.position.x / scale,
-      maxX: (area.position.x + area.size.width - size.width) / scale,
-      minY: area.position.y / scale,
-      maxY: (area.position.y + area.size.height - size.height) / scale,
-    };
-    let body: Body = { x: pos.x / scale, y: pos.y / scale, vx, vy };
+    const world = await this.world();
+    if (!world) return;
+    const { bounds, scale } = world;
+    let body: Body = { ...world.pet, vx, vy };
     this.idle.hold = true;
     this.renderer.play(ROW.jumping, FLING_MAX_MS);
     const t0 = performance.now();
@@ -141,6 +140,36 @@ export class DesktopLife {
     });
     this.renderer.stopOverride();
     this.idle.hold = false;
+  }
+
+  /** The pet and what it can land on, in logical pixels. Other apps'
+   *  windows come from the OS each time; they move and close. */
+  private async world(): Promise<{ bounds: Bounds; scale: number; pet: { x: number; y: number } } | null> {
+    const monitor = await currentMonitor();
+    if (!monitor) return null;
+    const scale = monitor.scaleFactor;
+    const [size, pos, scene] = await Promise.all([this.win.outerSize(), this.win.outerPosition(), invoke<Scene>("scene")]);
+    const area = monitor.workArea;
+    const bounds: Bounds = {
+      minX: area.position.x / scale,
+      maxX: (area.position.x + area.size.width - size.width) / scale,
+      minY: area.position.y / scale,
+      maxY: (area.position.y + area.size.height - size.height) / scale,
+      pet: { width: size.width / scale, height: size.height / scale },
+      shelves: scene.shelves.map((r) => ({ x: r.x / scale, y: r.y / scale, width: r.width / scale, height: r.height / scale })),
+    };
+    return { bounds, scale, pet: { x: pos.x / scale, y: pos.y / scale } };
+  }
+
+  /** Whatever held the pet up may have moved or closed; when nothing
+   *  is under it any more, it falls. Not while a walk or a throw is
+   *  moving the window. */
+  private async checkSupport() {
+    if (this.pressed || this.idle.hold || this.idle.isWalking()) return;
+    const world = await this.world();
+    if (!world) return;
+    const floor = floorFor(world.bounds, world.pet.x, world.pet.y);
+    if (world.pet.y < floor - 2) await this.fling(0, 0);
   }
 
   /** A cursor hovering just beside the pet for a moment makes it step

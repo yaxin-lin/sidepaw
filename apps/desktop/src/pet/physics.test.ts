@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { airborne, atRest, type Bounds, step, velocityFrom } from "./physics";
+import { airborne, atRest, type Bounds, floorFor, step, velocityFrom } from "./physics";
 
-const bounds: Bounds = { minX: 0, maxX: 1000, minY: 0, maxY: 600 };
+const bounds: Bounds = { minX: 0, maxX: 1000, minY: 0, maxY: 600, pet: { width: 100, height: 100 }, shelves: [] };
 
 describe("velocityFrom", () => {
   it("uses only the tail of the drag", () => {
@@ -39,6 +39,21 @@ describe("step", () => {
     expect(atRest(b, bounds)).toBe(true);
     expect(airborne(b, bounds)).toBe(false);
     expect(t).toBeLessThan(10);
+  });
+
+  it("lands on a window under it and ignores one around it", () => {
+    const shelved: Bounds = { ...bounds, shelves: [{ x: 200, y: 300, width: 400, height: 300 }] };
+    // Standing position on the shelf is y = 300 - 100.
+    expect(floorFor(shelved, 300, 0)).toBe(200);
+    expect(floorFor(shelved, 300, 200)).toBe(200);
+    // Only a sliver of overlap: not standing on it.
+    expect(floorFor(shelved, 580, 0)).toBe(600);
+    // Already below the window's top: it is around the pet, fall through.
+    expect(floorFor(shelved, 300, 250)).toBe(600);
+    let b = { x: 300, y: 0, vx: 0, vy: 0 };
+    for (let i = 0; i < 600 && !atRest(b, shelved); i++) b = step(b, 1 / 60, shelved);
+    expect(b.y).toBe(200);
+    expect(airborne(b, shelved)).toBe(false);
   });
 
   it("does not bounce forever on a gentle landing", () => {

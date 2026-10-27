@@ -38,6 +38,10 @@ export class IdleBehaviour {
     return this.state === "idle";
   }
 
+  isWalking(): boolean {
+    return this.walking;
+  }
+
   /** Call often; it decides on its own when to wander. */
   async tick(now = Date.now()) {
     if (this.walking || this.hold || now < this.nextWalkAt || this.state !== "idle") return;

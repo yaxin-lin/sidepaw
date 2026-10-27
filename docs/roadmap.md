@@ -26,13 +26,13 @@ agent-pet and pets-driven. Each item ships on its own.
 7. Codex adapter and `sidepaw run -- <cmd>`.
 8. One pet per project.
 9. Desktop life. Done: throw it (fling physics, bounces off the work
-   area, a gentle release stays put), it steps away from a cursor that
-   lingers beside it and sizes up one that hovers, files dropped on it
-   get a line. Next, still without OS permissions: system idle time
-   (lands with 0.5, where it is used). Then window awareness: the
-   frontmost app, window rectangles (sit on the terminal's title bar,
-   mute in full screen). Last, opt-in and gated by level: global input
-   and screen reading.
+   area), it steps away from a cursor that lingers beside it and sizes
+   up one that hovers, files dropped on it get a line; it lands on
+   other apps' windows and falls when they move or close, and hides
+   while the app in front is full screen (macOS and Windows, no
+   permission needed). Next, still without OS permissions: system
+   idle time (lands with 0.5, where it is used). Last, opt-in and
+   gated by level: global input and screen reading.
 10. Signing, notarization, Homebrew.
 11. Proactive chat.
 
@@ -79,9 +79,8 @@ Proactive triggers, budget, cooldowns, quiet hours, memory list.
 
 ## 0.6 It lives on the desktop
 
-Window awareness (frontmost app, window rectangles, full-screen mute)
-and the permission-gated tier (global input, screen reading) from item
-9, each behind its own switch.
+The permission-gated tier of item 9 (global input, screen reading),
+each behind its own switch, and Pack v2 art for looking at the cursor.
 
 ## Later
 

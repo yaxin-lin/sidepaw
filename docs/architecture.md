@@ -21,6 +21,7 @@ built in is in [roadmap.md](roadmap.md).
 | Chinese UI (system language): web views, tray, notifications | built |
 | Idle behaviour: walks, dozing, click hop | built |
 | Desktop life: fling physics, flinch from a near cursor, hover look, file drop | built, no OS permissions |
+| Window awareness: lands on other apps' windows, falls when they go, hides behind a full-screen app | built (macOS, Windows); Linux has no window list |
 | Speech bubble with local lines from the pack | built (0.4) |
 | Persona compiler (sliders, tags, free text to system prompt), persona editor in the setup window | built (0.4) |
 | Model provider (`[model]`, key in the OS credential store), LLM client with preview before send and `audit` rows | built (0.4) |
@@ -135,8 +136,15 @@ the renderer cannot drift from the model.
 `pet/desktop.ts` gives the pet a life on the desktop with nothing but the
 window APIs: a drag's last samples become a release velocity, and a
 fast release plays out in `physics.ts` (gravity, wall and floor
-bounces, floor friction) until the pet rests on the work area's bottom
-edge, while a gentle release leaves it where it was put. The same OS
+bounces, floor friction) until the pet rests on something. What it can
+rest on comes from `shelf.rs` (`scene` command): the frames of other
+apps' windows, read with `CGWindowList` on macOS and `EnumWindows` plus
+DWM frame bounds on Windows, neither of which needs a permission
+(titles would, so they are never read). The floor under the pet is the
+highest such window it overlaps, else the work area's bottom; a support
+check twice a second drops it when that window moves or closes. The
+same scene says whether the app in front covers a display, and a Rust
+watcher hides the pet while it does. The same OS
 cursor the click-through poller reads (`cursor_relative` command, one call per poll)
 drives a flinch when the cursor lingers beside the pet; the hover look
 and file drops come from the web view's own events.

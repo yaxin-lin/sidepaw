@@ -4,6 +4,7 @@
 
 mod hit;
 mod notify;
+mod shelf;
 mod text;
 mod tray;
 mod update;
@@ -166,6 +167,13 @@ fn cursor_relative(app: AppHandle, window: tauri::WebviewWindow) -> Option<hit::
     hit::cursor_relative(&app, &window)
 }
 
+/// Other apps' windows and whether the one in front is full screen,
+/// in the pet window's physical pixels.
+#[tauri::command]
+fn scene(window: tauri::WebviewWindow) -> shelf::Scene {
+    shelf::scene(window.scale_factor().unwrap_or(1.0))
+}
+
 /// The setup window is created on demand and reused while open.
 #[tauri::command]
 fn open_setup(app: AppHandle) -> Result<(), String> {
@@ -211,6 +219,9 @@ pub fn run() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             tray::install(app.handle())?;
             notify::spawn_watcher(app.handle().clone());
+            if let Some(window) = app.get_webview_window("pet") {
+                shelf::spawn_fullscreen_watcher(window);
+            }
             update::check_in_background(app.handle().clone());
 
             let running = app.state::<Running>();
@@ -244,6 +255,7 @@ pub fn run() {
             audit_call,
             audit_recent,
             cursor_relative,
+            scene,
             open_setup
         ])
         .run(tauri::generate_context!())
