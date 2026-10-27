@@ -59,6 +59,26 @@ fn pick(en: &'static str, zh: &'static str) -> &'static str {
 pub fn no_sessions() -> &'static str {
     pick("No active sessions", "没有活跃会话")
 }
+pub fn dnd() -> &'static str {
+    pick("Do Not Disturb", "勿扰")
+}
+pub fn mini() -> &'static str {
+    pick("Mini Mode (park at the edge)", "迷你模式（停在屏幕边）")
+}
+pub fn size() -> &'static str {
+    pick("Size", "尺寸")
+}
+pub fn size_name(size: sidepaw_daemon::config::PetSize) -> &'static str {
+    use sidepaw_daemon::config::PetSize;
+    match size {
+        PetSize::S => pick("Small", "小"),
+        PetSize::M => pick("Medium", "中"),
+        PetSize::L => pick("Large", "大"),
+    }
+}
+pub fn autostart() -> &'static str {
+    pick("Start at Login", "开机自启")
+}
 pub fn chat() -> &'static str {
     pick("Chat...", "聊天…")
 }

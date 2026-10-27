@@ -34,8 +34,22 @@ impl Mask {
     }
 }
 
-#[derive(Default)]
-pub struct HitMask(pub Mutex<Mask>);
+/// The mask the web view last sent, and the web view's zoom (the pet
+/// size), which the mask's CSS pixels have to be scaled by to meet the
+/// window's logical pixels.
+pub struct HitMask {
+    pub mask: Mutex<Mask>,
+    pub zoom: Mutex<f64>,
+}
+
+impl Default for HitMask {
+    fn default() -> Self {
+        HitMask {
+            mask: Mutex::default(),
+            zoom: Mutex::new(1.0),
+        }
+    }
+}
 
 /// The cursor as the web view would like to see it: relative to the
 /// window's origin, in logical pixels, with the window's logical size.
@@ -66,14 +80,19 @@ pub const POLL: Duration = Duration::from_millis(40);
 /// Decide for the current cursor position. Returns the new
 /// ignore-cursor-events value, or `None` when it cannot be determined
 /// (cursor API unavailable, window hidden) and nothing should change.
-pub fn should_ignore(app: &AppHandle, window: &WebviewWindow, mask: &Mask) -> Option<bool> {
+pub fn should_ignore(
+    app: &AppHandle,
+    window: &WebviewWindow,
+    mask: &Mask,
+    zoom: f64,
+) -> Option<bool> {
     let c = cursor_relative(app, window)?;
     if c.x < 0.0 || c.y < 0.0 || c.x >= c.width || c.y >= c.height {
         // Outside the window entirely: ignoring costs nothing and means
         // the first re-entry is already in the right mode.
         return Some(true);
     }
-    Some(!mask.opaque_at(c.x, c.y))
+    Some(!mask.opaque_at(c.x / zoom, c.y / zoom))
 }
 
 pub fn spawn_poller(app: AppHandle, window: WebviewWindow) {
@@ -81,8 +100,10 @@ pub fn spawn_poller(app: AppHandle, window: WebviewWindow) {
         let mut ignoring: Option<bool> = None;
         loop {
             tokio::time::sleep(POLL).await;
-            let mask = app.state::<HitMask>().0.lock().unwrap().clone();
-            let Some(next) = should_ignore(&app, &window, &mask) else {
+            let state = app.state::<HitMask>();
+            let mask = state.mask.lock().unwrap().clone();
+            let zoom = *state.zoom.lock().unwrap();
+            let Some(next) = should_ignore(&app, &window, &mask, zoom) else {
                 continue;
             };
             if ignoring != Some(next) && window.set_ignore_cursor_events(next).is_ok() {

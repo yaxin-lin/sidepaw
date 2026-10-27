@@ -78,10 +78,15 @@ export class Bubble {
     this.hide();
   }
 
+  /** Do not disturb: state changes say nothing. Clicks still answer
+   *  and permission prompts still show, since the user asked for both. */
+  quiet = false;
+
   /** Call on every poll; only transitions can trigger a line. */
   onState(state: State) {
     if (state.state === this.lastState) return;
     this.lastState = state.state;
+    if (this.quiet) return;
     const t = this.now();
     const gap = GAP_MS[state.state];
     const last = this.lastSaid[state.state];

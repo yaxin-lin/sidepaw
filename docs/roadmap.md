@@ -8,7 +8,10 @@ whenever its shape changes. GitHub milestones mirror this list.
 ## Next up, in order
 
 Decided 2026-10-26 after comparing agentpet, clawd-on-desk, UniPet,
-agent-pet and pets-driven. Each item ships on its own.
+agent-pet and pets-driven, revisited 2026-10-27 after a wider survey
+(openpets, Clyde, CoPet, claude-pet, vibe-pet). Each item ships on its
+own. Done since that survey: jump to the session's terminal; tray
+toggles for do-not-disturb, mini mode, size and start at login.
 
 1. Done: system notifications with sound on waiting, error and done
    (L3), with a permission level picker in the setup window.

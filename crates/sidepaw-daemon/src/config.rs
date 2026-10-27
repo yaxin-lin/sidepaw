@@ -69,6 +69,50 @@ pub struct Pet {
     pub active: String,
     pub level: Level,
     pub chatty: u8,
+    pub size: PetSize,
+    /// Do not disturb: no notifications and no unprompted lines.
+    pub dnd: bool,
+    /// Parked at the screen edge, sliding out when the cursor comes.
+    pub mini: bool,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub enum PetSize {
+    S,
+    #[default]
+    M,
+    L,
+}
+
+impl PetSize {
+    /// Window and web view scale. Kept to quarters so the hit mask's
+    /// cell stays a whole number of pixels (`hit.rs`).
+    pub fn zoom(self) -> f64 {
+        match self {
+            PetSize::S => 0.75,
+            PetSize::M => 1.0,
+            PetSize::L => 1.25,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            PetSize::S => "s",
+            PetSize::M => "m",
+            PetSize::L => "l",
+        }
+    }
+}
+
+/// The parts of `[pet]` the tray toggles and the pet window follows.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct PetPrefs {
+    pub size: PetSize,
+    pub dnd: bool,
+    pub mini: bool,
 }
 
 impl Default for Pet {
@@ -77,6 +121,9 @@ impl Default for Pet {
             active: "placeholder".into(),
             level: Level::DEFAULT,
             chatty: 2,
+            size: PetSize::M,
+            dnd: false,
+            mini: false,
         }
     }
 }
@@ -182,6 +229,26 @@ impl Config {
                 }
             }
         })
+    }
+
+    /// Set `[pet] size`, `dnd` and `mini` the same way `write_level` does.
+    pub fn write_pet_prefs(dir: &Path, prefs: PetPrefs) -> Result<()> {
+        edit(dir, |doc| {
+            if !doc.contains_table("pet") {
+                doc["pet"] = toml_edit::table();
+            }
+            doc["pet"]["size"] = toml_edit::value(prefs.size.as_str());
+            doc["pet"]["dnd"] = toml_edit::value(prefs.dnd);
+            doc["pet"]["mini"] = toml_edit::value(prefs.mini);
+        })
+    }
+
+    pub fn pet_prefs(&self) -> PetPrefs {
+        PetPrefs {
+            size: self.pet.size,
+            dnd: self.pet.dnd,
+            mini: self.pet.mini,
+        }
     }
 
     /// Set `[ui] language` the same way `write_level` does.
@@ -429,6 +496,28 @@ port = 4242
         assert!(text.contains("language = \"zh-CN\""), "{text}");
         assert_eq!(Config::default().ui.language, UiLanguage::System);
         assert!(Config::parse("[ui]\nlanguage = \"fr\"\n").is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn pet_prefs_round_trip_next_to_other_pet_keys() {
+        let dir = scratch("prefs");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("config.toml"), "[pet]\nlevel = 3 # mine\n").unwrap();
+        let prefs = PetPrefs {
+            size: PetSize::L,
+            dnd: true,
+            mini: false,
+        };
+        Config::write_pet_prefs(&dir, prefs).unwrap();
+        let c = Config::load(&dir).unwrap();
+        assert_eq!(c.pet_prefs(), prefs);
+        assert_eq!(c.pet.level, Level::Notify);
+        assert!(std::fs::read_to_string(dir.join("config.toml"))
+            .unwrap()
+            .contains("# mine"));
+        assert!(Config::parse("[pet]\nsize = \"xl\"\n").is_err());
+        assert_eq!(PetSize::S.zoom() * 4.0, 3.0);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

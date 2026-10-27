@@ -4,6 +4,7 @@
 
 mod hit;
 mod notify;
+mod prefs;
 mod shelf;
 mod terminal;
 mod text;
@@ -13,7 +14,7 @@ mod update;
 use hit::{HitMask, Mask};
 use sidepaw_core::event::UnknownHost;
 use sidepaw_core::{Host, Level};
-use sidepaw_daemon::config::{ModelConfig, UiLanguage};
+use sidepaw_daemon::config::{ModelConfig, PetPrefs, UiLanguage};
 use sidepaw_daemon::install::{self, Report};
 use sidepaw_daemon::pets;
 use sidepaw_daemon::registry::Snapshot;
@@ -35,7 +36,12 @@ fn server_port(server: State<'_, Running>) -> u16 {
 /// The renderer calls this whenever the drawn frame changes.
 #[tauri::command]
 fn set_hit_mask(mask: State<'_, HitMask>, cell: u32, rows: Vec<u64>) {
-    *mask.0.lock().unwrap() = Mask { cell, rows };
+    *mask.mask.lock().unwrap() = Mask { cell, rows };
+}
+
+#[tauri::command]
+fn pet_prefs(server: State<'_, Running>) -> PetPrefs {
+    server.shared.pet_prefs()
 }
 
 #[tauri::command]
@@ -254,6 +260,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         // Model requests go through the Rust HTTP client so the web
         // view's origin rules do not apply; the scope is in capabilities.
         .plugin(tauri_plugin_http::init())
@@ -263,8 +273,10 @@ pub fn run() {
             let running = tauri::async_runtime::block_on(server::start(0))?;
             tracing::info!("embedded server on 127.0.0.1:{}", running.port);
             text::apply_setting(running.shared.ui_language());
+            let size = running.shared.pet_prefs().size;
             app.manage(running);
             app.manage(HitMask::default());
+            prefs::apply_size(app.handle(), size);
             if let Some(window) = app.get_webview_window("pet") {
                 hit::spawn_poller(app.handle().clone(), window);
             }
@@ -300,6 +312,7 @@ pub fn run() {
             set_level,
             test_notification,
             set_hit_mask,
+            pet_prefs,
             host_status,
             host_install,
             host_remove,

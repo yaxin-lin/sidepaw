@@ -65,6 +65,15 @@ describe("Bubble", () => {
     expect(el.textContent).toBe("needs you");
   });
 
+  it("stays quiet on state changes in do-not-disturb, but answers clicks", () => {
+    bubble.quiet = true;
+    bubble.onState({ state: "waiting" });
+    expect(el.textContent).not.toBe("needs you");
+    bubble.onInteraction("click");
+    expect(el.textContent).toBe("yes?");
+    bubble.quiet = false;
+  });
+
   it("answers clicks", () => {
     bubble.onInteraction("click");
     expect(el.textContent).toBe("yes?");

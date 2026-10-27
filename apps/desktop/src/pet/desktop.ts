@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { currentMonitor, getCurrentWindow, PhysicalPosition } from "@tauri-apps/api/window";
 import type { Bubble } from "./bubble";
+import { Dock } from "./dock";
 import type { IdleBehaviour } from "./idle";
 import { LOOP_MS, ROW } from "../pack";
 import { airborne, atRest, type Body, type Bounds, FLING_SPEED, floorFor, type Rect, type Sample, step, velocityFrom } from "./physics";
@@ -40,6 +41,7 @@ const DRAG_MIN_PX = 20;
 export class DesktopLife {
   private win = getCurrentWindow();
   private pressed = false;
+  private dock = new Dock();
   private pressedAt = 0;
   private lastClickAt = 0;
   private scale = 1;
@@ -64,10 +66,13 @@ export class DesktopLife {
    *  and the release decides whether it was a click, a drag or a throw. */
   async attach() {
     this.canvas.addEventListener("mousedown", (e) => {
-      if (e.button !== 0 || this.idle.hold) return;
+      const parked = this.dock.isParked();
+      if (e.button !== 0 || (this.idle.hold && !parked)) return;
       this.pressed = true;
       this.pressedAt = Date.now();
       this.samples = [];
+      // Parked at the edge the pet is not draggable; a press is a click.
+      if (parked) return;
       clearInterval(this.sampler);
       void this.win.scaleFactor().then((s) => (this.scale = s));
       this.sampler = window.setInterval(() => void this.sample(), SAMPLE_MS);
@@ -172,6 +177,22 @@ export class DesktopLife {
       shelves: scene.shelves.map((r) => ({ x: r.x / scale, y: r.y / scale, width: r.width / scale, height: r.height / scale })),
     };
     return { bounds, scale, pet: { x: pos.x / scale, y: pos.y / scale } };
+  }
+
+  /** Mini mode on or off. Walks, throws and the support check stop
+   *  while parked, since the dock owns the window's position. */
+  async setMini(on: boolean) {
+    if (on) {
+      this.idle.hold = true;
+      await this.dock.park();
+    } else if (this.dock.isParked()) {
+      await this.dock.leave();
+      this.idle.hold = false;
+    }
+  }
+
+  setAttention(on: boolean) {
+    this.dock.setAttention(on);
   }
 
   /** Whatever held the pet up may have moved or closed; when nothing

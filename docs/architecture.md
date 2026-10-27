@@ -33,6 +33,7 @@ built in is in [roadmap.md](roadmap.md).
 | Click-through of transparent pixels, self-update, release workflow | built (0.2) |
 | Setup window: install, update, remove Claude Code hooks | built (0.2) |
 | Tray icon: session monitor, attention icon and count, setup, show/hide, quit | built |
+| Tray toggles: do not disturb, mini mode (parked at the screen edge), size S/M/L, start at login | built |
 | Daily report from counters (`GET /v1/report/today`, setup window) | built (0.3) |
 | Bundled pet packs | `pets/placeholder`, a generated stand-in until a real pack lands |
 
@@ -164,6 +165,17 @@ the nearest ancestor process that is a regular app (VS Code, Warp,
 Ghostty); on Windows the nearest ancestor that owns a visible window
 (Windows Terminal, VS Code). A click on the pet while a session waits
 for the user, or a session in the tray menu, goes there.
+
+Size, do-not-disturb and mini mode live in `[pet]` and are changed from
+the tray (`prefs.rs`), which saves them and emits `prefs-changed`.
+Size is applied in Rust: the window is resized around its bottom edge
+and the web view zoomed by the same factor, which the click-through
+poller divides the cursor by, so the page itself never changes layout.
+Do-not-disturb stops notifications in `notify.rs` and unprompted lines
+in the bubble; clicks and permission prompts still answer. Mini mode
+is `pet/dock.ts`: the pet parks at the right edge with 40 % showing,
+slides out when the cursor reaches it or a session waits, and tucks
+back in after a moment. Start at login is `tauri-plugin-autostart`.
 
 Click-through works per pixel: after each drawn frame the renderer
 sends a 4 by 4 logical-pixel opacity mask to Rust (`hit.rs`), and a

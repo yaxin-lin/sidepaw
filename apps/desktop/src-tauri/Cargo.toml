@@ -30,6 +30,7 @@ tokio = { version = "1", features = ["time"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tauri-plugin-http = "2"
+tauri-plugin-autostart = "2"
 
 # Window frames and the frontmost app, for shelves and full-screen mute
 # (shelf.rs). These crates are already in Tauri's own tree.

@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import type { PetPrefs } from "../generated/PetPrefs";
 import type { Snapshot } from "../generated/Snapshot";
 import { Bubble } from "./bubble";
 import { DesktopLife } from "./desktop";
@@ -68,7 +69,22 @@ async function main() {
       return false;
     }
   };
-  await new DesktopLife(renderer, idle, bubble, canvas, jumpToWaiting).attach();
+  const life = new DesktopLife(renderer, idle, bubble, canvas, jumpToWaiting);
+  await life.attach();
+
+  // Size is applied on the Rust side (window and zoom together); this
+  // window carries out do-not-disturb and mini mode. See prefs.rs.
+  let prefs = await invoke<PetPrefs>("pet_prefs");
+  const applyPrefs = async (next: PetPrefs, previous: PetPrefs | null) => {
+    bubble.quiet = next.dnd;
+    if (next.mini !== previous?.mini || (next.mini && next.size !== previous?.size)) await life.setMini(next.mini);
+  };
+  await applyPrefs(prefs, null);
+  await listen<PetPrefs>("prefs-changed", (e) => {
+    const previous = prefs;
+    prefs = e.payload;
+    void applyPrefs(prefs, previous);
+  });
 
   canvas.addEventListener("contextmenu", (e) => {
     e.preventDefault();
@@ -91,7 +107,8 @@ async function main() {
       }
       bubble.onState(snap.overall);
       idle.onState(snap.overall);
-      label.textContent = describe(snap);
+      life.setAttention(snap.sessions.some((s) => s.state === "waiting"));
+      label.textContent = prefs.dnd ? `${describe(snap)} · ${t("dnd")}` : describe(snap);
       void idle.tick();
     } catch (err) {
       label.textContent = `error: ${String(err)}`;

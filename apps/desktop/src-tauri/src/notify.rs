@@ -62,7 +62,7 @@ pub fn spawn_watcher(app: AppHandle) {
             tokio::time::sleep(POLL).await;
             let running = app.state::<Running>();
             let snapshot = running.shared.snapshot();
-            let allowed = running.shared.level().may_notify();
+            let allowed = running.shared.level().may_notify() && !running.shared.pet_prefs().dnd;
             let mut live = HashMap::new();
             for s in &snapshot.sessions {
                 live.insert(s.key.clone(), s.state);

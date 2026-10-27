@@ -11,7 +11,7 @@
 
 use crate::adapters;
 use crate::clock::{now_ms, now_rfc3339, start_of_today_rfc3339};
-use crate::config::{Config, ModelConfig, UiLanguage};
+use crate::config::{Config, ModelConfig, PetPrefs, UiLanguage};
 use crate::home::{self, DaemonState};
 use crate::origin::{self, Origin};
 use crate::redact;
@@ -178,6 +178,19 @@ impl Shared {
             .unwrap()
             .store
             .report_since(&start_of_today_rfc3339())
+    }
+
+    pub fn pet_prefs(&self) -> PetPrefs {
+        self.app.lock().unwrap().config.pet_prefs()
+    }
+
+    pub fn set_pet_prefs(&self, prefs: PetPrefs) -> Result<()> {
+        Config::write_pet_prefs(&home::dir()?, prefs)?;
+        let mut app = self.app.lock().unwrap();
+        app.config.pet.size = prefs.size;
+        app.config.pet.dnd = prefs.dnd;
+        app.config.pet.mini = prefs.mini;
+        Ok(())
     }
 
     pub fn ui_language(&self) -> UiLanguage {
