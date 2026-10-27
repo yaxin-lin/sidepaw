@@ -1,11 +1,11 @@
 //! `~/.sidepaw/config.toml`. Every key has a default and a missing file
 //! is valid; see `docs/config.md`. Only the parts the server acts on
-//! are modelled here. Keys for parts that are not built yet (model,
-//! quiet hours, chattiness) are parsed so a user's file round-trips,
-//! but nothing reads them.
+//! are modelled here. Keys for parts that are not built yet (quiet
+//! hours, chattiness) are parsed so a user's file round-trips, but
+//! nothing reads them.
 
 use anyhow::{Context, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sidepaw_core::{Host, Level};
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -21,8 +21,11 @@ pub struct Config {
     pub daemon: Daemon,
 }
 
-#[derive(Debug, Clone, Deserialize, Default, PartialEq)]
+/// `[model]`: the one provider the brain talks to (ADR 5). The API key
+/// is not here, see `secret`.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 #[serde(default, deny_unknown_fields)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Model {
     pub provider: String,
     pub model: String,
@@ -116,49 +119,57 @@ impl Config {
     /// Set `[pet] level` in `<dir>/config.toml`, creating the file if
     /// needed and keeping everything else in it, comments included.
     pub fn write_level(dir: &Path, level: Level) -> Result<()> {
-        let path = dir.join("config.toml");
-        let text = match std::fs::read_to_string(&path) {
-            Ok(t) => t,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
-            Err(e) => return Err(e).with_context(|| path.display().to_string()),
-        };
-        let mut doc: toml_edit::DocumentMut = text
-            .parse()
-            .with_context(|| format!("{} is not valid TOML", path.display()))?;
-        if !doc.contains_table("pet") {
-            doc["pet"] = toml_edit::table();
-        }
-        doc["pet"]["level"] = toml_edit::value(i64::from(u8::from(level)));
-        std::fs::create_dir_all(dir)?;
-        std::fs::write(&path, doc.to_string()).with_context(|| path.display().to_string())
+        edit(dir, |doc| {
+            if !doc.contains_table("pet") {
+                doc["pet"] = toml_edit::table();
+            }
+            doc["pet"]["level"] = toml_edit::value(i64::from(u8::from(level)));
+        })
+    }
+
+    /// Set `[model]` the same way `write_level` does. An empty `model`
+    /// means the provider's default and is written as such so the file
+    /// shows the user where to put a choice.
+    pub fn write_model(dir: &Path, model: &Model) -> Result<()> {
+        edit(dir, |doc| {
+            if !doc.contains_table("model") {
+                doc["model"] = toml_edit::table();
+            }
+            doc["model"]["provider"] = toml_edit::value(model.provider.as_str());
+            doc["model"]["model"] = toml_edit::value(model.model.as_str());
+            match model
+                .base_url
+                .as_deref()
+                .map(str::trim)
+                .filter(|u| !u.is_empty())
+            {
+                Some(url) => doc["model"]["base_url"] = toml_edit::value(url),
+                None => {
+                    if let Some(t) = doc["model"].as_table_mut() {
+                        t.remove("base_url");
+                    }
+                }
+            }
+        })
     }
 
     /// Set `[hosts.<host>] act` the same way `write_level` does.
     pub fn write_host_act(dir: &Path, host: Host, act: bool) -> Result<()> {
-        let path = dir.join("config.toml");
-        let text = match std::fs::read_to_string(&path) {
-            Ok(t) => t,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
-            Err(e) => return Err(e).with_context(|| path.display().to_string()),
-        };
-        let mut doc: toml_edit::DocumentMut = text
-            .parse()
-            .with_context(|| format!("{} is not valid TOML", path.display()))?;
-        if !doc.contains_table("hosts") {
-            doc["hosts"] = toml_edit::table();
-            if let Some(t) = doc["hosts"].as_table_mut() {
-                t.set_implicit(true);
+        edit(dir, |doc| {
+            if !doc.contains_table("hosts") {
+                doc["hosts"] = toml_edit::table();
+                if let Some(t) = doc["hosts"].as_table_mut() {
+                    t.set_implicit(true);
+                }
             }
-        }
-        if !doc["hosts"]
-            .as_table()
-            .is_some_and(|t| t.contains_table(host.as_str()))
-        {
-            doc["hosts"][host.as_str()] = toml_edit::table();
-        }
-        doc["hosts"][host.as_str()]["act"] = toml_edit::value(act);
-        std::fs::create_dir_all(dir)?;
-        std::fs::write(&path, doc.to_string()).with_context(|| path.display().to_string())
+            if !doc["hosts"]
+                .as_table()
+                .is_some_and(|t| t.contains_table(host.as_str()))
+            {
+                doc["hosts"][host.as_str()] = toml_edit::table();
+            }
+            doc["hosts"][host.as_str()]["act"] = toml_edit::value(act);
+        })
     }
 
     pub fn host(&self, host: Host) -> HostConfig {
@@ -195,6 +206,23 @@ impl Config {
         }
         level
     }
+}
+
+// Read, change and write back `config.toml` keeping comments and the
+// user's key order; a missing file starts empty.
+fn edit(dir: &Path, change: impl FnOnce(&mut toml_edit::DocumentMut)) -> Result<()> {
+    let path = dir.join("config.toml");
+    let text = match std::fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(e) => return Err(e).with_context(|| path.display().to_string()),
+    };
+    let mut doc: toml_edit::DocumentMut = text
+        .parse()
+        .with_context(|| format!("{} is not valid TOML", path.display()))?;
+    change(&mut doc);
+    std::fs::create_dir_all(dir)?;
+    std::fs::write(&path, doc.to_string()).with_context(|| path.display().to_string())
 }
 
 // `root` contains `cwd` when they are equal or `cwd` is below it.
@@ -321,6 +349,29 @@ port = 4242
         assert_eq!(c.pet.level, Level::Act, "other keys untouched");
         Config::write_host_act(&dir, Host::ClaudeCode, false).unwrap();
         assert!(!Config::load(&dir).unwrap().host(Host::ClaudeCode).act);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn write_model_replaces_the_table_and_drops_an_empty_base_url() {
+        let dir = std::env::temp_dir().join(format!("sidepaw-model-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let m = Model {
+            provider: "ollama".into(),
+            model: "qwen3:8b".into(),
+            base_url: Some("http://127.0.0.1:11434".into()),
+        };
+        Config::write_model(&dir, &m).unwrap();
+        assert_eq!(Config::load(&dir).unwrap().model, m);
+        let m = Model {
+            provider: "deepseek".into(),
+            model: String::new(),
+            base_url: Some("  ".into()),
+        };
+        Config::write_model(&dir, &m).unwrap();
+        let text = std::fs::read_to_string(dir.join("config.toml")).unwrap();
+        assert!(!text.contains("base_url"), "{text}");
+        assert_eq!(Config::load(&dir).unwrap().model.provider, "deepseek");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

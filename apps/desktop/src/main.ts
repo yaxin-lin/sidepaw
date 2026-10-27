@@ -1,11 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Snapshot } from "./generated/Snapshot";
 import { Bubble } from "./bubble";
 import { HitMaskSource } from "./hitmask";
 import { t } from "./i18n";
 import { IdleBehaviour } from "./idle";
-import { loadPack } from "./pack";
+import { DEFAULT_PACK, loadLines, loadPack } from "./pack";
 import { SpriteRenderer } from "./renderer";
 
 const POLL_MS = 500;
@@ -22,7 +23,7 @@ async function main() {
   const label = document.getElementById("label") as HTMLDivElement;
   const bubbleEl = document.getElementById("bubble") as HTMLDivElement;
 
-  const pack = await loadPack("placeholder");
+  const pack = await loadPack(DEFAULT_PACK);
   const renderer = new SpriteRenderer(canvas, pack.sheet);
   const bubble = new Bubble(bubbleEl, pack.lines);
   const idle = new IdleBehaviour(renderer, canvas);
@@ -40,6 +41,12 @@ async function main() {
     }
   };
   renderer.start();
+  await listen("pack-changed", () => {
+    loadLines(DEFAULT_PACK, pack.manifest).then(
+      (lines) => bubble.setLines(lines),
+      (err: unknown) => console.error(String(err)),
+    );
+  });
 
   // The window has no decorations, so the pet itself is the drag handle
   // and right-click is the only way in to settings. A click that does

@@ -11,11 +11,11 @@
 
 use crate::adapters;
 use crate::clock::{now_ms, now_rfc3339, start_of_today_rfc3339};
-use crate::config::Config;
+use crate::config::{Config, Model};
 use crate::home::{self, DaemonState};
 use crate::redact;
 use crate::registry::{PendingApproval, Registry, Snapshot};
-use crate::store::{DayReport, Store};
+use crate::store::{AuditRow, DayReport, Store};
 use anyhow::{Context, Result};
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -176,6 +176,35 @@ impl Shared {
             .unwrap()
             .store
             .report_since(&start_of_today_rfc3339())
+    }
+
+    pub fn model(&self) -> Model {
+        self.app.lock().unwrap().config.model.clone()
+    }
+
+    pub fn set_model(&self, model: Model) -> Result<()> {
+        Config::write_model(&home::dir()?, &model)?;
+        self.app.lock().unwrap().config.model = model;
+        Ok(())
+    }
+
+    /// Record one remote model call at the current global level. The
+    /// brain calls this for every request it sends (ADR 7).
+    pub fn audit(&self, provider: &str, purpose: &str, bytes: u64, sha256: &str) -> Result<()> {
+        let mut app = self.app.lock().unwrap();
+        let row = AuditRow {
+            ts: now_rfc3339(),
+            provider: provider.to_owned(),
+            purpose: purpose.to_owned(),
+            bytes,
+            sha256: sha256.to_owned(),
+            level: app.config.pet.level.into(),
+        };
+        app.store.insert_audit(&row)
+    }
+
+    pub fn audit_recent(&self, limit: u32) -> Result<Vec<AuditRow>> {
+        self.app.lock().unwrap().store.audit_recent(limit)
     }
 }
 

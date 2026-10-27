@@ -21,7 +21,8 @@ agent-pet and pets-driven. Each item ships on its own.
    Pack v2.
 5. Done: Chinese UI (web views, tray, notifications) following the
    system language; packs may ship `lines.<lang>.json`.
-6. Model provider, persona editor, generated `lines.json`.
+6. Done: model provider, persona editor, generated `lines.json`, with
+   preview before send and audit rows.
 7. Codex adapter and `sidepaw run -- <cmd>`.
 8. One pet per project.
 9. Signing, notarization, Homebrew.
@@ -59,10 +60,10 @@ notarization in CI. Exit criterion: fully usable with no API key.
 ## 0.4 It talks
 
 Brain in TypeScript (ADR 7). Done: speech bubble with pack lines,
-persona compiler. Remaining: one provider (config and key), line
-generation into `lines.json` with the digest as cache key, persona
-editor in the setup window, streamed chat, context builder, preview
-before send, audit rows. Server gains read-only query endpoints.
+persona compiler, one provider (config and key), line generation into
+`lines.json` with the digest as cache key, persona editor in the setup
+window, preview before send, audit rows. Remaining: streamed chat,
+context builder, read-only query endpoints on the server.
 
 ## 0.5 It speaks first
 

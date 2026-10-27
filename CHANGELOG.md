@@ -94,6 +94,17 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Installing Claude Code hooks also exempts loopback from proxies via
   `env.NO_PROXY` in `settings.json`; a global-mode system proxy would
   otherwise swallow every hook request ("socket hang up").
+- Model provider: `[model]` in `config.toml` (DeepSeek, OpenAI,
+  Anthropic, Ollama or any OpenAI-compatible URL, one at a time per
+  ADR 5) with the API key in the OS credential store or
+  `SIDEPAW_API_KEY`. The brain's LLM client is the only code that talks
+  to a model; every remote call shows a preview first and writes an
+  `audit` row (size and digest, never the text).
+- Persona editor in the setup window: name, species, how it calls you,
+  six sliders, strength and flaw tags, catchphrases, taboo topics and
+  free text, saved under `~/.sidepaw/pets/<id>/` on top of the pack.
+  "Try a line" and "Generate lines" write `lines.json` from the saved
+  persona; the pet picks the new lines up without a restart.
 
 ### Fixed
 

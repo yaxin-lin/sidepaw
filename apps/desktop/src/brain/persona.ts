@@ -67,6 +67,12 @@ const TRAITS: Record<string, string> = {
   tsundere: "Act unimpressed while clearly caring.",
 };
 
+/** The tags the editor offers, in display order. Anything else typed
+ *  by hand still works as a plain word. */
+export const STRENGTH_TAGS = ["observant", "encouraging", "optimistic", "organized", "good memory", "humorous"] as const;
+export const FLAW_TAGS = ["greedy", "lazy", "snarky", "forgetful", "avoids hassle", "show-off", "tsundere"] as const;
+export const SLIDERS = Object.keys(SLIDER_TEXT) as Slider[];
+
 function bucket(value: number | undefined): 0 | 1 | 2 {
   if (value === undefined) return 1;
   return value < 1 / 3 ? 0 : value > 2 / 3 ? 2 : 1;

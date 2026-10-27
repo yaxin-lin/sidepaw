@@ -29,6 +29,23 @@
       .level .msg { grid-column: 2; }
       dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; }
       dt { color: var(--muted); } dd { margin: 0; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+      .form { display: grid; grid-template-columns: max-content 1fr; gap: 8px 12px; align-items: center; }
+      .form label { color: var(--muted); }
+      .form .full { grid-column: 1 / -1; }
+      input[type=text], input[type=password], select, textarea { font: inherit; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); width: 100%; box-sizing: border-box; }
+      textarea { min-height: 64px; resize: vertical; }
+      .slider { display: grid; grid-template-columns: 1fr; gap: 2px; }
+      .slider span { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+      .tags { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+      .tags label { display: inline-flex; gap: 4px; align-items: center; color: var(--fg); }
+      .reply { font-style: italic; }
+      table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      td, th { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--line); }
+      th { color: var(--muted); font-weight: 500; }
+      td.mono { font-family: ui-monospace, Menlo, monospace; }
+      dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--fg); max-width: 480px; padding: 16px 18px; }
+      dialog::backdrop { background: rgba(0,0,0,.35); }
+      dialog h3 { margin: 0 0 6px; font-size: 15px; }
     </style>
   </head>
   <body>
@@ -91,7 +108,88 @@
         <h2 data-i18n="others">Other hosts</h2>
         <p class="msg" data-i18n="others.text">Codex, OpenCode, DeepSeek Harness and Kimi Code are on the roadmap.</p>
       </section>
+
+      <section id="model">
+        <h2 data-i18n="model">Model</h2>
+        <p class="msg" data-i18n="model.sub"></p>
+        <div class="form">
+          <label for="m-provider" data-i18n="model.provider">Provider</label>
+          <select id="m-provider"></select>
+          <label for="m-model" data-i18n="model.model">Model</label>
+          <input type="text" id="m-model" />
+          <label for="m-url" id="m-url-label" data-i18n="model.base_url">Base URL</label>
+          <input type="text" id="m-url" placeholder="http://127.0.0.1:11434/v1" />
+          <label for="m-key" data-i18n="model.key">API key</label>
+          <div>
+            <input type="password" id="m-key" autocomplete="off" />
+            <span class="msg" id="m-key-source"></span>
+          </div>
+          <p class="msg full" data-i18n="model.key.hint"></p>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="primary" id="m-save" data-i18n="model.save">Save</button>
+          <button id="m-key-remove" data-i18n="model.key.remove">Remove key</button>
+          <button id="m-test" data-i18n="model.test">Test</button>
+          <span class="msg" id="m-msg"></span>
+        </div>
+      </section>
+
+      <section id="pet">
+        <h2 data-i18n="pet">Pet</h2>
+        <p class="msg" data-i18n="pet.sub"></p>
+        <div class="form">
+          <label for="p-name" data-i18n="pet.name">Name</label>
+          <input type="text" id="p-name" maxlength="40" />
+          <label for="p-species" data-i18n="pet.species">Species</label>
+          <input type="text" id="p-species" maxlength="40" />
+          <label for="p-calls" data-i18n="pet.calls_user">Calls you</label>
+          <input type="text" id="p-calls" maxlength="40" />
+          <label for="p-lang" data-i18n="pet.language">Language</label>
+          <input type="text" id="p-lang" list="langs" placeholder="en" pattern="[a-z]{2}(-[A-Z]{2})?" />
+          <datalist id="langs"><option value="en"></option><option value="zh-CN"></option><option value="ja"></option></datalist>
+          <div class="full" id="p-sliders"></div>
+          <label data-i18n="pet.strengths">Strengths</label>
+          <div class="tags" id="p-strengths"></div>
+          <label data-i18n="pet.flaws">Flaws</label>
+          <div class="tags" id="p-flaws"></div>
+          <label for="p-phrases" data-i18n="pet.catchphrases">Catchphrases</label>
+          <textarea id="p-phrases" rows="2"></textarea>
+          <label for="p-avoid" data-i18n="pet.avoid">Never brings up</label>
+          <textarea id="p-avoid" rows="2"></textarea>
+          <label for="p-md" class="full" data-i18n="pet.md">Free text</label>
+          <textarea id="p-md" class="full" rows="5"></textarea>
+          <p class="msg full" id="p-md-hint"></p>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="primary" id="p-save" data-i18n="pet.save">Save persona</button>
+          <button id="p-reset" data-i18n="pet.reset">Back to pack defaults</button>
+          <button id="p-preview" data-i18n="pet.preview">Try a line</button>
+          <button id="p-generate" data-i18n="pet.generate">Generate lines</button>
+        </div>
+        <p class="msg" id="p-lines"></p>
+        <p class="msg" id="p-msg"></p>
+      </section>
+
+      <section id="audit">
+        <h2 data-i18n="audit">Sent to the model</h2>
+        <p class="msg" data-i18n="audit.sub"></p>
+        <table><tbody id="audit-rows"></tbody></table>
+        <p class="msg" id="audit-empty" data-i18n="audit.empty"></p>
+      </section>
     </main>
+
+    <dialog id="send">
+      <h3 id="send-title"></h3>
+      <p class="msg" id="send-summary"></p>
+      <details>
+        <summary data-i18n="send.show">Show exactly what will be sent</summary>
+        <pre id="send-text"></pre>
+      </details>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="send-go" data-i18n="send.go">Send</button>
+        <button id="send-cancel" data-i18n="send.cancel">Cancel</button>
+      </div>
+    </dialog>
     <script type="module" src="/src/setup.ts"></script>
   </body>
 </html>

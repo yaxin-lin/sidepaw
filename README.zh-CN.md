@@ -59,6 +59,12 @@ cargo test --workspace
 pnpm --filter sidepaw-desktop tauri dev # 启动桌宠窗口
 ```
 
+宠物的台词来自素材包里的 `lines.json`，不需要模型。想要自己的人格，设置
+窗口里有人格编辑器（滑块、标签、自由文本）；配好模型服务商后（DeepSeek、
+OpenAI、Anthropic、Ollama 或任意 OpenAI 兼容地址，key 存系统钥匙串），
+点「生成台词」就会按这个人格写一份 `lines.json` 到 `~/.sidepaw/pets/<id>/`。
+每次远端调用都会先显示将发送的内容，并列在「外发记录」里。
+
 窗口会显示 `pets/` 里的占位宠物。首次运行或在小球上右键会打开设置窗口，
 一键把 Claude Code 的 hook 写进 `~/.claude/settings.json`（旁边会留一份
 备份）。终端里等价的命令是 `sidepaw install --host claude-code --apply`。

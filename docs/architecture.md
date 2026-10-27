@@ -21,8 +21,10 @@ built in is in [roadmap.md](roadmap.md).
 | Chinese UI (system language): web views, tray, notifications | built |
 | Idle behaviour: walks, dozing, click hop | built |
 | Speech bubble with local lines from the pack | built (0.4) |
-| Persona compiler (sliders, tags, free text to system prompt) | built (0.4), no UI yet |
-| Brain: LLM client, line generation, chat, context, proactive, memory | planned |
+| Persona compiler (sliders, tags, free text to system prompt), persona editor in the setup window | built (0.4) |
+| Model provider (`[model]`, key in the OS credential store), LLM client with preview before send and `audit` rows | built (0.4) |
+| `lines.json` generated from the persona in one call, user overrides under `~/.sidepaw/pets/<id>/` | built (0.4) |
+| Brain: streamed chat, context builder, proactive, memory | planned |
 | `apps/desktop`: transparent always-on-top window, spritesheet renderer, embedded server, TS types from Rust | built (0.1) |
 | Click-through of transparent pixels, self-update, release workflow | built (0.2) |
 | Setup window: install, update, remove Claude Code hooks | built (0.2) |
@@ -54,11 +56,12 @@ pet packs       pet.json  spritesheet.webp  persona.*  lines.json
 ```
 
 Two processes: the hosts (not ours) and the desktop app, which embeds
-the server library ([ADR 6](adr/0006-embed-server-in-desktop-app.md),
-proposed). The `sidepaw` binary runs the same library headless for
-tests and servers, and doubles as the hook shim for hosts that only
-support command hooks. The brain is planned for the desktop side
-([ADR 7](adr/0007-brain-in-the-desktop-app.md), proposed).
+the server library ([ADR 6](adr/0006-embed-server-in-desktop-app.md)).
+The `sidepaw` binary runs the same library headless for tests and
+servers, and doubles as the hook shim for hosts that only support
+command hooks. The brain lives on the desktop side in TypeScript
+([ADR 7](adr/0007-brain-in-the-desktop-app.md)); today that is the
+persona compiler, the LLM client and line generation.
 
 ## Data flow
 
@@ -101,6 +104,10 @@ SQLite and the adapters.
   `GET /v1/state` (snapshot) and `GET /v1/report/today`, bound to
   `127.0.0.1` with a bearer token
 - `config`: `config.toml` and the effective permission level per event
+- `secret`: the model API key, in the OS credential store or
+  `SIDEPAW_API_KEY`; the one secret the app holds
+- `pets`: the user's per-pet overrides (`persona.json`, `persona.md`,
+  `lines.json`) under `~/.sidepaw/pets/<id>/`
 - `install`: writes, checks and removes hook configuration in a host's
   settings file
 - `clock`: the only place that asks what time it is
@@ -137,6 +144,20 @@ release procedure.
 
 Right-click on the pet, or the first run with no hooks installed, opens
 the setup window (`setup.html`), which calls the `host_*` commands.
+
+The brain is `src/brain/`: `persona.ts` compiles `persona.json` plus
+`persona.md` into the system prompt, `llm.ts` is the only code that
+talks to a model (one provider per ADR 5, OpenAI-compatible endpoints
+and Anthropic through its SDK, requests through `tauri-plugin-http` so
+the web view's origin rules do not apply), and `linegen.ts` turns the
+compiled persona into `lines.json` in one call. Every remote call shows
+a preview first and writes an `audit` row through the `audit_call`
+command; local providers (Ollama, loopback URLs) skip the preview. The
+setup window's model and pet sections (`setup-brain.ts`) save the
+provider to `config.toml`, the key to the credential store, and the
+persona and generated lines to `~/.sidepaw/pets/<id>/`, where they
+override the pack's files; it then emits `pack-changed` and the pet
+window reloads its lines.
 
 The tray icon (`tray.rs`) is the way back in once the pet is hidden;
 the app has no dock icon on macOS.

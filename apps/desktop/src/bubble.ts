@@ -37,6 +37,11 @@ export class Bubble {
 
   constructor(private el: HTMLElement, private lines: Lines, private now: () => number = Date.now) {}
 
+  /** The setup window regenerates lines; the pet picks them up live. */
+  setLines(lines: Lines) {
+    this.lines = lines;
+  }
+
   /** Show a held permission prompt with Allow and Deny. Replaces any
    *  line and stays until `clearApproval` or a different prompt. */
   askApproval(p: PendingApproval, answer: (allow: boolean) => void) {

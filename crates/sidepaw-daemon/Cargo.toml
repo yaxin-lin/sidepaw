@@ -35,6 +35,18 @@ ureq = { version = "3", default-features = false, features = ["json"] }
 uuid = { version = "1", features = ["v4"] }
 ts-rs = { version = "12", optional = true, features = ["serde-json-impl"] }
 
+# The API key lives in the OS credential store, never in config.toml.
+# Linux goes through the Secret Service over zbus (pure Rust, already in
+# the tree via notify-rust); keyutils alone would not survive a reboot.
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", default-features = false, features = ["apple-native"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3", default-features = false, features = ["windows-native"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", default-features = false, features = ["async-secret-service", "tokio", "crypto-rust"] }
+
 [features]
 ts = ["dep:ts-rs", "sidepaw-core/ts"]
 

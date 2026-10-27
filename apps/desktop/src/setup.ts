@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { DayReport } from "./generated/DayReport";
 import type { Report } from "./generated/Report";
 import { applyToDom, t } from "./i18n";
+import { mountBrain } from "./setup-brain";
 
 const HOST = "claude-code";
 
@@ -131,6 +132,7 @@ async function main() {
   });
   el("cc-install").addEventListener("click", () => void run("host_install", t("cc.written")));
   el("cc-remove").addEventListener("click", () => void run("host_remove", t("cc.removed")));
+  await mountBrain();
 }
 
 void main();

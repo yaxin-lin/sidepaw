@@ -1,5 +1,9 @@
+import { parseJson, readBundled, readUser } from "./brain/files";
 import { detectLang } from "./i18n";
 import { Lines, type LinesFile } from "./lines";
+
+/** The pack shown until `[pet] active` reaches the app. */
+export const DEFAULT_PACK = "placeholder";
 
 // Codex spritesheet layout, mirrored from crates/sidepaw-core/src/pack.rs
 // and docs/contracts/pet-pack.md.
@@ -36,17 +40,17 @@ export interface Pack {
   lines: Lines;
 }
 
-/** A missing optional file is null. The Vite dev server answers unknown
- *  paths with index.html and status 200, so the content type is checked
- *  and a parse failure also reads as absent. */
-async function optionalJson<T>(url: string): Promise<T | null> {
-  const res = await fetch(url);
-  if (!res.ok || !(res.headers.get("content-type") ?? "").includes("json")) return null;
-  try {
-    return (await res.json()) as T;
-  } catch {
-    return null;
+/** The user's generated or edited lines win over the pack's; among the
+ *  pack's, `lines.<lang>.json` wins for the UI language. A pack without
+ *  lines is a valid Codex pack; the pet is just quiet. */
+export async function loadLines(id: string, manifest: Manifest): Promise<Lines> {
+  let file = parseJson<LinesFile>(await readUser(id, "lines.json"));
+  const linesPath = manifest["x-sidepaw"]?.lines;
+  if (!file && linesPath) {
+    const localized = linesPath.replace(/\.json$/, `.${detectLang()}.json`);
+    file = parseJson<LinesFile>(await readBundled(id, localized)) ?? parseJson<LinesFile>(await readBundled(id, linesPath));
   }
+  return file ? new Lines(file) : Lines.empty();
 }
 
 export async function loadPack(id: string): Promise<Pack> {
@@ -59,13 +63,5 @@ export async function loadPack(id: string): Promise<Pack> {
   if (sheet.naturalWidth !== CELL_W * COLUMNS || sheet.naturalHeight !== CELL_H * ROWS) {
     throw new Error(`pack ${id}: sheet is ${sheet.naturalWidth}x${sheet.naturalHeight}`);
   }
-  // A pack without lines is a valid Codex pack; the pet is just quiet.
-  // `lines.<lang>.json` next to `lines.json` wins for that UI language.
-  const linesPath = manifest["x-sidepaw"]?.lines;
-  let file: LinesFile | null = null;
-  if (linesPath) {
-    const localized = linesPath.replace(/\.json$/, `.${detectLang()}.json`);
-    file = (await optionalJson<LinesFile>(`/${id}/${localized}`)) ?? (await optionalJson<LinesFile>(`/${id}/${linesPath}`));
-  }
-  return { manifest, sheet, lines: file ? new Lines(file) : Lines.empty() };
+  return { manifest, sheet, lines: await loadLines(id, manifest) };
 }

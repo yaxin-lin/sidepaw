@@ -11,10 +11,13 @@ mod update;
 use hit::{HitMask, Mask};
 use sidepaw_core::event::UnknownHost;
 use sidepaw_core::{Host, Level};
+use sidepaw_daemon::config::Model;
 use sidepaw_daemon::install::{self, Report, Status};
+use sidepaw_daemon::pets;
 use sidepaw_daemon::registry::Snapshot;
+use sidepaw_daemon::secret::{self, KeySource};
 use sidepaw_daemon::server::{self, Running};
-use sidepaw_daemon::store::DayReport;
+use sidepaw_daemon::store::{AuditRow, DayReport};
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 #[tauri::command]
@@ -94,6 +97,67 @@ fn host_remove(server: State<'_, Running>, host_name: String) -> Result<Report, 
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn get_model(server: State<'_, Running>) -> Model {
+    server.shared.model()
+}
+
+#[tauri::command]
+fn set_model(server: State<'_, Running>, model: Model) -> Result<(), String> {
+    server.shared.set_model(model).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn key_source() -> KeySource {
+    secret::source()
+}
+
+/// The brain needs the key itself to talk to the provider (ADR 7); it
+/// never leaves the web view except in that request.
+#[tauri::command]
+fn api_key() -> Result<Option<String>, String> {
+    secret::get().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_api_key(key: String) -> Result<(), String> {
+    secret::set(&key).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn clear_api_key() -> Result<(), String> {
+    secret::clear().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn pet_file_read(id: String, name: String) -> Result<Option<String>, String> {
+    pets::read(&id, &name).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn pet_file_write(id: String, name: String, text: String) -> Result<(), String> {
+    pets::write(&id, &name, &text).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn audit_call(
+    server: State<'_, Running>,
+    provider: String,
+    purpose: String,
+    bytes: u64,
+    sha256: String,
+) -> Result<(), String> {
+    server
+        .shared
+        .audit(&provider, &purpose, bytes, &sha256)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn audit_recent(server: State<'_, Running>, limit: u32) -> Result<Vec<AuditRow>, String> {
+    server.shared.audit_recent(limit).map_err(|e| e.to_string())
+}
+
 /// The setup window is created on demand and reused while open.
 #[tauri::command]
 fn open_setup(app: AppHandle) -> Result<(), String> {
@@ -105,7 +169,7 @@ fn open_setup(app: AppHandle) -> Result<(), String> {
     }
     WebviewWindowBuilder::new(&app, "setup", WebviewUrl::App("setup.html".into()))
         .title("sidepaw setup")
-        .inner_size(520.0, 640.0)
+        .inner_size(560.0, 760.0)
         .build()
         .map(|_| ())
         .map_err(|e| e.to_string())
@@ -121,6 +185,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
+        // Model requests go through the Rust HTTP client so the web
+        // view's origin rules do not apply; the scope is in capabilities.
+        .plugin(tauri_plugin_http::init())
         .setup(|app| {
             // `start` spawns onto the runtime it is called from; Tauri's
             // async runtime is tokio, so the server lives as long as the app.
@@ -163,6 +230,16 @@ pub fn run() {
             host_status,
             host_install,
             host_remove,
+            get_model,
+            set_model,
+            key_source,
+            api_key,
+            set_api_key,
+            clear_api_key,
+            pet_file_read,
+            pet_file_write,
+            audit_call,
+            audit_recent,
             open_setup
         ])
         .run(tauri::generate_context!())

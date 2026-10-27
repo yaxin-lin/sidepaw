@@ -34,6 +34,20 @@ pub struct DayReport {
     pub tools: Vec<(String, u64)>,
 }
 
+/// One remote model call, as `contracts/permissions.md` requires: what
+/// went out is described by size and digest, never stored.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct AuditRow {
+    pub ts: String,
+    pub provider: String,
+    pub purpose: String,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub bytes: u64,
+    pub sha256: String,
+    pub level: u8,
+}
+
 const SCHEMA: &str = include_str!("../../../docs/contracts/schema.sql");
 
 pub struct Store {
@@ -146,6 +160,41 @@ impl Store {
             ],
         )?;
         Ok(())
+    }
+
+    pub fn insert_audit(&mut self, row: &AuditRow) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO audit (ts, provider, purpose, bytes, sha256, level)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                row.ts,
+                row.provider,
+                row.purpose,
+                row.bytes as i64,
+                row.sha256,
+                row.level
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Most recent first.
+    pub fn audit_recent(&self, limit: u32) -> Result<Vec<AuditRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT ts, provider, purpose, bytes, sha256, level FROM audit
+             ORDER BY id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit], |r| {
+            Ok(AuditRow {
+                ts: r.get(0)?,
+                provider: r.get(1)?,
+                purpose: r.get(2)?,
+                bytes: r.get::<_, i64>(3)?.max(0) as u64,
+                sha256: r.get(4)?,
+                level: r.get(5)?,
+            })
+        })?;
+        Ok(rows.collect::<std::result::Result<_, _>>()?)
     }
 
     /// Counters since `since` (RFC 3339, UTC). Waiting time is the gap
@@ -363,5 +412,27 @@ mod tests {
             })
             .unwrap();
         assert_eq!((tool.as_str(), decision.as_str()), ("Bash", "deny"));
+    }
+
+    #[test]
+    fn audit_rows_come_back_newest_first() {
+        let mut store = Store::in_memory().unwrap();
+        for (i, purpose) in ["lines", "chat"].iter().enumerate() {
+            store
+                .insert_audit(&AuditRow {
+                    ts: format!("2026-10-27T00:00:0{i}.000Z"),
+                    provider: "deepseek".into(),
+                    purpose: purpose.to_string(),
+                    bytes: 100 + i as u64,
+                    sha256: "ab".repeat(32),
+                    level: 1,
+                })
+                .unwrap();
+        }
+        let rows = store.audit_recent(10).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].purpose, "chat");
+        assert_eq!(rows[1].bytes, 100);
+        assert_eq!(store.audit_recent(1).unwrap().len(), 1);
     }
 }

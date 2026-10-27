@@ -125,6 +125,11 @@ uniformly at random, avoiding the last three used.
 When `generatedFrom` no longer matches the persona files, the app
 offers to regenerate.
 
+The app never writes into a pack. `persona.json`, `persona.md` and
+`lines.json` saved from the setup window go to
+`~/.sidepaw/pets/<id>/` and override the pack's copies of those files;
+removing them restores the pack's defaults.
+
 Optional: `lines.<lang>.json` next to `lines.json` (for example
 `lines.zh-CN.json`) is used instead when the UI language matches. The
 `lang` tag follows the same form as `persona.json`'s `language`.
