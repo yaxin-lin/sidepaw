@@ -108,6 +108,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   up a cursor that hovers, says a line (`drop`, falling back to
   `click`) when a file is dropped on it, and hides while the app in
   front is full screen. macOS and Windows; no OS permission is asked.
+- Language setting (`[ui] language`: follow the system, 中文, English)
+  in the setup window, applied at once to every window, the tray and
+  notifications. A persona without a `language` now speaks the UI
+  language instead of English, and chat answers in the language the
+  user writes.
 - Chat: double-click the pet (or Tray > Chat) to ask it what the
   agents did. Each message carries the current sessions, today's
   counters and the last twelve stored events; the line under the log
