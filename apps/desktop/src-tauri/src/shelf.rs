@@ -7,6 +7,9 @@ use serde::Serialize;
 
 /// One window of another app, in the pet window's physical pixel
 /// space (the one `outer_position` uses), origin top left.
+// Never built where there is no window list (Linux), which `-D
+// warnings` would otherwise call dead code.
+#[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Shelf {
     pub x: f64,
@@ -33,6 +36,7 @@ pub fn scene(scale: f64) -> Scene {
 
 /// Windows shorter or narrower than this are tooltips, palettes and
 /// helper surfaces, not something to stand on.
+#[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
 const MIN_SIDE: f64 = 40.0;
 
 #[cfg(target_os = "macos")]
