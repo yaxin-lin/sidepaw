@@ -24,6 +24,9 @@
       }
       #bubble.show { opacity: 1; transform: none; }
       #bubble.ask { pointer-events: auto; text-align: left; }
+      #bubble.nudge { pointer-events: auto; cursor: pointer; padding-right: 22px; }
+      #bubble.nudge .x { position: absolute; top: 3px; right: 5px; border: 0; background: none; color: inherit; opacity: .45; font: 14px/1 system-ui, sans-serif; cursor: pointer; padding: 2px; }
+      #bubble.nudge .x:hover { opacity: .9; }
       #bubble.ask .q { font-size: 11px; color: #6e6e73; margin-bottom: 2px; }
       #bubble.ask code { display: block; font: 11.5px ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-all; max-height: 48px; overflow: hidden; }
       #bubble.ask .q { display: flex; justify-content: space-between; gap: 6px; }

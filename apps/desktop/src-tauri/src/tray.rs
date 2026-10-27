@@ -25,6 +25,7 @@ const DND: &str = "dnd";
 const MINI: &str = "mini";
 const AUTOSTART: &str = "autostart";
 const SIZE_PREFIX: &str = "size:";
+const CHATTY_PREFIX: &str = "chatty:";
 const SIZES: [PetSize; 3] = [PetSize::S, PetSize::M, PetSize::L];
 const CHAT: &str = "chat";
 const HISTORY: &str = "history";
@@ -74,6 +75,11 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
                 }
             }
             QUIT => app.exit(0),
+            id if id.starts_with(CHATTY_PREFIX) => {
+                if let Ok(n) = id[CHATTY_PREFIX.len()..].parse::<u8>() {
+                    prefs::change(app, |p| p.chatty = n.min(5));
+                }
+            }
             id if id.starts_with(SIZE_PREFIX) => {
                 if let Some(size) = SIZES
                     .iter()
@@ -210,6 +216,29 @@ fn build_menu(
         app,
         "size",
         text::size(),
+        true,
+        &refs,
+    )?)?;
+    let levels = (0..=5u8)
+        .map(|n| {
+            CheckMenuItem::with_id(
+                app,
+                format!("{CHATTY_PREFIX}{n}"),
+                text::chatty_level(n),
+                true,
+                n == p.chatty,
+                None::<&str>,
+            )
+        })
+        .collect::<tauri::Result<Vec<_>>>()?;
+    let refs: Vec<&dyn tauri::menu::IsMenuItem<tauri::Wry>> = levels
+        .iter()
+        .map(|i| i as &dyn tauri::menu::IsMenuItem<tauri::Wry>)
+        .collect();
+    menu.append(&Submenu::with_id_and_items(
+        app,
+        "chatty",
+        text::chatty(),
         true,
         &refs,
     )?)?;

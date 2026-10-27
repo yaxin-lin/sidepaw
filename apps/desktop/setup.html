@@ -43,6 +43,7 @@
       td, th { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--line); }
       th { color: var(--muted); font-weight: 500; }
       td.mono { font-family: ui-monospace, Menlo, monospace; }
+      #mem-rows td:first-child { width: 58%; }
       dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--fg); max-width: 480px; padding: 16px 18px; }
       dialog::backdrop { background: rgba(0,0,0,.35); }
       dialog h3 { margin: 0 0 6px; font-size: 15px; }
@@ -186,6 +187,19 @@
         </div>
         <p class="msg" id="p-lines"></p>
         <p class="msg" id="p-msg"></p>
+      </section>
+
+      <section id="memory">
+        <h2 data-i18n="mem">What it remembers</h2>
+        <p class="msg" data-i18n="mem.sub"></p>
+        <div class="row">
+          <input type="text" id="mem-new" maxlength="200" style="flex:1" />
+          <select id="mem-new-ret" style="width:auto"></select>
+          <button class="primary" id="mem-add" data-i18n="mem.add">Add</button>
+        </div>
+        <table style="margin-top:8px"><tbody id="mem-rows"></tbody></table>
+        <p class="msg" id="mem-empty" data-i18n="mem.empty"></p>
+        <p class="msg" id="mem-msg"></p>
       </section>
 
       <section id="audit">

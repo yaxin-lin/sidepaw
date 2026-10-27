@@ -94,6 +94,21 @@ describe("Bubble", () => {
     bubble.clearApproval();
   });
 
+  it("reports a nudge as answered on a click and dismissed on the cross, once", () => {
+    const got: boolean[] = [];
+    expect(bubble.nudge("Two hours straight. Stretch?", (a) => got.push(a))).toBe(true);
+    expect(el.classList.contains("nudge")).toBe(true);
+    el.querySelector<HTMLButtonElement>(".x")!.click();
+    el.click();
+    expect(got).toEqual([false]);
+    bubble.nudge("Welcome back.", (a) => got.push(a));
+    el.click();
+    expect(got).toEqual([false, true]);
+    bubble.say("plain line");
+    expect(el.classList.contains("nudge")).toBe(false);
+    expect(el.querySelector(".x")).toBeNull();
+  });
+
   it("answers clicks", () => {
     bubble.onInteraction("click");
     expect(el.textContent).toBe("yes?");

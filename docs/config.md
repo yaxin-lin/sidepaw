@@ -11,8 +11,8 @@ Read today: `[ui]`, `[keys]`, `[model]` (the setup window writes both), `[pet]`
 event is the lowest of the global level, the host's `level`, and the
 `level` of the longest `[projects."..."]` path that contains the event's
 `cwd` (matched on path segments, so `/work` covers `/work/x` but not
-`/workshop`). `[quiet]` and `chatty` are parsed but nothing acts on them
-yet.
+`/workshop`). `[quiet]` and `chatty` drive
+the proactive lines.
 
 ```toml
 [ui]
@@ -34,7 +34,9 @@ model    = ""                # empty picks the provider default:
 [pet]
 active = "whale-maid"
 level  = 1                   # 0..4, see docs/contracts/permissions.md
-chatty = 2                   # 0..5
+chatty = 2                   # 0..5, tray > Chattiness: 0 only when clicked,
+                             # 1 needs you, 2 + finished tasks and the day's report,
+                             # 3 + greetings and breaks, 4 + small talk (3/hour), 5 chatterbox
 size   = "m"                 # s | m | l (tray > Size)
 dnd    = false               # do not disturb: no notifications, no unprompted lines
 mini   = false               # parked at the right screen edge

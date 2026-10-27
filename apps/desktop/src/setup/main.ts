@@ -5,6 +5,7 @@ import { applyToDom, initLang, onLangChange, setLang, t, type Key } from "../i18
 import type { UiLanguage } from "../generated/UiLanguage";
 import { el, note } from "./dom";
 import { mountCli } from "./cli";
+import { mountMemory } from "./memory";
 import { mountModel } from "./model";
 import { mountPet } from "./pet";
 import { renderAudit } from "./audit";
@@ -141,6 +142,7 @@ async function main() {
   await mountCli();
   await mountModel();
   await mountPet();
+  await mountMemory();
   await renderAudit();
 }
 

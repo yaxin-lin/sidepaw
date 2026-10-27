@@ -76,6 +76,28 @@ pub fn size_name(size: sidepaw_daemon::config::PetSize) -> &'static str {
         PetSize::L => pick("Large", "大"),
     }
 }
+pub fn chatty() -> &'static str {
+    pick("Chattiness", "打扰度")
+}
+pub fn chatty_level(n: u8) -> &'static str {
+    match n {
+        0 => pick("0  Only when clicked", "0  只在点它时说话"),
+        1 => pick("1  Only when it needs you", "1  只在需要你时"),
+        2 => pick(
+            "2  Plus finished tasks and the day's report",
+            "2  加上任务完成和日报",
+        ),
+        3 => pick(
+            "3  Plus greetings and break reminders",
+            "3  加上问候和休息提醒",
+        ),
+        4 => pick(
+            "4  Plus small talk, at most 3 an hour",
+            "4  加上碎碎念，每小时最多 3 条",
+        ),
+        _ => pick("5  Chatterbox", "5  话痨"),
+    }
+}
 pub fn autostart() -> &'static str {
     pick("Start at Login", "开机自启")
 }

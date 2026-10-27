@@ -39,7 +39,7 @@ toggles for do-not-disturb, mini mode, size and start at login.
    idle time (lands with 0.5, where it is used). Last, opt-in and
    gated by level: global input and screen reading.
 10. Signing, notarization, Homebrew.
-11. Proactive chat.
+11. Done: proactive chat and the memory list (0.5).
 
 Not planned: token feeding, levels, achievements, leaderboards.
 
@@ -83,7 +83,12 @@ today and answers in character.
 
 ## 0.5 It speaks first
 
-Proactive triggers, budget, cooldowns, quiet hours, memory list.
+Done: nine proactive triggers from local lines, chattiness 0-5 in the
+tray, quiet hours, cooldowns that learn from dismissals and answers,
+and a memory list the user sees and edits, used in chat. Remaining:
+lines written by the model for event-specific moments (opt-in, since
+it costs a call each time), and the pet offering a higher permission
+level itself after a few days, as the design notes suggest.
 
 ## 0.6 It lives on the desktop
 

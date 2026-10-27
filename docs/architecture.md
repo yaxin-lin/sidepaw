@@ -30,7 +30,8 @@ built in is in [roadmap.md](roadmap.md).
 | Model provider (`[model]`, key in the OS credential store), LLM client with preview before send and `audit` rows | built (0.4) |
 | `lines.json` generated from the persona in one call, user overrides under `~/.sidepaw/pets/<id>/` | built (0.4) |
 | Chat window: streamed replies, context from sessions, counters and recent events, shown before it is sent | built (0.4) |
-| Brain: proactive triggers, memory | planned |
+| Proactive lines: nine triggers gated by chattiness 0-5, quiet hours, do-not-disturb and learned cooldowns | built (0.5) |
+| Memory list: shown and edited in setup, used in chat, added by the user or noticed in chat | built (0.5) |
 | `apps/desktop`: transparent always-on-top window, spritesheet renderer, embedded server, TS types from Rust | built (0.1) |
 | Click-through of transparent pixels, self-update, release workflow | built (0.2) |
 | Setup window: install, update, remove Claude Code hooks | built (0.2) |
@@ -88,7 +89,9 @@ persona compiler, the LLM client and line generation.
 8. The chat window builds its context from the snapshot, today's
    counters and the last stored events (`recent_events`, which returns
    only what the level let into the store) and streams the reply.
-9. Planned: the brain reacts to state changes (proactive scheduler).
+9. The proactive scheduler in the pet window watches the same
+   snapshots and the cursor and speaks a pack line when a trigger's
+   moment comes and its gate allows it (see below).
 
 Everything after step 2 is host-independent. Adding a host means
 writing one adapter and one fixture directory.
@@ -181,6 +184,30 @@ project folder (two checkouts with one name are one project; sessions
 stored below level 2 have no folder and show as one row) over the last
 7, 30 or 90 days, as stat tiles, a bar chart of tool calls per day with
 a per-day tooltip and table view, and a project table.
+
+`brain/proactive.ts` decides when the pet speaks unprompted. A
+`Watcher` follows snapshots and cursor activity and offers moments:
+an agent waiting over three minutes, two errors in a row, a task over
+twenty minutes finishing, the end of the working day (with today's
+counters filled into the line), a morning greeting, a late night with
+agents running, two hours without a pause, coming back after fifteen
+minutes away, and idle small talk. `mayFire` gates each by `[pet]
+chatty` (0 to 5, from the tray), do-not-disturb, `[quiet]` hours (only
+"needs you" triggers pass), a two-minute spacing between lines, once
+a day for daily ones, and the trigger's cooldown in `trigger_stats`,
+which doubles each time the user closes the line with its cross and
+halves when they click it (which opens chat). `pet/scheduler.ts` runs
+it and speaks lines from the pack's keys of the same names; a pack
+without those keys stays quiet. No model is called for any of this.
+
+`brain/memory.ts` turns the `memories` table into a part of the chat
+system prompt and back: the model may end a reply with
+`[remember: ...]`, which the chat window strips, stores as `observed`
+for a month and announces in the log; "记住…" or "remember …" typed by
+the user is stored as is, forever, with no model call. Bodies go
+through the redactor. The list is in Setup > What it remembers, where
+each can be edited, deleted or kept forever, a month or a week;
+expired ones are dropped whenever the list is read.
 
 Size, do-not-disturb and mini mode live in `[pet]` and are changed from
 the tray (`prefs.rs`), which saves them and emits `prefs-changed`.

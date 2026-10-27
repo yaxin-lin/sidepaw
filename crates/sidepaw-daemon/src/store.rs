@@ -115,6 +115,45 @@ pub struct History {
     pub projects: Vec<ProjectRow>,
 }
 
+/// Something the pet remembers. Shown and editable in the setup window;
+/// sent to the model only inside a chat request, which is previewed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct Memory {
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub id: i64,
+    pub created_at: String,
+    /// `user` when typed in, `observed` when the pet noted it in chat.
+    pub source: String,
+    pub body: String,
+    /// `forever`, `30d` or `7d`.
+    pub retention: String,
+}
+
+pub const RETENTIONS: [&str; 3] = ["forever", "30d", "7d"];
+
+/// How the proactive scheduler's trigger has been received so far.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct TriggerStat {
+    pub trigger: String,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub fired: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub dismissed: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub answered: u64,
+    pub last_fired: Option<String>,
+    /// The learned gap between two firings; never below the trigger's
+    /// own base, which the caller passes with each update.
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub cooldown_s: u64,
+}
+
+/// A dismissal doubles the gap up to a week; an answer halves it back
+/// toward the base.
+const COOLDOWN_MAX_S: u64 = 7 * 86_400;
+
 const SCHEMA: &str = include_str!("../../../docs/contracts/schema.sql");
 
 pub struct Store {
@@ -243,6 +282,142 @@ impl Store {
             ],
         )?;
         Ok(())
+    }
+
+    /// Newest first, after dropping what has outlived its retention.
+    pub fn memories(&mut self, now: &str) -> Result<Vec<Memory>> {
+        self.conn.execute(
+            "DELETE FROM memories WHERE pinned = 0 AND (
+                (retention = '7d' AND julianday(?1) - julianday(created_at) > 7) OR
+                (retention = '30d' AND julianday(?1) - julianday(created_at) > 30))",
+            params![now],
+        )?;
+        let mut stmt = self.conn.prepare(
+            "SELECT id, created_at, source, body, retention FROM memories ORDER BY id DESC",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok(Memory {
+                id: r.get(0)?,
+                created_at: r.get(1)?,
+                source: r.get(2)?,
+                body: r.get(3)?,
+                retention: r.get(4)?,
+            })
+        })?;
+        Ok(rows.collect::<std::result::Result<_, _>>()?)
+    }
+
+    pub fn add_memory(
+        &mut self,
+        now: &str,
+        source: &str,
+        body: &str,
+        retention: &str,
+    ) -> Result<i64> {
+        anyhow::ensure!(
+            RETENTIONS.contains(&retention),
+            "unknown retention {retention:?}"
+        );
+        anyhow::ensure!(
+            matches!(source, "user" | "observed"),
+            "unknown source {source:?}"
+        );
+        self.conn.execute(
+            "INSERT INTO memories (created_at, source, body, retention) VALUES (?1, ?2, ?3, ?4)",
+            params![now, source, body, retention],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Changing the retention restarts its clock, so "keep a week"
+    /// means a week from now.
+    pub fn update_memory(&mut self, now: &str, id: i64, body: &str, retention: &str) -> Result<()> {
+        anyhow::ensure!(
+            RETENTIONS.contains(&retention),
+            "unknown retention {retention:?}"
+        );
+        self.conn.execute(
+            "UPDATE memories SET body = ?2,
+                created_at = CASE WHEN retention = ?3 THEN created_at ELSE ?4 END,
+                retention = ?3
+             WHERE id = ?1",
+            params![id, body, retention, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_memory(&mut self, id: i64) -> Result<()> {
+        self.conn
+            .execute("DELETE FROM memories WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    pub fn trigger_stats(&self) -> Result<Vec<TriggerStat>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT trigger, fired, dismissed, answered, last_fired, cooldown_s FROM trigger_stats",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok(TriggerStat {
+                trigger: r.get(0)?,
+                fired: r.get::<_, i64>(1)? as u64,
+                dismissed: r.get::<_, i64>(2)? as u64,
+                answered: r.get::<_, i64>(3)? as u64,
+                last_fired: r.get(4)?,
+                cooldown_s: r.get::<_, i64>(5)? as u64,
+            })
+        })?;
+        Ok(rows.collect::<std::result::Result<_, _>>()?)
+    }
+
+    /// `fired`, `dismissed` or `answered`. Returns the new row.
+    pub fn record_trigger(
+        &mut self,
+        now: &str,
+        trigger: &str,
+        outcome: &str,
+        base_s: u64,
+    ) -> Result<TriggerStat> {
+        let mut stat = self
+            .trigger_stats()?
+            .into_iter()
+            .find(|s| s.trigger == trigger)
+            .unwrap_or(TriggerStat {
+                trigger: trigger.to_owned(),
+                cooldown_s: base_s,
+                ..Default::default()
+            });
+        let current = stat.cooldown_s.max(base_s);
+        match outcome {
+            "fired" => {
+                stat.fired += 1;
+                stat.last_fired = Some(now.to_owned());
+                stat.cooldown_s = current;
+            }
+            "dismissed" => {
+                stat.dismissed += 1;
+                stat.cooldown_s = (current * 2).min(COOLDOWN_MAX_S.max(base_s));
+            }
+            "answered" => {
+                stat.answered += 1;
+                stat.cooldown_s = (current / 2).max(base_s);
+            }
+            other => anyhow::bail!("unknown outcome {other:?}"),
+        }
+        self.conn.execute(
+            "INSERT INTO trigger_stats (trigger, fired, dismissed, answered, last_fired, cooldown_s)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(trigger) DO UPDATE SET fired = ?2, dismissed = ?3, answered = ?4,
+                last_fired = ?5, cooldown_s = ?6",
+            params![
+                stat.trigger,
+                stat.fired as i64,
+                stat.dismissed as i64,
+                stat.answered as i64,
+                stat.last_fired,
+                stat.cooldown_s as i64
+            ],
+        )?;
+        Ok(stat)
     }
 
     /// Newest first.
@@ -720,5 +895,78 @@ mod tests {
             utc.days[0].tool_calls, 2,
             "both tool calls are on the 25th in UTC"
         );
+    }
+
+    #[test]
+    fn memories_expire_by_retention_and_restart_on_change() {
+        let mut store = Store::in_memory().unwrap();
+        let old = "2026-10-01T00:00:00.000Z";
+        let week = store
+            .add_memory(old, "user", "likes short answers", "7d")
+            .unwrap();
+        let month = store
+            .add_memory(old, "observed", "works on sidepaw", "30d")
+            .unwrap();
+        store
+            .add_memory(old, "user", "calls me boss", "forever")
+            .unwrap();
+        assert!(store.add_memory(old, "user", "x", "1y").is_err());
+        let now = "2026-10-10T00:00:00.000Z";
+        let left: Vec<i64> = store.memories(now).unwrap().iter().map(|m| m.id).collect();
+        assert!(!left.contains(&week), "a week is up");
+        assert!(left.contains(&month));
+        store
+            .update_memory(now, month, "works on sidepaw and a blog", "7d")
+            .unwrap();
+        let later = "2026-10-15T00:00:00.000Z";
+        let m = store.memories(later).unwrap();
+        assert_eq!(m.len(), 2, "the switch to 7d counts from the change");
+        assert_eq!(m[1].body, "works on sidepaw and a blog");
+        store.delete_memory(month).unwrap();
+        assert_eq!(store.memories(later).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn dismissals_double_the_cooldown_and_answers_halve_it() {
+        let mut store = Store::in_memory().unwrap();
+        let now = "2026-10-27T00:00:00.000Z";
+        assert_eq!(
+            store
+                .record_trigger(now, "break", "fired", 3600)
+                .unwrap()
+                .cooldown_s,
+            3600
+        );
+        assert_eq!(
+            store
+                .record_trigger(now, "break", "dismissed", 3600)
+                .unwrap()
+                .cooldown_s,
+            7200
+        );
+        assert_eq!(
+            store
+                .record_trigger(now, "break", "dismissed", 3600)
+                .unwrap()
+                .cooldown_s,
+            14400
+        );
+        assert_eq!(
+            store
+                .record_trigger(now, "break", "answered", 3600)
+                .unwrap()
+                .cooldown_s,
+            7200
+        );
+        for _ in 0..10 {
+            store
+                .record_trigger(now, "break", "dismissed", 3600)
+                .unwrap();
+        }
+        let s = &store.trigger_stats().unwrap()[0];
+        assert_eq!(s.cooldown_s, 7 * 86_400);
+        assert_eq!((s.fired, s.dismissed, s.answered), (1, 12, 1));
+        assert_eq!(s.last_fired.as_deref(), Some(now));
+        assert!(store.record_trigger(now, "break", "ignored", 1).is_err());
     }
 }

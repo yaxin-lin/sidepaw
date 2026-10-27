@@ -9,6 +9,7 @@ import { initLang, onLangChange, t } from "../i18n";
 import { IdleBehaviour } from "./idle";
 import { DEFAULT_PACK, loadLines, loadPack } from "../pack";
 import { SpriteRenderer } from "./renderer";
+import { Scheduler } from "./scheduler";
 
 const POLL_MS = 500;
 
@@ -47,7 +48,10 @@ async function main() {
   // reload them; the label re-reads its strings on the next poll.
   const reloadLines = () => {
     loadLines(DEFAULT_PACK, pack.manifest).then(
-      (lines) => bubble.setLines(lines),
+      (next) => {
+        lines = next;
+        bubble.setLines(next);
+      },
       (err: unknown) => console.error(String(err)),
     );
   };
@@ -69,6 +73,11 @@ async function main() {
       return false;
     }
   };
+  // Lines change with the language and the persona, so the scheduler
+  // asks for the current set each time. Answering a line opens chat.
+  let lines = pack.lines;
+  const scheduler = new Scheduler(bubble, () => lines, () => void invoke("open_chat"));
+  await scheduler.start();
   const life = new DesktopLife(renderer, idle, bubble, canvas, jumpToWaiting);
   await life.attach();
 
@@ -77,6 +86,8 @@ async function main() {
   let prefs = await invoke<PetPrefs>("pet_prefs");
   const applyPrefs = async (next: PetPrefs, previous: PetPrefs | null) => {
     bubble.quiet = next.dnd;
+    scheduler.dnd = next.dnd;
+    scheduler.chatty = next.chatty;
     if (next.mini !== previous?.mini || (next.mini && next.size !== previous?.size)) await life.setMini(next.mini);
   };
   await applyPrefs(prefs, null);
@@ -118,6 +129,7 @@ async function main() {
       bubble.onState(snap.overall);
       idle.onState(snap.overall);
       life.setAttention(snap.sessions.some((s) => s.state === "waiting"));
+      void scheduler.onSnapshot(snap);
       label.textContent = prefs.dnd ? `${describe(snap)} · ${t("dnd")}` : describe(snap);
       void idle.tick();
     } catch (err) {

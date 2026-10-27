@@ -15,5 +15,12 @@
   "drag": ["Careful!", "Where are we going?"],
   "drop": ["A file? For me?", "I'll hold this. Briefly.", "Is this edible?"],
   "morning": ["Morning, boss.", "Coffee first."],
-  "night": ["It's late.", "Sleep is a feature too."]
+  "night": ["It's late.", "Sleep is a feature too."],
+  "waiting_long": ["It's been waiting a while. Just saying.", "Still waiting on you, boss.", "That approval isn't going to click itself."],
+  "errors": ["Two failures in a row. Want to look?", "It keeps tripping on something.", "Error again. Maybe check what it's doing?"],
+  "long_done": ["The long one finally finished.", "Done! That took a while.", "Big task over. Go see."],
+  "report": ["Today: {tools} tool calls, {errors} errors.", "{turns} turns today. Not bad.", "You kept the agents waiting {waited} minutes today."],
+  "break": ["Two hours straight. Stretch?", "Water break?", "Your eyes would like a minute."],
+  "back": ["Oh, you're back.", "Welcome back. Nothing exploded.", "There you are."],
+  "chatter": ["Quiet day.", "I counted the pixels on this screen. Twice.", "Is it snack time yet?"]
 }

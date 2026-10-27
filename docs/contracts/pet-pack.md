@@ -108,6 +108,11 @@ pet); values are arrays of strings. The renderer picks uniformly at
 random, avoiding the last three used. A missing `drop` key falls back
 to `click`; other missing keys are silent.
 
+`morning` through `chatter` are what the pet says unprompted (see
+`docs/architecture.md`, proactive lines). `report` lines may use
+`{tools}`, `{turns}`, `{errors}`, `{sessions}` and `{waited}` (minutes),
+filled from today's counters.
+
 ```json
 {
   "version": 1,
@@ -123,7 +128,14 @@ to `click`; other missing keys are silent.
   "drag": ["…"],
   "drop": ["…"],
   "morning": ["…"],
-  "night": ["…"]
+  "night": ["…"],
+  "waiting_long": ["…"],
+  "errors": ["…"],
+  "long_done": ["…"],
+  "report": ["Today: {tools} tool calls, {errors} errors."],
+  "break": ["…"],
+  "back": ["…"],
+  "chatter": ["…"]
 }
 ```
 

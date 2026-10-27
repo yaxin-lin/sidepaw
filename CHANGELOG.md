@@ -108,6 +108,17 @@ and the project uses [Semantic Versioning](https://semver.org/).
   up a cursor that hovers, says a line (`drop`, falling back to
   `click`) when a file is dropped on it, and hides while the app in
   front is full screen. macOS and Windows; no OS permission is asked.
+- The pet speaks first: nine moments (an agent waiting over three
+  minutes, two errors in a row, a long task done, the day's report, a
+  morning greeting, late night, two hours without a break, welcome
+  back, small talk), gated by Tray > Chattiness 0-5, quiet hours,
+  do-not-disturb and per-moment cooldowns that double when you close a
+  line with its cross and halve when you click it. Lines come from the
+  pack; no model call.
+- Memory: Setup > What it remembers lists everything, each editable,
+  deletable and kept forever, a month or a week. Chat uses the list,
+  the pet can note a fact itself (kept a month, announced in chat), and
+  "记住…" / "remember …" adds one without a model.
 - Permission prompts held by the pet queue oldest first: the bubble
   shows a count of the rest and a countdown to the terminal's own
   prompt. Control+Option+Y / Control+Option+N (Ctrl+Alt on Windows and

@@ -134,6 +134,8 @@ pub struct PetPrefs {
     pub size: PetSize,
     pub dnd: bool,
     pub mini: bool,
+    /// How often the pet speaks unprompted, 0 (never) to 5.
+    pub chatty: u8,
 }
 
 impl Default for Pet {
@@ -149,7 +151,8 @@ impl Default for Pet {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[serde(default, deny_unknown_fields)]
 pub struct Quiet {
     pub from: String,
@@ -261,6 +264,7 @@ impl Config {
             doc["pet"]["size"] = toml_edit::value(prefs.size.as_str());
             doc["pet"]["dnd"] = toml_edit::value(prefs.dnd);
             doc["pet"]["mini"] = toml_edit::value(prefs.mini);
+            doc["pet"]["chatty"] = toml_edit::value(i64::from(prefs.chatty.min(5)));
         })
     }
 
@@ -269,6 +273,7 @@ impl Config {
             size: self.pet.size,
             dnd: self.pet.dnd,
             mini: self.pet.mini,
+            chatty: self.pet.chatty.min(5),
         }
     }
 
@@ -529,6 +534,7 @@ port = 4242
             size: PetSize::L,
             dnd: true,
             mini: false,
+            chatty: 4,
         };
         Config::write_pet_prefs(&dir, prefs).unwrap();
         let c = Config::load(&dir).unwrap();

@@ -16,6 +16,8 @@ function holdMs(line: string): number {
 }
 
 const FADE_MS = 160;
+/** Long enough to read and decide whether to react. */
+const NUDGE_MS = 9000;
 
 /** Minimum gap between unprompted lines per state. Tool calls and
  *  thinking flip every few seconds; narrating each one is noise.
@@ -144,19 +146,48 @@ export class Bubble {
     else if (detail) this.say(detail);
   }
 
-  say(line: string) {
+  /** An unprompted line the user can react to: a click on it is an
+   *  answer, the cross a dismissal, and letting it fade is neither.
+   *  Returns false when a permission prompt holds the bubble. */
+  nudge(line: string, react: (answered: boolean) => void): boolean {
+    if (this.asking !== null) return false;
+    this.say(line, NUDGE_MS);
+    this.el.classList.add("nudge");
+    const close = document.createElement("button");
+    close.className = "x";
+    close.textContent = "×";
+    close.title = t("nudge.dismiss");
+    let done = false;
+    const once = (answered: boolean) => {
+      if (done) return;
+      done = true;
+      react(answered);
+      this.hide();
+    };
+    close.addEventListener("click", (e) => {
+      e.stopPropagation();
+      once(false);
+    });
+    this.el.onclick = () => once(true);
+    this.el.append(close);
+    return true;
+  }
+
+  say(line: string, hold = holdMs(line)) {
     if (this.asking !== null) return; // a prompt outranks chatter
     clearTimeout(this.timer);
     clearTimeout(this.fade);
-    this.el.classList.remove("ask");
+    this.el.classList.remove("ask", "nudge");
+    this.el.onclick = null;
     this.el.textContent = line;
     this.el.hidden = false;
     // Two frames so the transition runs from the hidden state.
     requestAnimationFrame(() => requestAnimationFrame(() => this.el.classList.add("show")));
-    this.timer = window.setTimeout(() => this.hide(), holdMs(line));
+    this.timer = window.setTimeout(() => this.hide(), hold);
   }
 
   private hide() {
+    this.el.onclick = null;
     this.el.classList.remove("show");
     this.fade = window.setTimeout(() => {
       this.el.hidden = true;

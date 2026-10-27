@@ -19,9 +19,15 @@ export const LINE_KEYS: ReadonlyArray<{ key: string; when: string }> = [
   { key: "click", when: "the user clicked you" },
   { key: "drag", when: "the user is dragging you around the screen" },
   { key: "drop", when: "the user dropped a file on you" },
-  // Nothing says morning lines yet; the proactive scheduler (0.5) will.
   { key: "morning", when: "the first time the user shows up in the morning" },
-  { key: "night", when: "it is late at night and the user is still working" },
+  { key: "night", when: "it is late at night and an agent is still working" },
+  { key: "waiting_long", when: "an agent has been waiting for the user's approval for several minutes" },
+  { key: "errors", when: "the agent has failed twice in a row" },
+  { key: "long_done", when: "a task that took more than twenty minutes just finished" },
+  { key: "report", when: "the end of the working day; mention the numbers with the placeholders {tools} (tool calls), {turns}, {errors} and {waited} (minutes the user kept an agent waiting), each line using at least one" },
+  { key: "break", when: "the user has worked for two hours without a pause; suggest a short break" },
+  { key: "back", when: "the user just came back after being away for a while" },
+  { key: "chatter", when: "nothing in particular is happening; idle small talk in character" },
 ];
 
 export const LINES_PER_KEY = 30;
@@ -40,8 +46,8 @@ export function linesRequest(systemPrompt: string): Request {
     "",
     `Reply with one JSON object only, no prose and no code fence: the keys above, each an array of ${LINES_PER_KEY} strings.`,
   ].join("\n");
-  // 15 keys by 30 lines at roughly 25 tokens each is about 11k tokens.
-  return { purpose: "lines", system: systemPrompt, user, maxTokens: 16000 };
+  // 22 keys by 30 lines at roughly 25 tokens each is about 17k tokens.
+  return { purpose: "lines", system: systemPrompt, user, maxTokens: 24000 };
 }
 
 /** Takes what a model returns, including fences or prose around the

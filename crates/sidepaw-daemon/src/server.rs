@@ -16,7 +16,7 @@ use crate::home::{self, DaemonState};
 use crate::origin::{self, Origin};
 use crate::redact;
 use crate::registry::{PendingApproval, Registry, Snapshot};
-use crate::store::{AuditRow, DayReport, EventRow, History, Store};
+use crate::store::{AuditRow, DayReport, EventRow, History, Memory, Store, TriggerStat};
 use anyhow::{Context, Result};
 use axum::extract::{ConnectInfo, FromRequestParts, Path, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -200,6 +200,7 @@ impl Shared {
         let mut app = self.app.lock().unwrap();
         app.config.pet.size = prefs.size;
         app.config.pet.dnd = prefs.dnd;
+        app.config.pet.chatty = prefs.chatty;
         app.config.pet.mini = prefs.mini;
         Ok(())
     }
@@ -262,6 +263,55 @@ impl Shared {
             }
         })
         .await;
+    }
+
+    pub fn memories(&self) -> Result<Vec<Memory>> {
+        self.app.lock().unwrap().store.memories(&now_rfc3339())
+    }
+
+    /// Bodies go through the redactor like any event text, so a key
+    /// pasted into chat is not remembered.
+    pub fn add_memory(&self, source: &str, body: &str, retention: &str) -> Result<i64> {
+        let body = redact::text(body.trim());
+        anyhow::ensure!(!body.is_empty(), "nothing to remember");
+        self.app
+            .lock()
+            .unwrap()
+            .store
+            .add_memory(&now_rfc3339(), source, &body, retention)
+    }
+
+    pub fn update_memory(&self, id: i64, body: &str, retention: &str) -> Result<()> {
+        let body = redact::text(body.trim());
+        anyhow::ensure!(
+            !body.is_empty(),
+            "a memory cannot be empty; delete it instead"
+        );
+        self.app
+            .lock()
+            .unwrap()
+            .store
+            .update_memory(&now_rfc3339(), id, &body, retention)
+    }
+
+    pub fn delete_memory(&self, id: i64) -> Result<()> {
+        self.app.lock().unwrap().store.delete_memory(id)
+    }
+
+    pub fn trigger_stats(&self) -> Result<Vec<TriggerStat>> {
+        self.app.lock().unwrap().store.trigger_stats()
+    }
+
+    pub fn record_trigger(&self, trigger: &str, outcome: &str, base_s: u64) -> Result<TriggerStat> {
+        self.app
+            .lock()
+            .unwrap()
+            .store
+            .record_trigger(&now_rfc3339(), trigger, outcome, base_s)
+    }
+
+    pub fn quiet_hours(&self) -> crate::config::Quiet {
+        self.app.lock().unwrap().config.quiet.clone()
     }
 
     /// The last `days` local days, today included.

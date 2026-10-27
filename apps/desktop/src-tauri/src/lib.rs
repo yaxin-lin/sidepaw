@@ -22,7 +22,7 @@ use sidepaw_daemon::pets;
 use sidepaw_daemon::registry::Snapshot;
 use sidepaw_daemon::secret::{self, KeySource};
 use sidepaw_daemon::server::{self, Running};
-use sidepaw_daemon::store::{AuditRow, DayReport, EventRow, History};
+use sidepaw_daemon::store::{AuditRow, DayReport, EventRow, History, Memory, TriggerStat};
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 #[tauri::command]
@@ -187,6 +187,71 @@ fn audit_call(
 #[tauri::command]
 fn audit_recent(server: State<'_, Running>, limit: u32) -> Result<Vec<AuditRow>, String> {
     server.shared.audit_recent(limit).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn memories(server: State<'_, Running>) -> Result<Vec<Memory>, String> {
+    server.shared.memories().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn add_memory(
+    server: State<'_, Running>,
+    source: String,
+    body: String,
+    retention: String,
+) -> Result<i64, String> {
+    server
+        .shared
+        .add_memory(&source, &body, &retention)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn update_memory(
+    server: State<'_, Running>,
+    id: i64,
+    body: String,
+    retention: String,
+) -> Result<(), String> {
+    server
+        .shared
+        .update_memory(id, &body, &retention)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_memory(server: State<'_, Running>, id: i64) -> Result<(), String> {
+    server.shared.delete_memory(id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn trigger_stats(server: State<'_, Running>) -> Result<Vec<TriggerStat>, String> {
+    server.shared.trigger_stats().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn record_trigger(
+    server: State<'_, Running>,
+    trigger: String,
+    outcome: String,
+    base_s: u64,
+) -> Result<TriggerStat, String> {
+    server
+        .shared
+        .record_trigger(&trigger, &outcome, base_s)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn quiet_hours(server: State<'_, Running>) -> sidepaw_daemon::config::Quiet {
+    server.shared.quiet_hours()
+}
+
+/// The cursor in screen pixels, for noticing that the user is back.
+#[tauri::command]
+fn cursor_global(app: AppHandle) -> Option<(f64, f64)> {
+    app.cursor_position().ok().map(|p| (p.x, p.y))
 }
 
 #[tauri::command]
@@ -375,6 +440,14 @@ pub fn run() {
             audit_recent,
             recent_events,
             history,
+            memories,
+            add_memory,
+            update_memory,
+            delete_memory,
+            trigger_stats,
+            record_trigger,
+            quiet_hours,
+            cursor_global,
             cursor_relative,
             scene,
             focus_session,

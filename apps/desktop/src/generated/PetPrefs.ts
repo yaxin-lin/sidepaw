@@ -4,4 +4,8 @@ import type { PetSize } from "./PetSize";
 /**
  * The parts of `[pet]` the tray toggles and the pet window follows.
  */
-export type PetPrefs = { size: PetSize, dnd: boolean, mini: boolean, };
+export type PetPrefs = { size: PetSize, dnd: boolean, mini: boolean, 
+/**
+ * How often the pet speaks unprompted, 0 (never) to 5.
+ */
+chatty: number, };
