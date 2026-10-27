@@ -22,5 +22,6 @@
   "report": ["Today: {tools} tool calls, {errors} errors.", "{turns} turns today. Not bad.", "You kept the agents waiting {waited} minutes today."],
   "break": ["Two hours straight. Stretch?", "Water break?", "Your eyes would like a minute."],
   "back": ["Oh, you're back.", "Welcome back. Nothing exploded.", "There you are."],
-  "chatter": ["Quiet day.", "I counted the pixels on this screen. Twice.", "Is it snack time yet?"]
+  "chatter": ["Quiet day.", "I counted the pixels on this screen. Twice.", "Is it snack time yet?"],
+  "offer_level": ["I could read the error messages and tell you why things fail. Want to give me level 2? Click me."]
 }

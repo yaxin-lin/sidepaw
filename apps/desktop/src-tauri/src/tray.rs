@@ -52,7 +52,7 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
                 let _ = super::open_history(app.clone());
             }
             SETUP => {
-                let _ = super::open_setup(app.clone());
+                let _ = super::open_setup(app.clone(), None);
             }
             TOGGLE => {
                 if let Some(pet) = app.get_webview_window("pet") {

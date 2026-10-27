@@ -8,4 +8,4 @@ export type PetPrefs = { size: PetSize, dnd: boolean, mini: boolean,
 /**
  * How often the pet speaks unprompted, 0 (never) to 5.
  */
-chatty: number, };
+chatty: number, live_lines: boolean, };

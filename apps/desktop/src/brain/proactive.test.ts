@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { State } from "../generated/State";
 import type { SessionView } from "../generated/SessionView";
-import { fill, type Gate, inQuietHours, mayFire, type Observation, Watcher } from "./proactive";
+import { fill, type Gate, inQuietHours, mayFire, type Observation, shouldOfferLevel, Watcher } from "./proactive";
 
 const MIN = 60_000;
 const t0 = Date.UTC(2026, 9, 27, 2, 0);
@@ -90,6 +90,26 @@ describe("mayFire", () => {
   it("caps small talk at three an hour at level 4", () => {
     expect(mayFire("chatter", { ...base, chatty: 4, lastHour: 3 })).toBe(false);
     expect(mayFire("chatter", { ...base, chatty: 5, lastHour: 3 })).toBe(true);
+  });
+});
+
+describe("shouldOfferLevel", () => {
+  const day = 86_400_000;
+  const base = { level: 1, daysActive: 3, firstEventAt: t0 - 4 * day, now: t0 };
+  it("asks at level 1 after three days of use", () => {
+    expect(shouldOfferLevel(base)).toBe(true);
+    expect(shouldOfferLevel({ ...base, level: 2 })).toBe(false);
+    expect(shouldOfferLevel({ ...base, daysActive: 2 })).toBe(false);
+    expect(shouldOfferLevel({ ...base, firstEventAt: t0 - day })).toBe(false);
+    expect(shouldOfferLevel({ ...base, firstEventAt: null })).toBe(false);
+  });
+
+  it("asks twice at most, a month apart, and never again once answered", () => {
+    const stat = { trigger: "offer_level", fired: 1, dismissed: 1, answered: 0, last_fired: new Date(t0 - 10 * day).toISOString(), cooldown_s: 0 };
+    expect(shouldOfferLevel({ ...base, stat })).toBe(false);
+    expect(shouldOfferLevel({ ...base, stat: { ...stat, last_fired: new Date(t0 - 31 * day).toISOString() } })).toBe(true);
+    expect(shouldOfferLevel({ ...base, stat: { ...stat, fired: 2, last_fired: new Date(t0 - 90 * day).toISOString() } })).toBe(false);
+    expect(shouldOfferLevel({ ...base, stat: { ...stat, answered: 1, last_fired: new Date(t0 - 90 * day).toISOString() } })).toBe(false);
   });
 });
 

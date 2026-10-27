@@ -3,16 +3,27 @@
  *  picks a line from the pack for the first trigger allowed to speak,
  *  and reports how the user reacted so the cooldowns learn. */
 import { invoke } from "@tauri-apps/api/core";
-import { type Gate, fill, inQuietHours, mayFire, type TriggerId, TRIGGERS, Watcher } from "../brain/proactive";
+import { buildContext } from "../brain/context";
+import { activePack, loadPersona } from "../brain/files";
+import { complete, resolve } from "../brain/llm";
+import { cleanLine, DAILY_CAP, LIVE, nudgeRequest, TIMEOUT_MS } from "../brain/nudge";
+import { compileSystemPrompt } from "../brain/persona";
+import { type Gate, fill, inQuietHours, mayFire, OFFER_AGAIN_MS, shouldOfferLevel, type TriggerId, TRIGGERS, Watcher } from "../brain/proactive";
+import type { EventRow } from "../generated/EventRow";
+import type { ModelConfig } from "../generated/ModelConfig";
+import type { Usage } from "../generated/Usage";
 import type { DayReport } from "../generated/DayReport";
 import type { Quiet } from "../generated/Quiet";
 import type { Snapshot } from "../generated/Snapshot";
 import type { TriggerStat } from "../generated/TriggerStat";
 import type { Lines } from "../lines";
 import type { Bubble } from "./bubble";
-import { t } from "../i18n";
+import { detectLang, t } from "../i18n";
 
 const EVAL_MS = 5000;
+const OFFER_CHECK_MS = 3600_000;
+const OFFER = "offer_level";
+const LIVE_COUNT_KEY = "live-lines";
 const CURSOR_MS = 2000;
 
 function localDay(d: Date): string {
@@ -35,8 +46,13 @@ export class Scheduler {
   private lastCursor: [number, number] | null = null;
   private lastEval = 0;
   private spoken: number[] = [];
+  private lastOfferCheck = 0;
+  /** An evaluation may wait seconds on the model; polls meanwhile skip. */
+  private evaluating = false;
   chatty = 2;
   dnd = false;
+  /** `[pet] live_lines`, on only after the user accepted the preview. */
+  liveLines = false;
 
   constructor(
     private bubble: Bubble,
@@ -65,9 +81,21 @@ export class Scheduler {
 
   /** Call on every poll; it evaluates every few seconds. */
   async onSnapshot(snap: Snapshot) {
+    // Every snapshot is observed, so no state change is missed while a
+    // line is being decided; only the deciding waits its turn.
     const now = Date.now();
+    const due = this.watcher.observe({ now, hour: new Date(now).getHours(), overall: snap.overall, sessions: snap.sessions, userActiveAt: this.userActiveAt });
+    if (this.evaluating) return;
+    this.evaluating = true;
+    try {
+      await this.evaluate(snap, due, now);
+    } finally {
+      this.evaluating = false;
+    }
+  }
+
+  private async evaluate(snap: Snapshot, due: TriggerId[], now: number) {
     const d = new Date(now);
-    const due = this.watcher.observe({ now, hour: d.getHours(), overall: snap.overall, sessions: snap.sessions, userActiveAt: this.userActiveAt });
     if (now - this.lastEval < EVAL_MS && !due.some((id) => TRIGGERS[id].needsYou)) return;
     this.lastEval = now;
     this.spoken = this.spoken.filter((t) => now - t < 3600_000);
@@ -85,14 +113,85 @@ export class Scheduler {
       if (!mayFire(id, { ...gate, stat: this.stats.get(id) })) continue;
       // Small talk is a chance, not a schedule.
       if (id === "chatter" && Math.random() > 0.3) continue;
-      const line = this.lines().pick(id);
+      const packLine = this.lines().pick(id);
+      const live = LIVE.has(id) ? await this.liveLine(id, snap) : null;
+      const line = live ?? packLine;
       if (line === null) continue; // this pack has nothing to say here
-      const text = withProject(id, snap, id === "report" ? fill(line, await this.counters()) : line);
-      if (!this.bubble.nudge(text, (answered) => void this.react(id, answered))) return;
+      const text = live ? live : withProject(id, snap, id === "report" ? fill(line, await this.counters()) : line);
+      if (!this.bubble.nudge(text, (answered) => void this.react(id, answered, this.onAnswer))) return;
       this.watcher.consume(id, now);
       this.spoken.push(now);
-      await this.record(id, "fired");
+      await this.record(id, "fired", TRIGGERS[id].baseS);
       return;
+    }
+    if (now - this.lastOfferCheck >= OFFER_CHECK_MS && !gate.dnd && !gate.quiet && gate.chatty >= 1 && now - gate.lastSpokeAt >= 120_000) {
+      this.lastOfferCheck = now;
+      await this.maybeOfferLevel(now);
+    }
+  }
+
+  /** Asks once, in character, whether it may read more (ADR 4); a click
+   *  opens Setup at the permission levels. */
+  private async maybeOfferLevel(now: number) {
+    const [level, usage] = await Promise.all([invoke<number>("get_level"), invoke<Usage>("usage")]).catch(() => [null, null] as const);
+    if (level === null || usage === null) return;
+    const firstEventAt = usage.first_event ? Date.parse(usage.first_event) : null;
+    if (!shouldOfferLevel({ level, daysActive: usage.days_active, firstEventAt, now, stat: this.stats.get(OFFER) })) return;
+    const line = this.lines().pick(OFFER) ?? t("offer.level");
+    const opened = this.bubble.nudge(line, (answered) =>
+      void this.react(OFFER, answered, () => void invoke("open_setup", { section: "level" }), OFFER_AGAIN_MS / 1000),
+    );
+    if (!opened) return;
+    this.spoken.push(now);
+    await this.record(OFFER, "fired", OFFER_AGAIN_MS / 1000);
+  }
+
+  /** A line written by the model for this moment (ADR 8), or null for
+   *  the pack's: when it is off, over the day's cap, unconfigured, slow
+   *  or unusable. */
+  private async liveLine(id: TriggerId, snap: Snapshot): Promise<string | null> {
+    if (!this.liveLines || !this.underCap()) return null;
+    try {
+      const cfg = await invoke<ModelConfig>("get_model");
+      resolve(cfg);
+      const [report, events, key, persona] = await Promise.all([
+        invoke<DayReport>("report_today"),
+        invoke<EventRow[]>("recent_events", { limit: 5 }),
+        invoke<string | null>("api_key"),
+        activePack().then(loadPersona),
+      ]);
+      const req = nudgeRequest(id, compileSystemPrompt(persona.persona, persona.md, detectLang()), buildContext({ snapshot: snap, report, events }, 5));
+      this.countLive();
+      const reply = await Promise.race([
+        complete(cfg, req, key),
+        new Promise<null>((r) => setTimeout(() => r(null), TIMEOUT_MS)),
+      ]);
+      return reply === null ? null : cleanLine(reply);
+    } catch (e) {
+      console.warn(`live line: ${String(e)}`);
+      return null;
+    }
+  }
+
+  // Per day, in this window's storage; a restart within a day only
+  // forgets the count, which errs toward the pack's lines.
+  private underCap(): boolean {
+    const today = localDay(new Date());
+    try {
+      const [day, n] = (localStorage.getItem(LIVE_COUNT_KEY) ?? "").split(" ");
+      return day !== today || Number(n) < DAILY_CAP;
+    } catch {
+      return true;
+    }
+  }
+
+  private countLive() {
+    const today = localDay(new Date());
+    try {
+      const [day, n] = (localStorage.getItem(LIVE_COUNT_KEY) ?? "").split(" ");
+      localStorage.setItem(LIVE_COUNT_KEY, `${today} ${day === today ? Number(n) + 1 : 1}`);
+    } catch {
+      // storage unavailable: the cap is not enforced across calls
     }
   }
 
@@ -102,14 +201,14 @@ export class Scheduler {
     return { tools: r.tool_calls, turns: r.turns, errors: r.errors, sessions: r.sessions, waited: Math.round(r.waiting_ms / 60_000) };
   }
 
-  private async react(id: TriggerId, answered: boolean) {
-    await this.record(id, answered ? "answered" : "dismissed");
-    if (answered) this.onAnswer();
+  private async react(id: string, answered: boolean, onAnswer: () => void, baseS = TRIGGERS[id as TriggerId]?.baseS ?? 3600) {
+    await this.record(id, answered ? "answered" : "dismissed", baseS);
+    if (answered) onAnswer();
   }
 
-  private async record(id: TriggerId, outcome: "fired" | "dismissed" | "answered") {
+  private async record(id: string, outcome: "fired" | "dismissed" | "answered", baseS: number) {
     try {
-      const row = await invoke<TriggerStat>("record_trigger", { trigger: id, outcome, baseS: TRIGGERS[id].baseS });
+      const row = await invoke<TriggerStat>("record_trigger", { trigger: id, outcome, baseS });
       this.stats.set(id, row);
     } catch (e) {
       console.warn(`record ${id}: ${String(e)}`);

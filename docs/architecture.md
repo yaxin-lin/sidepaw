@@ -206,6 +206,15 @@ halves when they click it (which opens chat). `pet/scheduler.ts` runs
 it and speaks lines from the pack's keys of the same names; a pack
 without those keys stays quiet. No model is called for any of this.
 
+With `[pet] live_lines` on (Setup > Model, after accepting a preview of
+the exact request, ADR 8) the waiting, errors and long-task moments ask
+the model for a line instead (`brain/nudge.ts`): persona, the moment,
+and `brain/context.ts` over the last five stored events; at most 20 a
+day, eight seconds before falling back to the pack line, audited as
+`nudge`. After three days of use at level 1 the pet asks once, in
+character, for level 2 (`shouldOfferLevel`, at most twice and a month
+apart); clicking the line opens Setup at the permission levels.
+
 `brain/memory.ts` turns the `memories` table into a part of the chat
 system prompt and back: the model may end a reply with
 `[remember: ...]`, which the chat window strips, stores as `observed`

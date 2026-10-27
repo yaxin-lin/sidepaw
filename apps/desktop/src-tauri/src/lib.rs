@@ -431,9 +431,32 @@ fn open_window(
         .map_err(|e| e.to_string())
 }
 
+/// `section` scrolls the window to one part (`level` when the pet
+/// offers a higher permission level); an open window is told by event.
 #[tauri::command]
-fn open_setup(app: AppHandle) -> Result<(), String> {
-    open_window(&app, "setup", "setup.html", "sidepaw setup", (560.0, 760.0))
+fn open_setup(app: AppHandle, section: Option<String>) -> Result<(), String> {
+    let open = app.get_webview_window("setup").is_some();
+    let page = match (&section, open) {
+        (Some(s), false) => format!("setup.html#{s}"),
+        _ => "setup.html".into(),
+    };
+    open_window(&app, "setup", &page, "sidepaw setup", (560.0, 760.0))?;
+    if let (Some(s), true) = (section, open) {
+        use tauri::Emitter;
+        let _ = app.emit_to("setup", "setup-focus", s);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn usage(server: State<'_, Running>) -> Result<sidepaw_daemon::store::Usage, String> {
+    server.shared.usage().map_err(|e| e.to_string())
+}
+
+/// Turned on only after the user accepted the preview (ADR 8).
+#[tauri::command]
+fn set_live_lines(app: AppHandle, on: bool) {
+    prefs::change(&app, |p| p.live_lines = on);
 }
 
 #[tauri::command]
@@ -501,7 +524,7 @@ pub fn run() {
                 Err(e) => tracing::warn!("could not refresh hooks: {e:#}"),
             }
             if install::is_first_run(running.port, running.shared.token()) {
-                let _ = open_setup(app.handle().clone());
+                let _ = open_setup(app.handle().clone(), None);
             }
             Ok(())
         })
@@ -558,6 +581,8 @@ pub fn run() {
             command_install,
             command_remove,
             open_setup,
+            usage,
+            set_live_lines,
             open_chat,
             open_history
         ])

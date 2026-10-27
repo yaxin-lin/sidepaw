@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS audit (
     id          INTEGER PRIMARY KEY,
     ts          TEXT NOT NULL,
     provider    TEXT NOT NULL,
-    purpose     TEXT NOT NULL,              -- chat|lines|persona
+    purpose     TEXT NOT NULL,              -- chat|lines|persona|nudge
     bytes       INTEGER NOT NULL,
     sha256      TEXT NOT NULL,
     level       INTEGER NOT NULL

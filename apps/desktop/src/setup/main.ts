@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import type { DayReport } from "../generated/DayReport";
 import type { Report } from "../generated/Report";
@@ -5,6 +6,7 @@ import { applyToDom, initLang, onLangChange, setLang, t, type Key } from "../i18
 import type { UiLanguage } from "../generated/UiLanguage";
 import { el, note } from "./dom";
 import { mountCli } from "./cli";
+import { mountLive } from "./live";
 import { mountMemory } from "./memory";
 import { mountPacks } from "./packs";
 import { mountModel } from "./model";
@@ -113,6 +115,16 @@ async function renderLanguage() {
   await onLangChange(() => location.reload());
 }
 
+/** Scroll to and outline a section: `#level` when the pet offers a
+ *  higher permission level. */
+function focusSection(id: string) {
+  const section = document.getElementById(id);
+  if (!section) return;
+  section.scrollIntoView({ behavior: "smooth", block: "start" });
+  section.classList.add("focus");
+  setTimeout(() => section.classList.remove("focus"), 2500);
+}
+
 async function main() {
   await initLang();
   applyToDom();
@@ -142,10 +154,14 @@ async function main() {
   el("cc-remove").addEventListener("click", () => void run("host_remove", t("cc.removed")));
   await mountCli();
   await mountModel();
+  await mountLive();
   await mountPacks();
   await mountPet();
   await mountMemory();
   await renderAudit();
 }
 
-void main();
+void main().then(async () => {
+  if (location.hash) focusSection(location.hash.slice(1));
+  await listen<string>("setup-focus", (e) => focusSection(e.payload));
+});

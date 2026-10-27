@@ -28,6 +28,7 @@ export const LINE_KEYS: ReadonlyArray<{ key: string; when: string }> = [
   { key: "break", when: "the user has worked for two hours without a pause; suggest a short break" },
   { key: "back", when: "the user just came back after being away for a while" },
   { key: "chatter", when: "nothing in particular is happening; idle small talk in character" },
+  { key: "offer_level", when: "asking once whether the user will let you read error messages (permission level 2) so you can explain failures; end by telling them to click you" },
 ];
 
 export const LINES_PER_KEY = 30;

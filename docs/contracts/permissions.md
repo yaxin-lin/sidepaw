@@ -23,7 +23,9 @@ only from level 2.
 Always, at every level:
 
 - secret redaction before storage
-- a preview of what will be sent before any remote model call
+- a preview of what will be sent before any remote model call the user
+  starts; the one kind the pet starts itself, live proactive lines, is
+  previewed once when the user turns it on (ADR 8)
 - an audit row for every remote model call
 - nothing is sent to a remote model from `raw`
 

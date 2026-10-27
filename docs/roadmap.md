@@ -96,10 +96,10 @@ today and answers in character.
 
 Done: nine proactive triggers from local lines, chattiness 0-5 in the
 tray, quiet hours, cooldowns that learn from dismissals and answers,
-and a memory list the user sees and edits, used in chat. Remaining:
-lines written by the model for event-specific moments (opt-in, since
-it costs a call each time), and the pet offering a higher permission
-level itself after a few days, as the design notes suggest.
+a memory list the user sees and edits, used in chat, lines written by
+the model for the waiting, errors and long-task moments (opt-in with a
+one-time preview, ADR 8), and the pet asking once for level 2 after
+three days of use.
 
 ## 0.6 It lives on the desktop
 

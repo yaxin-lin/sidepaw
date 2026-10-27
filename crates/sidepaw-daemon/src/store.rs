@@ -132,6 +132,14 @@ pub struct Memory {
 
 pub const RETENTIONS: [&str; 3] = ["forever", "30d", "7d"];
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct Usage {
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub days_active: u64,
+    pub first_event: Option<String>,
+}
+
 /// How the proactive scheduler's trigger has been received so far.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
@@ -350,6 +358,20 @@ impl Store {
         self.conn
             .execute("DELETE FROM memories WHERE id = ?1", params![id])?;
         Ok(())
+    }
+
+    pub fn usage(&self, offset_s: i32) -> Result<Usage> {
+        let shift = format!("{offset_s:+} seconds");
+        Ok(self.conn.query_row(
+            "SELECT COUNT(DISTINCT date(ts, ?1)), MIN(ts) FROM events",
+            params![shift],
+            |r| {
+                Ok(Usage {
+                    days_active: r.get::<_, i64>(0)? as u64,
+                    first_event: r.get(1)?,
+                })
+            },
+        )?)
     }
 
     pub fn trigger_stats(&self) -> Result<Vec<TriggerStat>> {
@@ -968,5 +990,30 @@ mod tests {
         assert_eq!((s.fired, s.dismissed, s.answered), (1, 12, 1));
         assert_eq!(s.last_fired.as_deref(), Some(now));
         assert!(store.record_trigger(now, "break", "ignored", 1).is_err());
+    }
+
+    #[test]
+    fn usage_counts_local_days_with_events() {
+        let mut store = Store::in_memory().unwrap();
+        assert_eq!(store.usage(0).unwrap(), Usage::default());
+        for ts in [
+            "2026-10-20T10:00:00.000Z",
+            "2026-10-20T11:00:00.000Z",
+            "2026-10-22T23:30:00.000Z",
+        ] {
+            let mut e = ev(Kind::Prompt);
+            e.ts = ts.into();
+            store.insert_event(&e).unwrap();
+        }
+        assert_eq!(store.usage(0).unwrap().days_active, 2);
+        assert_eq!(
+            store.usage(3600).unwrap().days_active,
+            2,
+            "23:30 UTC moves to the 23rd"
+        );
+        assert_eq!(
+            store.usage(0).unwrap().first_event.as_deref(),
+            Some("2026-10-20T10:00:00.000Z")
+        );
     }
 }

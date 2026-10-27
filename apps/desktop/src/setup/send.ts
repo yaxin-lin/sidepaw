@@ -28,10 +28,23 @@ export async function send(config: ConfigSource, req: Request, afterwards: () =>
 }
 
 function confirm(provider: string, model: string, purpose: Purpose, tokens: number, bytes: number, text: string): Promise<boolean> {
+  return ask(
+    t("send.title", { provider: PROVIDERS[provider]?.label ?? provider }),
+    t("send.summary", { purpose: t(`purpose.${purpose}`), tokens, bytes, model }),
+    text,
+  );
+}
+
+/** The send dialog with any title and summary; resolves to whether the
+ *  user pressed the primary button. */
+export function ask(title: string, summary: string, text: string, go = t("send.go"), showText = false): Promise<boolean> {
   const dialog = el<HTMLDialogElement>("send");
-  el("send-title").textContent = t("send.title", { provider: PROVIDERS[provider]?.label ?? provider });
-  el("send-summary").textContent = t("send.summary", { purpose: t(`purpose.${purpose}`), tokens, bytes, model });
+  const details = dialog.querySelector("details");
+  if (details) details.open = showText;
+  el("send-title").textContent = title;
+  el("send-summary").textContent = summary;
   el<HTMLPreElement>("send-text").textContent = text;
+  el("send-go").textContent = go;
   return new Promise((resolve) => {
     const done = (ok: boolean) => {
       dialog.close();

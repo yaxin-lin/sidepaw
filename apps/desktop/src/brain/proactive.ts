@@ -169,6 +169,31 @@ export function mayFire(id: TriggerId, g: Gate): boolean {
   return true;
 }
 
+export const OFFER_AFTER_DAYS = 3;
+export const OFFER_AGAIN_MS = 30 * 86_400_000;
+export const OFFER_TIMES = 2;
+
+export interface OfferInput {
+  level: number;
+  daysActive: number;
+  /** First stored event, ms since epoch; null on a fresh install. */
+  firstEventAt: number | null;
+  now: number;
+  stat?: TriggerStat;
+}
+
+/** Whether to ask once, in character, for level 2 (ADR 4): only at the
+ *  default level, after a few days of real use, at most twice, a month
+ *  apart. Do-not-disturb and quiet hours apply as for any line. */
+export function shouldOfferLevel(o: OfferInput): boolean {
+  if (o.level !== 1 || o.firstEventAt === null) return false;
+  if (o.daysActive < OFFER_AFTER_DAYS || o.now - o.firstEventAt < OFFER_AFTER_DAYS * 86_400_000) return false;
+  if ((o.stat?.fired ?? 0) >= OFFER_TIMES) return false;
+  if (o.stat?.answered) return false;
+  const last = o.stat?.last_fired ? Date.parse(o.stat.last_fired) : 0;
+  return o.now - last >= OFFER_AGAIN_MS;
+}
+
 /** `{tools}`-style placeholders in a line, from today's counters. */
 export function fill(line: string, vars: Record<string, string | number>): string {
   return line.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));

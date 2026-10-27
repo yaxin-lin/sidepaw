@@ -113,6 +113,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
   up a cursor that hovers, says a line (`drop`, falling back to
   `click`) when a file is dropped on it, and hides while the app in
   front is full screen. macOS and Windows; no OS permission is asked.
+- Live lines (Setup > Model, off by default): when an agent waits for
+  minutes, fails twice or finishes a long task, the model writes the
+  pet's line from what it can see. Turning it on shows the exact
+  request once and needs a yes (ADR 8); at most 20 a day, audited,
+  falling back to the pack's lines when slow or off.
+- After three days of use at the default level the pet asks once, in
+  character, whether it may read error messages (level 2); clicking
+  opens Setup at the permission levels. It asks at most twice.
 - The pet says which project: the label reads "sidepaw · waiting",
   permission bubbles and notifications name the project, and lines
   about a waiting or failing agent carry it when several sessions run.

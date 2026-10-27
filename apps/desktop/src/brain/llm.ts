@@ -8,7 +8,7 @@ import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import type { ModelConfig } from "../generated/ModelConfig";
 import { sha256Hex } from "./digest";
 
-export type Purpose = "chat" | "lines" | "persona";
+export type Purpose = "chat" | "lines" | "persona" | "nudge";
 
 export interface Turn {
   role: "user" | "assistant";

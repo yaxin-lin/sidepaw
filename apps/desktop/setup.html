@@ -11,6 +11,7 @@
       main { padding: 20px 24px 28px; max-width: 640px; }
       h1 { font-size: 18px; margin: 0 0 4px; }
       .sub { color: var(--muted); margin: 0 0 20px; }
+      section.focus { box-shadow: 0 0 0 2px var(--accent); transition: box-shadow .3s; }
       section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
       h2 { font-size: 15px; margin: 0 0 8px; display: flex; align-items: center; gap: 10px; }
       .badge { font-size: 11px; font-weight: 600; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; }
@@ -93,7 +94,7 @@
         </dl>
       </section>
 
-      <section>
+      <section id="level">
         <h2 data-i18n="level">Permission level</h2>
         <p class="msg" data-i18n="level.sub">What the pet may see and do.</p>
         <div id="levels"></div>
@@ -157,6 +158,11 @@
             <span class="msg" id="m-key-source"></span>
           </div>
           <p class="msg full" data-i18n="model.key.hint"></p>
+          <label class="full" style="display:flex;gap:6px;align-items:baseline;color:var(--fg)">
+            <input type="checkbox" id="live-lines" style="width:auto" />
+            <span data-i18n="live.label">Let the model write the pet's line when an agent waits, fails twice or finishes a long task</span>
+          </label>
+          <p class="msg full" id="live-msg" data-i18n="live.sub"></p>
         </div>
         <div class="row" style="margin-top:10px">
           <button class="primary" id="m-save" data-i18n="model.save">Save</button>

@@ -103,6 +103,7 @@ async function main() {
     bubble.quiet = next.dnd;
     scheduler.dnd = next.dnd;
     scheduler.chatty = next.chatty;
+    scheduler.liveLines = next.live_lines;
     if (next.mini !== previous?.mini || (next.mini && next.size !== previous?.size)) await life.setMini(next.mini);
   };
   await applyPrefs(prefs, null);

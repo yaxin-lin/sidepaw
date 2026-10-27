@@ -201,6 +201,7 @@ impl Shared {
         app.config.pet.size = prefs.size;
         app.config.pet.dnd = prefs.dnd;
         app.config.pet.chatty = prefs.chatty;
+        app.config.pet.live_lines = prefs.live_lines;
         app.config.pet.mini = prefs.mini;
         Ok(())
     }
@@ -308,6 +309,13 @@ impl Shared {
 
     pub fn delete_memory(&self, id: i64) -> Result<()> {
         self.app.lock().unwrap().store.delete_memory(id)
+    }
+
+    /// How many local days had any event, and the first event's time;
+    /// the pet waits a few days of use before offering a higher level.
+    pub fn usage(&self) -> Result<crate::store::Usage> {
+        let (_, offset_s) = crate::clock::local_days_back(1);
+        self.app.lock().unwrap().store.usage(offset_s)
     }
 
     pub fn trigger_stats(&self) -> Result<Vec<TriggerStat>> {

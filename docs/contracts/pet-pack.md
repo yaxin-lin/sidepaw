@@ -136,7 +136,8 @@ filled from today's counters.
   "report": ["Today: {tools} tool calls, {errors} errors."],
   "break": ["…"],
   "back": ["…"],
-  "chatter": ["…"]
+  "chatter": ["…"],
+  "offer_level": ["…"]
 }
 ```
 
