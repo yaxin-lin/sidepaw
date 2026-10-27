@@ -32,7 +32,7 @@ model    = ""                # empty picks the provider default:
 # environment variable, which wins when set.
 
 [pet]
-active = "whale-maid"
+active = "placeholder"       # Setup > Look; a bundled or installed pack id
 level  = 1                   # 0..4, see docs/contracts/permissions.md
 chatty = 2                   # 0..5, tray > Chattiness: 0 only when clicked,
                              # 1 needs you, 2 + finished tasks and the day's report,
@@ -70,6 +70,7 @@ Data directory layout:
   config.toml
   state.json        port and token of the running server
   sidepaw.sqlite    events, state changes, approvals, audit rows
+  packs/<id>/       installed pet packs (Setup > Look, `sidepaw pack <zip>`)
   pets/<id>/        persona.json, persona.md, lines.json overriding the pack's
 ```
 

@@ -51,7 +51,7 @@ pets/                   bundled pet packs (a generated placeholder so far)
 
 ## Building
 
-Requires Rust 1.80+, Node 22 and pnpm. On Linux the Tauri system
+Requires Rust 1.88+, Node 22 and pnpm. On Linux the Tauri system
 dependencies are listed in `.github/workflows/ci.yml`.
 
 ```
@@ -61,7 +61,9 @@ cargo test --workspace
 pnpm --filter sidepaw-desktop tauri dev # the pet window
 ```
 
-The window shows the placeholder pack from `pets/`. On first run, or on
+The window starts with the placeholder pack from `pets/`; Setup > Look
+installs others from a zip, from Codex's pets or from the
+[petdex](https://petdex.dev) gallery, and switches between them. On first run, or on
 right-click, a setup window offers to install the Claude Code hooks into
 `~/.claude/settings.json` (a backup is written next to it). The same
 thing from a terminal: `sidepaw install --host claude-code --apply`.

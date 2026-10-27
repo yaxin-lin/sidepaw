@@ -7,7 +7,8 @@ import { DesktopLife } from "./desktop";
 import { HitMaskSource } from "./hitmask";
 import { initLang, onLangChange, t } from "../i18n";
 import { IdleBehaviour } from "./idle";
-import { DEFAULT_PACK, loadLines, loadPack } from "../pack";
+import { activePack, FALLBACK_PACK } from "../brain/files";
+import { loadLines, loadPack, LOOP_MS, type Pack, ROW } from "../pack";
 import { SpriteRenderer } from "./renderer";
 import { Scheduler } from "./scheduler";
 
@@ -26,7 +27,14 @@ async function main() {
   const bubbleEl = document.getElementById("bubble") as HTMLDivElement;
 
   await initLang();
-  const pack = await loadPack(DEFAULT_PACK);
+  let packId = await activePack();
+  // A pack that fails to load (a sheet deleted by hand) must not leave
+  // an empty window; the bundled one always works.
+  let pack: Pack = await loadPack(packId).catch(async (err: unknown) => {
+    console.error(String(err));
+    packId = FALLBACK_PACK;
+    return loadPack(FALLBACK_PACK);
+  });
   const renderer = new SpriteRenderer(canvas, pack.sheet);
   const bubble = new Bubble(bubbleEl, pack.lines);
   const idle = new IdleBehaviour(renderer, canvas);
@@ -47,7 +55,7 @@ async function main() {
   // Lines come per language, so both a pack edit and a language change
   // reload them; the label re-reads its strings on the next poll.
   const reloadLines = () => {
-    loadLines(DEFAULT_PACK, pack.manifest).then(
+    loadLines(packId, pack.manifest).then(
       (next) => {
         lines = next;
         bubble.setLines(next);
@@ -56,6 +64,19 @@ async function main() {
     );
   };
   await listen("pack-changed", reloadLines);
+  await listen<string>("pack-active-changed", (e) => {
+    loadPack(e.payload).then(
+      (next) => {
+        packId = e.payload;
+        pack = next;
+        renderer.setSheet(next.sheet);
+        lines = next.lines;
+        bubble.setLines(next.lines);
+        renderer.play(ROW.jumping, LOOP_MS);
+      },
+      (err: unknown) => bubble.say(String(err)),
+    );
+  });
   await onLangChange(reloadLines);
 
   // Presses, drags, throws and drops: see desktop.ts. Right-click is

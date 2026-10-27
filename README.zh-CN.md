@@ -49,7 +49,7 @@ pets/                   内置宠物包（目前只有生成的占位包）
 
 ## 构建
 
-需要 Rust 1.80 以上、Node 22 和 pnpm。Linux 上 Tauri 需要的系统库见
+需要 Rust 1.88 以上、Node 22 和 pnpm。Linux 上 Tauri 需要的系统库见
 `.github/workflows/ci.yml`。
 
 ```
@@ -79,7 +79,8 @@ OpenAI、Anthropic、Ollama 或任意 OpenAI 兼容地址，key 存系统钥匙�
 双击宠物打开聊天窗口，可以问它 agent 今天都干了什么。每次远端调用都会先
 显示将发送的内容，并列在「外发记录」里。
 
-窗口会显示 `pets/` 里的占位宠物。首次运行或在小球上右键会打开设置窗口，
+窗口一开始显示 `pets/` 里的占位宠物；设置 > 形象 可以从 zip、Codex 的宠物或
+[petdex](https://petdex.dev) 画廊安装别的形象，并随时切换。首次运行或在小球上右键会打开设置窗口，
 一键把 Claude Code 的 hook 写进 `~/.claude/settings.json`（旁边会留一份
 备份）。终端里等价的命令是 `sidepaw install --host claude-code --apply`。
 

@@ -34,6 +34,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 ureq = { version = "3", default-features = false, features = ["json"] }
 uuid = { version = "1", features = ["v4"] }
 ts-rs = { version = "12", optional = true, features = ["serde-json-impl"] }
+zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 # The API key lives in the OS credential store, never in config.toml.
 # Linux goes through the Secret Service over zbus (pure Rust, already in

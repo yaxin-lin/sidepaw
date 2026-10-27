@@ -2,18 +2,19 @@
  *  overrides under ~/.sidepaw/pets/<id>/; the pack itself is never
  *  written. */
 import { emit } from "@tauri-apps/api/event";
-import { loadPersona, parseJson, readBundled, readUser, writeUser } from "../brain/files";
+import { activePack, loadPersona, parseJson, readPackText, readUser, writeUser } from "../brain/files";
 import { countLines, linesRequest, parseLines } from "../brain/linegen";
 import { compileSystemPrompt, FLAW_TAGS, personaDigest, SLIDERS, STRENGTH_TAGS, type Persona, type Slider } from "../brain/persona";
 import { detectLang, t, type Key } from "../i18n";
 import type { LinesFile } from "../lines";
-import { DEFAULT_PACK } from "../pack";
 import { renderAudit } from "./audit";
 import { busy, el, note } from "./dom";
 import { modelFromForm, tryLine } from "./model";
 import { send } from "./send";
 
-const PACK = DEFAULT_PACK;
+// The pack being edited; set when the section mounts, and the page
+// reloads when another pack is chosen.
+let PACK = "placeholder";
 const MD_MAX = 1500;
 
 function lines(text: string): string[] {
@@ -119,11 +120,12 @@ async function renderLinesStatus(persona: Persona, md: string) {
     note("p-lines", t(current ? "pet.lines.current" : "pet.lines.stale"), !current);
     return;
   }
-  const bundled = parseJson<LinesFile>(await readBundled(PACK, "lines.json"));
+  const bundled = parseJson<LinesFile>(await readPackText(PACK, "lines.json"));
   note("p-lines", t(bundled ? "pet.lines.pack" : "pet.lines.none"));
 }
 
 export async function mountPet() {
+  PACK = await activePack();
   buildControls();
   const saved = await loadPersona(PACK);
   fillForm(saved.persona, saved.md);

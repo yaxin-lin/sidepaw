@@ -1,10 +1,8 @@
-import { parseJson, readBundled, readUser } from "./brain/files";
+import { FALLBACK_PACK, isBundled, parseJson, readPackBytes, readPackText, readUser } from "./brain/files";
 import type { Manifest } from "./generated/Manifest";
 import { detectLang } from "./i18n";
 import { Lines, type LinesFile } from "./lines";
 
-/** The pack shown until `[pet] active` reaches the app. */
-export const DEFAULT_PACK = "placeholder";
 
 // Codex spritesheet layout, mirrored from crates/sidepaw-core/src/pack.rs
 // and docs/contracts/pet-pack.md.
@@ -38,25 +36,51 @@ export interface Pack {
 /** The user's generated or edited lines win over the pack's; among the
  *  pack's, `lines.<lang>.json` wins for the UI language. A pack without
  *  lines is a valid Codex pack; the pet is just quiet. */
+async function packLines(id: string, manifest: Manifest): Promise<LinesFile | null> {
+  // An installed pack without x-sidepaw may still carry lines.json.
+  const linesPath = manifest["x-sidepaw"]?.lines ?? (isBundled(id) ? undefined : "lines.json");
+  if (!linesPath) return null;
+  const localized = linesPath.replace(/\.json$/, `.${detectLang()}.json`);
+  return parseJson<LinesFile>(await readPackText(id, localized)) ?? parseJson<LinesFile>(await readPackText(id, linesPath));
+}
+
+/** The user's lines for this pet, else the pack's, else the bundled
+ *  pack's: most downloaded packs are art only, and a pet that never
+ *  speaks reads as broken. */
 export async function loadLines(id: string, manifest: Manifest): Promise<Lines> {
-  let file = parseJson<LinesFile>(await readUser(id, "lines.json"));
-  const linesPath = manifest["x-sidepaw"]?.lines;
-  if (!file && linesPath) {
-    const localized = linesPath.replace(/\.json$/, `.${detectLang()}.json`);
-    file = parseJson<LinesFile>(await readBundled(id, localized)) ?? parseJson<LinesFile>(await readBundled(id, linesPath));
+  let file = parseJson<LinesFile>(await readUser(id, "lines.json")) ?? (await packLines(id, manifest));
+  if (!file && id !== FALLBACK_PACK) {
+    const fallback = parseJson<Manifest>(await readPackText(FALLBACK_PACK, "pet.json"));
+    if (fallback) file = await packLines(FALLBACK_PACK, fallback);
   }
   return file ? new Lines(file) : Lines.empty();
 }
 
-export async function loadPack(id: string): Promise<Pack> {
-  const res = await fetch(`/${id}/pet.json`);
-  if (!res.ok) throw new Error(`pack ${id}: ${res.status}`);
-  const manifest = (await res.json()) as Manifest;
+/** A Codex sheet is 8 by 9 cells; petdex's v2 adds two rows below,
+ *  which the renderer ignores. */
+export function sheetSizeOk(width: number, height: number): boolean {
+  return width === CELL_W * COLUMNS && (height === CELL_H * ROWS || height === CELL_H * (ROWS + 2));
+}
+
+export async function loadSheet(id: string, manifest: Manifest): Promise<HTMLImageElement> {
   const sheet = new Image();
-  sheet.src = `/${id}/${manifest.spritesheetPath}`;
+  if (isBundled(id)) {
+    sheet.src = `/${id}/${manifest.spritesheetPath}`;
+  } else {
+    const bytes = await readPackBytes(id, manifest.spritesheetPath);
+    if (!bytes) throw new Error(`pack ${id}: no ${manifest.spritesheetPath}`);
+    const type = manifest.spritesheetPath.endsWith(".png") ? "image/png" : "image/webp";
+    sheet.src = URL.createObjectURL(new Blob([bytes], { type }));
+  }
   await sheet.decode();
-  if (sheet.naturalWidth !== CELL_W * COLUMNS || sheet.naturalHeight !== CELL_H * ROWS) {
+  if (!sheetSizeOk(sheet.naturalWidth, sheet.naturalHeight)) {
     throw new Error(`pack ${id}: sheet is ${sheet.naturalWidth}x${sheet.naturalHeight}`);
   }
-  return { manifest, sheet, lines: await loadLines(id, manifest) };
+  return sheet;
+}
+
+export async function loadPack(id: string): Promise<Pack> {
+  const manifest = parseJson<Manifest>(await readPackText(id, "pet.json"));
+  if (!manifest) throw new Error(`pack ${id}: no pet.json`);
+  return { manifest, sheet: await loadSheet(id, manifest), lines: await loadLines(id, manifest) };
 }

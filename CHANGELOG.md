@@ -6,6 +6,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Minimum Rust is 1.88 (was 1.80), for zip 9: older zip releases have
+  extraction advisories, and pet packs are untrusted downloads.
+
 ### Fixed
 
 - After a restart the server waits up to three seconds for its previous
@@ -108,6 +113,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
   up a cursor that hovers, says a line (`drop`, falling back to
   `click`) when a file is dropped on it, and hides while the app in
   front is full screen. macOS and Windows; no OS permission is asked.
+- Pet packs: Setup > Look shows every pet with a preview and switches
+  between them at once. Install from a zip or folder, bring over pets
+  from Codex's or petdex's folders, search and install from the petdex
+  gallery (5,000+ pets), drop a zip on the pet, or run
+  `sidepaw pack <zip|folder>`. petdex v2 sheets work. Packs without
+  lines use the default lines until you generate their own.
 - The pet speaks first: nine moments (an agent waiting over three
   minutes, two errors in a row, a long task done, the day's report, a
   morning greeting, late night, two hours without a break, welcome

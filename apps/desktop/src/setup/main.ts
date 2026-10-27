@@ -6,6 +6,7 @@ import type { UiLanguage } from "../generated/UiLanguage";
 import { el, note } from "./dom";
 import { mountCli } from "./cli";
 import { mountMemory } from "./memory";
+import { mountPacks } from "./packs";
 import { mountModel } from "./model";
 import { mountPet } from "./pet";
 import { renderAudit } from "./audit";
@@ -141,6 +142,7 @@ async function main() {
   el("cc-remove").addEventListener("click", () => void run("host_remove", t("cc.removed")));
   await mountCli();
   await mountModel();
+  await mountPacks();
   await mountPet();
   await mountMemory();
   await renderAudit();

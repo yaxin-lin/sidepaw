@@ -195,8 +195,7 @@ mod imp {
         let mut pid = 0u32;
         unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
         if let Some(i) = find.pids.iter().position(|p| *p == pid) {
-            // `Option::is_none_or` would need Rust 1.82; the MSRV is 1.80.
-            if !matches!(find.best, Some((best, _)) if best <= i) {
+            if find.best.is_none_or(|(best, _)| i < best) {
                 find.best = Some((i, hwnd));
             }
         }

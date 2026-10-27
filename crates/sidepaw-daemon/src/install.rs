@@ -173,10 +173,10 @@ pub fn strip(settings: &mut Value) -> bool {
         groups.retain(|g| {
             g.get("hooks")
                 .and_then(Value::as_array)
-                .map_or(true, |l| !l.is_empty())
+                .is_none_or(|l| !l.is_empty())
         });
     }
-    hooks.retain(|_, v| v.as_array().map_or(true, |a| !a.is_empty()));
+    hooks.retain(|_, v| v.as_array().is_none_or(|a| !a.is_empty()));
     if hooks.is_empty() {
         settings.as_object_mut().map(|o| o.remove("hooks"));
     }

@@ -44,6 +44,19 @@
       th { color: var(--muted); font-weight: 500; }
       td.mono { font-family: ui-monospace, Menlo, monospace; }
       #mem-rows td:first-child { width: 58%; }
+      .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+      .card { border: 1px solid var(--line); border-radius: 10px; padding: 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+      .card.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+      .card canvas { width: 96px; height: 104px; }
+      .card .name { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+      .card .by { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+      .card .acts { display: flex; gap: 4px; }
+      .card button { font-size: 12px; padding: 3px 8px; }
+      .sub3 { font-size: 13px; margin: 14px 0 6px; }
+      .results { list-style: none; padding: 0; margin: 8px 0 0; max-height: 260px; overflow: auto; }
+      .results li { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+      .results li span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .results li em { color: var(--muted); font-style: normal; font-size: 12px; }
       dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--fg); max-width: 480px; padding: 16px 18px; }
       dialog::backdrop { background: rgba(0,0,0,.35); }
       dialog h3 { margin: 0 0 6px; font-size: 15px; }
@@ -151,6 +164,24 @@
           <button id="m-test" data-i18n="model.test">Test</button>
           <span class="msg" id="m-msg"></span>
         </div>
+      </section>
+
+      <section id="packs">
+        <h2 data-i18n="packs">Look</h2>
+        <div class="cards" id="pack-cards"></div>
+        <div class="row" style="margin-top:10px">
+          <button id="pack-import-zip" data-i18n="packs.import_zip">Import zip...</button>
+          <button id="pack-import-folder" data-i18n="packs.import_folder">Import folder...</button>
+          <span class="msg" id="pack-msg"></span>
+        </div>
+        <div id="pack-found"></div>
+        <h3 class="sub3" data-i18n="packs.petdex">From petdex</h3>
+        <div class="row">
+          <input type="text" id="petdex-q" style="flex:1" />
+          <button id="petdex-search" data-i18n="packs.search">Search</button>
+        </div>
+        <div id="petdex-results"></div>
+        <p class="msg" data-i18n="packs.rights"></p>
       </section>
 
       <section id="pet">

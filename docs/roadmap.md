@@ -57,6 +57,9 @@ while Claude Code works.
 
 ## 0.2 Second host
 
+Pack choice is done: install from a zip, a folder, Codex's pets or the
+petdex gallery, and switch in Setup > Look.
+
 Codex adapter with real captured fixtures and the `sidepaw hook` shim
 in use. Done already: the setup window for Claude Code, click-through
 of transparent pixels, Tauri updater and the release workflow. Exit criterion: adding a host really was one adapter module

@@ -46,7 +46,8 @@ page.
 
 Codex layout, unchanged: 1536 by 1872 pixels, 8 columns by 9 rows of
 192 by 208 cells, transparent background, unused cells fully
-transparent. Rows, top to bottom:
+transparent. petdex's v2 sheets (1536 by 2288, two more rows) are
+accepted too; sidepaw draws the first nine rows. Rows, top to bottom:
 
 | Row | State | sidepaw maps from |
 | --- | --- | --- |
@@ -141,6 +142,17 @@ filled from today's counters.
 
 When `generatedFrom` no longer matches the persona files, the app
 offers to regenerate.
+
+Installed packs live in `~/.sidepaw/packs/<id>/`: `pet.json`, the
+spritesheet, any of `persona.json`, `persona.md` and `lines*.json`
+that came with it, and a `source.json` sidepaw writes (where it came
+from and who made it). Installing reads only those files from a zip or
+folder, checks the manifest and the sheet's size from its header, caps
+each file (20 MiB for the sheet, 1 MiB for text) and swaps the folder
+in whole. An id that is not lowercase letters, digits and hyphens is
+turned into one. A pack without lines speaks the bundled pack's lines
+until the user generates its own; one without a persona starts from a
+blank persona named after the pack.
 
 The app never writes into a pack. `persona.json`, `persona.md` and
 `lines.json` saved from the setup window go to

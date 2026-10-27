@@ -13,6 +13,7 @@ pub mod home;
 pub mod hook;
 pub mod install;
 pub mod origin;
+pub mod packs;
 pub mod pets;
 pub mod redact;
 pub mod registry;

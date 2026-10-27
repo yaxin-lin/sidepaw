@@ -44,6 +44,12 @@ export class SpriteRenderer {
     this.ctx = ctx;
   }
 
+  /** Another pack was chosen; the next frame draws from it. */
+  setSheet(sheet: HTMLImageElement) {
+    this.sheet = sheet;
+    this.lastDrawn = -1;
+  }
+
   setState(state: State) {
     this.row = rowFor(state);
   }

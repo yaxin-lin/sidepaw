@@ -7,6 +7,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { currentMonitor, getCurrentWindow, PhysicalPosition } from "@tauri-apps/api/window";
 import type { Bubble } from "./bubble";
 import { Dock } from "./dock";
+import { t } from "../i18n";
 import type { IdleBehaviour } from "./idle";
 import { LOOP_MS, ROW } from "../pack";
 import { airborne, atRest, type Body, type Bounds, FLING_SPEED, floorFor, type Rect, type Sample, step, velocityFrom } from "./physics";
@@ -93,8 +94,18 @@ export class DesktopLife {
     setInterval(() => void this.checkSupport(), SUPPORT_MS);
     await getCurrentWebview().onDragDropEvent((event) => {
       if (event.payload.type !== "drop" || event.payload.paths.length === 0) return;
-      const name = event.payload.paths[0].split(/[\\/]/).pop() ?? "";
+      const path = event.payload.paths[0];
+      const name = path.split(/[\\/]/).pop() ?? "";
       this.renderer.play(ROW.jumping, LOOP_MS);
+      // A dropped zip is most likely a pet; try it as one, quietly
+      // falling back to an ordinary drop when it is not.
+      if (name.toLowerCase().endsWith(".zip")) {
+        invoke<{ display_name: string }>("pack_install_path", { path }).then(
+          (info) => this.bubble.say(t("packs.dropped", { name: info.display_name })),
+          () => this.bubble.onInteraction("drop", name),
+        );
+        return;
+      }
       this.bubble.onInteraction("drop", name);
     });
   }

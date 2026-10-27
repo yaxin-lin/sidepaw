@@ -255,6 +255,16 @@ impl Config {
         })
     }
 
+    /// Set `[pet] active` the same way `write_level` does.
+    pub fn write_active(dir: &Path, id: &str) -> Result<()> {
+        edit(dir, |doc| {
+            if !doc.contains_table("pet") {
+                doc["pet"] = toml_edit::table();
+            }
+            doc["pet"]["active"] = toml_edit::value(id);
+        })
+    }
+
     /// Set `[pet] size`, `dnd` and `mini` the same way `write_level` does.
     pub fn write_pet_prefs(dir: &Path, prefs: PetPrefs) -> Result<()> {
         edit(dir, |doc| {

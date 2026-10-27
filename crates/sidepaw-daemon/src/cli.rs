@@ -2,7 +2,7 @@
 //! executable (which runs it when started with a subcommand), so an
 //! installed app is also the CLI and the hook shim.
 
-use crate::{home, hook, install, run, server};
+use crate::{home, hook, install, packs, run, server};
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use sidepaw_core::Host;
@@ -42,6 +42,8 @@ enum Command {
         #[arg(long)]
         remove: bool,
     },
+    /// Install a pet pack from a zip or a folder (Codex or petdex format).
+    Pack { path: std::path::PathBuf },
     /// Run a command and let the pet show it: busy while it runs, done
     /// or failed when it exits. Exits with the command's own status.
     Run {
@@ -51,7 +53,7 @@ enum Command {
 }
 
 /// The subcommands, for callers that decide whether to run the CLI.
-pub const SUBCOMMANDS: [&str; 4] = ["serve", "hook", "install", "run"];
+pub const SUBCOMMANDS: [&str; 5] = ["serve", "hook", "install", "run", "pack"];
 
 /// Parse the process arguments, run, and return the exit code.
 pub fn main() -> i32 {
@@ -79,6 +81,27 @@ fn dispatch(command: Command) -> Result<i32> {
         }
         Command::Hook { host } => hook::forward_stdin(host).map(|_| 0),
         Command::Run { command } => run::run(&command),
+        Command::Pack { path } => {
+            let home = home::dir()?;
+            let info = if path.is_dir() {
+                let source = packs::Source {
+                    kind: "folder".into(),
+                    ..Default::default()
+                };
+                packs::install_folder(&home, &path, source)?
+            } else {
+                let source = packs::Source {
+                    kind: "zip".into(),
+                    ..Default::default()
+                };
+                packs::install_zip(&home, &std::fs::read(&path)?, source)?
+            };
+            println!(
+                "installed {} ({}); choose it in Setup > Look",
+                info.display_name, info.id
+            );
+            Ok(0)
+        }
         Command::Install {
             host,
             apply,

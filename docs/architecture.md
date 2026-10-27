@@ -39,7 +39,8 @@ built in is in [roadmap.md](roadmap.md).
 | Usage history window: totals, tool calls per day, per-project table over 7/30/90 days | built |
 | Tray toggles: do not disturb, mini mode (parked at the screen edge), size S/M/L, start at login | built |
 | Daily report from counters (`GET /v1/report/today`, setup window) | built (0.3) |
-| Bundled pet packs | `pets/placeholder`, a generated stand-in until a real pack lands |
+| Bundled pet packs | `pets/placeholder`, a generated stand-in |
+| Installing packs: zip, folder, from Codex's or petdex's folders, from the petdex gallery; choosing one | built (Setup > Look, `sidepaw pack`) |
 
 ## Overview
 
@@ -119,6 +120,10 @@ SQLite and the adapters.
 - `config`: `config.toml` and the effective permission level per event
 - `secret`: the model API key, in the OS credential store or
   `SIDEPAW_API_KEY`; the one secret the app holds
+- `packs`: installed pet packs in `<data dir>/packs/<id>/`: installing
+  from a zip or folder (only the files a pack may hold, size-capped,
+  checked before anything is written), listing, reading, removing, and
+  finding pets in Codex's and petdex's folders
 - `pets`: the user's per-pet overrides (`persona.json`, `persona.md`,
   `lines.json`) under `~/.sidepaw/pets/<id>/`
 - `install`: writes, checks and removes hook configuration in a host's
@@ -238,6 +243,13 @@ the setup window (`setup.html`), which calls the `host_*` commands.
 desktop life, hit mask), `src/setup/` the setup window (one module per
 section), `src/brain/` the brain, and the root holds what both windows
 share (`i18n`, `lines`, `pack`, `generated/`).
+
+Setup > Look (`setup/packs.ts`) shows every pack with its first idle
+frame and saves the choice in `[pet] active`; the pet window swaps the
+sheet and lines on `pack-active-changed`. The petdex gallery is read
+from `petdex.dev/api/manifest` and zips downloaded through the Rust
+HTTP client, then handed to `packs::install_zip` as raw bytes. A zip
+dropped on the pet is tried as a pack.
 
 The brain is `src/brain/`: `persona.ts` compiles `persona.json` plus
 `persona.md` into the system prompt, `llm.ts` is the only code that

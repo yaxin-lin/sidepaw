@@ -15,7 +15,6 @@ mod update;
 use hit::{HitMask, Mask};
 use sidepaw_core::event::UnknownHost;
 use sidepaw_core::{Host, Level};
-use sidepaw_daemon::command;
 use sidepaw_daemon::config::{ModelConfig, PetPrefs, UiLanguage};
 use sidepaw_daemon::install::{self, Report};
 use sidepaw_daemon::pets;
@@ -23,6 +22,7 @@ use sidepaw_daemon::registry::Snapshot;
 use sidepaw_daemon::secret::{self, KeySource};
 use sidepaw_daemon::server::{self, Running};
 use sidepaw_daemon::store::{AuditRow, DayReport, EventRow, History, Memory, TriggerStat};
+use sidepaw_daemon::{command, packs};
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 #[tauri::command]
@@ -187,6 +187,100 @@ fn audit_call(
 #[tauri::command]
 fn audit_recent(server: State<'_, Running>, limit: u32) -> Result<Vec<AuditRow>, String> {
     server.shared.audit_recent(limit).map_err(|e| e.to_string())
+}
+
+fn data_dir() -> Result<std::path::PathBuf, String> {
+    sidepaw_daemon::home::dir().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn packs_installed() -> Result<Vec<packs::PackInfo>, String> {
+    Ok(packs::list(&data_dir()?))
+}
+
+/// Pets in Codex's and petdex's own folders, not installed here yet.
+#[tauri::command]
+fn packs_found() -> Result<Vec<packs::Found>, String> {
+    let user = sidepaw_daemon::home::user_home().ok_or("cannot find home directory")?;
+    Ok(packs::discover(&data_dir()?, &user))
+}
+
+/// A zip's bytes as the raw request body (a petdex download), with
+/// where it came from in the `x-source` header as JSON.
+#[tauri::command]
+fn pack_install_zip(request: tauri::ipc::Request<'_>) -> Result<packs::PackInfo, String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("expected the zip as raw bytes".into());
+    };
+    let source = request
+        .headers()
+        .get("x-source")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| serde_json::from_str(s).ok())
+        .unwrap_or(packs::Source {
+            kind: "zip".into(),
+            ..Default::default()
+        });
+    packs::install_zip(&data_dir()?, bytes, source).map_err(|e| format!("{e:#}"))
+}
+
+/// A zip file or a pack folder on disk: picked in a dialog, dropped on
+/// the pet, or found in Codex's pets.
+#[tauri::command]
+fn pack_install_path(path: String, kind: Option<String>) -> Result<packs::PackInfo, String> {
+    let path = std::path::PathBuf::from(path);
+    let home = data_dir()?;
+    let result = if path.is_dir() {
+        let source = packs::Source {
+            kind: kind.unwrap_or_else(|| "folder".into()),
+            ..Default::default()
+        };
+        packs::install_folder(&home, &path, source)
+    } else {
+        let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+        let source = packs::Source {
+            kind: kind.unwrap_or_else(|| "zip".into()),
+            ..Default::default()
+        };
+        packs::install_zip(&home, &bytes, source)
+    };
+    result.map_err(|e| format!("{e:#}"))
+}
+
+/// A file of an installed pack as raw bytes; empty when it is absent.
+#[tauri::command]
+fn pack_file(id: String, name: String) -> Result<tauri::ipc::Response, String> {
+    let bytes = packs::read(&data_dir()?, &id, &name).map_err(|e| e.to_string())?;
+    Ok(tauri::ipc::Response::new(bytes.unwrap_or_default()))
+}
+
+#[tauri::command]
+fn pack_remove(server: State<'_, Running>, id: String) -> Result<(), String> {
+    packs::remove(&data_dir()?, &id).map_err(|e| e.to_string())?;
+    if server.shared.active_pack() == id {
+        server
+            .shared
+            .set_active_pack("placeholder")
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn get_active_pack(server: State<'_, Running>) -> String {
+    server.shared.active_pack()
+}
+
+/// Save the choice and tell every window, so the pet swaps at once.
+#[tauri::command]
+fn set_active_pack(app: AppHandle, server: State<'_, Running>, id: String) -> Result<(), String> {
+    server
+        .shared
+        .set_active_pack(&id)
+        .map_err(|e| e.to_string())?;
+    use tauri::Emitter;
+    app.emit("pack-active-changed", id)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -362,6 +456,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(keys::on_shortcut)
@@ -440,6 +535,14 @@ pub fn run() {
             audit_recent,
             recent_events,
             history,
+            packs_installed,
+            packs_found,
+            pack_install_zip,
+            pack_install_path,
+            pack_file,
+            pack_remove,
+            get_active_pack,
+            set_active_pack,
             memories,
             add_memory,
             update_memory,

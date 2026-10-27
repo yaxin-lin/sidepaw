@@ -265,6 +265,18 @@ impl Shared {
         .await;
     }
 
+    /// The pack id in `[pet] active`; the desktop app falls back to its
+    /// bundled pack when this one is gone.
+    pub fn active_pack(&self) -> String {
+        self.app.lock().unwrap().config.pet.active.clone()
+    }
+
+    pub fn set_active_pack(&self, id: &str) -> Result<()> {
+        Config::write_active(&home::dir()?, id)?;
+        self.app.lock().unwrap().config.pet.active = id.to_owned();
+        Ok(())
+    }
+
     pub fn memories(&self) -> Result<Vec<Memory>> {
         self.app.lock().unwrap().store.memories(&now_rfc3339())
     }

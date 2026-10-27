@@ -291,7 +291,7 @@ fn session_line(s: &sidepaw_daemon::registry::SessionView) -> String {
 fn attention_icon() -> tauri::Result<Image<'static>> {
     let base = Image::from_bytes(ICON)?;
     let mut rgba = base.rgba().to_vec();
-    for px in rgba.chunks_exact_mut(4) {
+    for px in rgba.as_chunks_mut::<4>().0 {
         px.swap(0, 2);
     }
     Ok(Image::new_owned(rgba, base.width(), base.height()))

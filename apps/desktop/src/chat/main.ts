@@ -4,7 +4,7 @@
  *  show the exact text, as the permissions contract promises. */
 import { invoke } from "@tauri-apps/api/core";
 import { buildContext, CONTEXT_EVENTS } from "../brain/context";
-import { loadPersona } from "../brain/files";
+import { activePack, loadPersona } from "../brain/files";
 import { approxTokens, resolve, stream, type Turn } from "../brain/llm";
 import { directRemember, extractRemember, hidePartialMarker, memoryBlock } from "../brain/memory";
 import { compileSystemPrompt } from "../brain/persona";
@@ -14,7 +14,6 @@ import type { EventRow } from "../generated/EventRow";
 import type { ModelConfig } from "../generated/ModelConfig";
 import type { Snapshot } from "../generated/Snapshot";
 import { applyToDom, detectLang, initLang, onLangChange, t } from "../i18n";
-import { DEFAULT_PACK } from "../pack";
 
 const HISTORY_TURNS = 10;
 const REPLY_TOKENS = 1024;
@@ -57,7 +56,7 @@ async function main() {
     el("notice-setup").addEventListener("click", () => void invoke("open_setup"));
   }
 
-  const { persona, md } = await loadPersona(DEFAULT_PACK);
+  const { persona, md } = await loadPersona(await activePack());
   const personaPrompt = compileSystemPrompt(persona, md, detectLang());
   const history: Turn[] = [];
   let ctx = "";
