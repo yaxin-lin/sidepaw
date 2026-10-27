@@ -71,6 +71,10 @@ in comes to the front (the exact tab in Terminal.app or iTerm2, else
 the app's window); the tray lists every session and clicking one does
 the same.
 
+Tray > Usage History shows sessions, turns, tool calls, errors and
+time spent waiting on you, per day and per project, for the last 7, 30
+or 90 days.
+
 Other tools: put `sidepaw run --` in front of any command, or post
 events from a hook or plugin. See [docs/integrations.md](docs/integrations.md).
 

@@ -27,6 +27,7 @@ const AUTOSTART: &str = "autostart";
 const SIZE_PREFIX: &str = "size:";
 const SIZES: [PetSize; 3] = [PetSize::S, PetSize::M, PetSize::L];
 const CHAT: &str = "chat";
+const HISTORY: &str = "history";
 const SETUP: &str = "setup";
 const TOGGLE: &str = "toggle";
 const QUIT: &str = "quit";
@@ -45,6 +46,9 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         .on_menu_event(|app, event| match event.id().as_ref() {
             CHAT => {
                 let _ = super::open_chat(app.clone());
+            }
+            HISTORY => {
+                let _ = super::open_history(app.clone());
             }
             SETUP => {
                 let _ = super::open_setup(app.clone());
@@ -150,6 +154,13 @@ fn build_menu(
         app,
         CHAT,
         text::chat(),
+        true,
+        None::<&str>,
+    )?)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        HISTORY,
+        text::history(),
         true,
         None::<&str>,
     )?)?;

@@ -34,6 +34,7 @@ built in is in [roadmap.md](roadmap.md).
 | Click-through of transparent pixels, self-update, release workflow | built (0.2) |
 | Setup window: install, update, remove Claude Code hooks | built (0.2) |
 | Tray icon: session monitor, attention icon and count, setup, show/hide, quit | built |
+| Usage history window: totals, tool calls per day, per-project table over 7/30/90 days | built |
 | Tray toggles: do not disturb, mini mode (parked at the screen edge), size S/M/L, start at login | built |
 | Daily report from counters (`GET /v1/report/today`, setup window) | built (0.3) |
 | Bundled pet packs | `pets/placeholder`, a generated stand-in until a real pack lands |
@@ -172,6 +173,13 @@ the nearest ancestor process that is a regular app (VS Code, Warp,
 Ghostty); on Windows the nearest ancestor that owns a visible window
 (Windows Terminal, VS Code). A click on the pet while a session waits
 for the user, or a session in the tray menu, goes there.
+
+Tray > Usage History opens `history.html` (`src/history/`), which reads
+`store::history` through the `history` command: per local day and per
+project folder (two checkouts with one name are one project; sessions
+stored below level 2 have no folder and show as one row) over the last
+7, 30 or 90 days, as stat tiles, a bar chart of tool calls per day with
+a per-day tooltip and table view, and a project table.
 
 Size, do-not-disturb and mini mode live in `[pet]` and are changed from
 the tray (`prefs.rs`), which saves them and emits `prefs-changed`.

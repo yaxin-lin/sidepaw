@@ -16,7 +16,7 @@ use crate::home::{self, DaemonState};
 use crate::origin::{self, Origin};
 use crate::redact;
 use crate::registry::{PendingApproval, Registry, Snapshot};
-use crate::store::{AuditRow, DayReport, EventRow, Store};
+use crate::store::{AuditRow, DayReport, EventRow, History, Store};
 use anyhow::{Context, Result};
 use axum::extract::{ConnectInfo, FromRequestParts, Path, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -251,6 +251,12 @@ impl Shared {
             }
         })
         .await;
+    }
+
+    /// The last `days` local days, today included.
+    pub fn history(&self, days: u32) -> Result<History> {
+        let (since, offset_s) = crate::clock::local_days_back(days.max(1));
+        self.app.lock().unwrap().store.history(&since, offset_s)
     }
 
     /// Read-only, for the brain's context (ADR 7).

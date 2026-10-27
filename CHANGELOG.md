@@ -108,6 +108,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   up a cursor that hovers, says a line (`drop`, falling back to
   `click`) when a file is dropped on it, and hides while the app in
   front is full screen. macOS and Windows; no OS permission is asked.
+- Usage history (Tray > Usage History): totals, tool calls per day and
+  a per-project table for the last 7, 30 or 90 days, from the local
+  store only. Days are local days; projects are folder names, so
+  sessions stored below level 2 show as one unrecorded row.
 - `sidepaw run -- <command>`: the pet shows any command as busy, then
   done, failed or interrupted; the exit status is passed through. The
   installed app is the CLI (it runs it when started with a

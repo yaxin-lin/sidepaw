@@ -79,6 +79,9 @@ pub fn size_name(size: sidepaw_daemon::config::PetSize) -> &'static str {
 pub fn autostart() -> &'static str {
     pick("Start at Login", "开机自启")
 }
+pub fn history() -> &'static str {
+    pick("Usage History...", "用量历史…")
+}
 pub fn chat() -> &'static str {
     pick("Chat...", "聊天…")
 }

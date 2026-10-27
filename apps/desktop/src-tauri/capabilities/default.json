@@ -5,7 +5,8 @@
   "windows": [
     "pet",
     "setup",
-    "chat"
+    "chat",
+    "history"
   ],
   "permissions": [
     "core:default",

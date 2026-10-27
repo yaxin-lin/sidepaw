@@ -62,6 +62,9 @@ pnpm --filter sidepaw-desktop tauri dev # 启动桌宠窗口
 agent 等你批准时点一下宠物，它所在的终端就会到最前面（Terminal.app 和
 iTerm2 精确到标签页，其他程序切到窗口）；托盘里列出的会话点一下也一样。
 
+托盘「用量历史」按天、按项目显示最近 7、30、90 天的会话、轮次、工具调用、
+出错和等你批准的时间。
+
 其他工具：在任意命令前加 `sidepaw run --`，或者从 hook、插件里直接发事件，
 见 [docs/integrations.md](docs/integrations.md)。
 

@@ -21,7 +21,7 @@ use sidepaw_daemon::pets;
 use sidepaw_daemon::registry::Snapshot;
 use sidepaw_daemon::secret::{self, KeySource};
 use sidepaw_daemon::server::{self, Running};
-use sidepaw_daemon::store::{AuditRow, DayReport, EventRow};
+use sidepaw_daemon::store::{AuditRow, DayReport, EventRow, History};
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 #[tauri::command]
@@ -183,6 +183,11 @@ fn audit_recent(server: State<'_, Running>, limit: u32) -> Result<Vec<AuditRow>,
 }
 
 #[tauri::command]
+fn history(server: State<'_, Running>, days: u32) -> Result<History, String> {
+    server.shared.history(days).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn recent_events(server: State<'_, Running>, limit: u32) -> Result<Vec<EventRow>, String> {
     server
         .shared
@@ -263,6 +268,11 @@ fn open_window(
 #[tauri::command]
 fn open_setup(app: AppHandle) -> Result<(), String> {
     open_window(&app, "setup", "setup.html", "sidepaw setup", (560.0, 760.0))
+}
+
+#[tauri::command]
+fn open_history(app: AppHandle) -> Result<(), String> {
+    open_window(&app, "history", "history.html", "sidepaw", (720.0, 640.0))
 }
 
 #[tauri::command]
@@ -349,6 +359,7 @@ pub fn run() {
             audit_call,
             audit_recent,
             recent_events,
+            history,
             cursor_relative,
             scene,
             focus_session,
@@ -356,7 +367,8 @@ pub fn run() {
             command_install,
             command_remove,
             open_setup,
-            open_chat
+            open_chat,
+            open_history
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

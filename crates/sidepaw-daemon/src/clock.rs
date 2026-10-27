@@ -27,6 +27,19 @@ pub fn start_of_today_rfc3339() -> String {
         .unwrap_or_default()
 }
 
+/// Local midnight `days - 1` days ago as RFC 3339 UTC, and the current
+/// local offset in seconds, so the store can group by local day.
+pub fn local_days_back(days: u32) -> (String, i32) {
+    let now = OffsetDateTime::now_utc();
+    let offset = time::UtcOffset::current_local_offset().unwrap_or(time::UtcOffset::UTC);
+    let start = (now.to_offset(offset) - time::Duration::days(i64::from(days) - 1))
+        .replace_time(time::Time::MIDNIGHT)
+        .to_offset(time::UtcOffset::UTC)
+        .format(&Rfc3339)
+        .unwrap_or_default();
+    (start, offset.whole_seconds())
+}
+
 pub fn now_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

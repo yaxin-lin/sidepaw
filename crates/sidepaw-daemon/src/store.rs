@@ -64,6 +64,57 @@ pub struct EventRow {
     pub error_msg: Option<String>,
 }
 
+/// Counters for one local calendar day.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct DayRow {
+    /// `YYYY-MM-DD` in local time.
+    pub day: String,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub sessions: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub turns: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub tool_calls: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub errors: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub tokens: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub waiting_ms: u64,
+}
+
+/// Counters for one project over a range. `project` is the folder
+/// name, absent for sessions stored below level 2 (no `cwd`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct ProjectRow {
+    pub project: Option<String>,
+    pub hosts: Vec<String>,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub sessions: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub turns: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub tool_calls: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub errors: u64,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub tokens: u64,
+    /// RFC 3339, UTC.
+    pub last_active: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct History {
+    pub since: String,
+    /// Only days with activity, oldest first.
+    pub days: Vec<DayRow>,
+    /// Most tool calls first.
+    pub projects: Vec<ProjectRow>,
+}
+
 const SCHEMA: &str = include_str!("../../../docs/contracts/schema.sql");
 
 pub struct Store {
@@ -234,6 +285,116 @@ impl Store {
             })
         })?;
         Ok(rows.collect::<std::result::Result<_, _>>()?)
+    }
+
+    /// Day and project counters since `since` (RFC 3339, UTC). Days are
+    /// local days at `offset_s` from UTC, the offset of today: across a
+    /// daylight saving change an hour of events lands on the next day,
+    /// which a usage chart can live with.
+    pub fn history(&self, since: &str, offset_s: i32) -> Result<History> {
+        let shift = format!("{offset_s:+} seconds");
+        let mut stmt = self.conn.prepare(
+            "SELECT date(ts, ?2) AS d, COUNT(DISTINCT session_id),
+                    SUM(kind = 'turn_end'), SUM(kind = 'tool_start'),
+                    SUM(kind IN ('tool_fail', 'error')),
+                    COALESCE(SUM(tokens_in), 0) + COALESCE(SUM(tokens_out), 0)
+             FROM events WHERE ts >= ?1 GROUP BY d ORDER BY d",
+        )?;
+        let mut days: Vec<DayRow> = stmt
+            .query_map(params![since, shift], |r| {
+                Ok(DayRow {
+                    day: r.get(0)?,
+                    sessions: r.get::<_, i64>(1)? as u64,
+                    turns: r.get::<_, Option<i64>>(2)?.unwrap_or(0) as u64,
+                    tool_calls: r.get::<_, Option<i64>>(3)?.unwrap_or(0) as u64,
+                    errors: r.get::<_, Option<i64>>(4)?.unwrap_or(0) as u64,
+                    tokens: r.get::<_, i64>(5)? as u64,
+                    waiting_ms: 0,
+                })
+            })?
+            .collect::<std::result::Result<_, _>>()?;
+        // Same rule as `report_since`: a wait lasts until the session's
+        // next state change, and counts on the day it began.
+        let mut stmt = self.conn.prepare(
+            "SELECT date(ts, ?2) AS d,
+                    COALESCE(SUM((julianday(next_ts) - julianday(ts)) * 86400000.0), 0)
+             FROM (SELECT ts, state,
+                          LEAD(ts) OVER (PARTITION BY session_id ORDER BY id) AS next_ts
+                   FROM state_changes WHERE ts >= ?1)
+             WHERE state = 'waiting' AND next_ts IS NOT NULL GROUP BY d",
+        )?;
+        let waits = stmt.query_map(params![since, shift], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, f64>(1)?))
+        })?;
+        for w in waits {
+            let (day, ms) = w?;
+            if let Some(row) = days.iter_mut().find(|d| d.day == day) {
+                row.waiting_ms = ms.max(0.0) as u64;
+            }
+        }
+
+        // Grouped by full cwd in SQL, then merged by folder name, since
+        // two checkouts of one repo are one project to a person.
+        let mut stmt = self.conn.prepare(
+            "SELECT s.cwd, s.host, COUNT(DISTINCT e.session_id),
+                    SUM(e.kind = 'turn_end'), SUM(e.kind = 'tool_start'),
+                    SUM(e.kind IN ('tool_fail', 'error')),
+                    COALESCE(SUM(e.tokens_in), 0) + COALESCE(SUM(e.tokens_out), 0),
+                    MAX(e.ts)
+             FROM events e JOIN sessions s ON s.id = e.session_id
+             WHERE e.ts >= ?1 GROUP BY s.cwd, s.host",
+        )?;
+        let rows = stmt.query_map(params![since], |r| {
+            let cwd: Option<String> = r.get(0)?;
+            Ok((
+                cwd.as_deref().and_then(project_name),
+                r.get::<_, String>(1)?,
+                [
+                    r.get::<_, i64>(2)?,
+                    r.get::<_, Option<i64>>(3)?.unwrap_or(0),
+                    r.get::<_, Option<i64>>(4)?.unwrap_or(0),
+                    r.get::<_, Option<i64>>(5)?.unwrap_or(0),
+                    r.get::<_, i64>(6)?,
+                ],
+                r.get::<_, String>(7)?,
+            ))
+        })?;
+        let mut projects: Vec<ProjectRow> = Vec::new();
+        for row in rows {
+            let (project, host, n, last) = row?;
+            let p = match projects.iter_mut().position(|p| p.project == project) {
+                Some(i) => &mut projects[i],
+                None => {
+                    projects.push(ProjectRow {
+                        project,
+                        ..Default::default()
+                    });
+                    projects.last_mut().unwrap()
+                }
+            };
+            if !p.hosts.contains(&host) {
+                p.hosts.push(host);
+                p.hosts.sort();
+            }
+            p.sessions += n[0] as u64;
+            p.turns += n[1] as u64;
+            p.tool_calls += n[2] as u64;
+            p.errors += n[3] as u64;
+            p.tokens += n[4] as u64;
+            if last > p.last_active {
+                p.last_active = last;
+            }
+        }
+        projects.sort_by(|a, b| {
+            b.tool_calls
+                .cmp(&a.tool_calls)
+                .then(b.last_active.cmp(&a.last_active))
+        });
+        Ok(History {
+            since: since.to_owned(),
+            days,
+            projects,
+        })
     }
 
     /// Counters since `since` (RFC 3339, UTC). Waiting time is the gap
@@ -502,5 +663,62 @@ mod tests {
         assert_eq!(rows[1].host, "dsh");
         assert_eq!(project_name("C:\\work\\app\\"), Some("app".into()));
         assert_eq!(project_name("/"), None);
+    }
+
+    #[test]
+    fn history_groups_by_local_day_and_merges_projects_by_folder() {
+        let mut store = Store::in_memory().unwrap();
+        let mut put = |session: &str, cwd: Option<&str>, ts: &str, kind: Kind| {
+            let mut e = ev(kind);
+            e.session = session.into();
+            e.cwd = cwd.map(str::to_owned);
+            e.ts = ts.into();
+            store.insert_event(&e).unwrap();
+        };
+        // 23:30 UTC is the next day at +08:00.
+        put(
+            "1",
+            Some("/w/app"),
+            "2026-10-25T10:00:00.000Z",
+            Kind::ToolStart,
+        );
+        put(
+            "1",
+            Some("/w/app"),
+            "2026-10-25T23:30:00.000Z",
+            Kind::ToolStart,
+        );
+        put(
+            "2",
+            Some("/other/app"),
+            "2026-10-26T01:00:00.000Z",
+            Kind::TurnEnd,
+        );
+        put("3", None, "2026-10-26T02:00:00.000Z", Kind::ToolFail);
+        let h = store.history("2026-10-01T00:00:00.000Z", 8 * 3600).unwrap();
+        let days: Vec<(&str, u64)> = h
+            .days
+            .iter()
+            .map(|d| (d.day.as_str(), d.tool_calls))
+            .collect();
+        assert_eq!(days, [("2026-10-25", 1), ("2026-10-26", 1)]);
+        assert_eq!(h.days[1].sessions, 3);
+        assert_eq!(h.days[1].errors, 1);
+        assert_eq!(h.projects[0].project.as_deref(), Some("app"));
+        assert_eq!(
+            h.projects[0].sessions, 2,
+            "two checkouts named app are one project"
+        );
+        assert_eq!(h.projects[0].tool_calls, 2);
+        assert_eq!(h.projects[0].turns, 1);
+        assert_eq!(h.projects[0].last_active, "2026-10-26T01:00:00.000Z");
+        assert_eq!(h.projects[1].project, None);
+        assert_eq!(h.projects[0].hosts, ["dsh"]);
+        let utc = store.history("2026-10-01T00:00:00.000Z", 0).unwrap();
+        assert_eq!(utc.days.len(), 2);
+        assert_eq!(
+            utc.days[0].tool_calls, 2,
+            "both tool calls are on the 25th in UTC"
+        );
     }
 }
