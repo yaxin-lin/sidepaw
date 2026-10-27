@@ -19,7 +19,7 @@ struct Entry {
     origin: Option<Origin>,
 }
 
-fn project_name(cwd: &str) -> Option<String> {
+pub(crate) fn project_name(cwd: &str) -> Option<String> {
     cwd.trim_end_matches(['/', '\\'])
         .rsplit(['/', '\\'])
         .next()
@@ -107,6 +107,13 @@ impl Registry {
             entry.project = Some(name);
         }
         entry.session.apply(event, now_ms).map(|s| (key, s))
+    }
+
+    /// Ignored for a session that has already ended.
+    pub fn set_project(&mut self, key: &str, name: String) {
+        if let Some(e) = self.sessions.get_mut(key) {
+            e.project = Some(name);
+        }
     }
 
     pub fn origin(&self, key: &str) -> Option<&Origin> {

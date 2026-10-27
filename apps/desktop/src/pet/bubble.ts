@@ -55,7 +55,13 @@ export class Bubble {
    *  takes over, and the keyboard shortcuts when they are registered.
    *  Replaces any line and stays until `clearApproval`; called on every
    *  poll, it only rebuilds for a different prompt. */
-  askApproval(p: PendingApproval, queued: number, keys: ApprovalKeys, answer: (allow: boolean) => void) {
+  askApproval(
+    p: PendingApproval,
+    queued: number,
+    keys: ApprovalKeys,
+    project: string | null,
+    answer: (allow: boolean) => void,
+  ) {
     if (this.asking === p.id) {
       this.setQueued(queued);
       return;
@@ -68,7 +74,8 @@ export class Bubble {
     const q = document.createElement("div");
     q.className = "q";
     const what = document.createElement("span");
-    what.textContent = `${t("ask.wants", { host })}${p.tool ? ` ${p.tool}` : ""}`;
+    const who = project ? t("ask.wants.in", { host, project }) : t("ask.wants", { host });
+    what.textContent = `${who}${p.tool ? ` ${p.tool}` : ""}`;
     const more = document.createElement("span");
     more.className = "more";
     q.append(what, more);

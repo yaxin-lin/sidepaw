@@ -29,7 +29,15 @@ toggles for do-not-disturb, mini mode, size and start at login.
 7. Codex adapter. Done: `sidepaw run -- <cmd>`, the installed app as
    the CLI with a setup button to put it on PATH, and
    docs/integrations.md for tools that post events themselves.
-8. One pet per project.
+8. Done, differently: the pet names the project instead of changing
+   its look per project. The label reads "sidepaw · waiting", the
+   permission bubble and notifications say which project's agent asks,
+   and event lines carry the project when several sessions run; from
+   level 1, without storing the path. A look per project was dropped:
+   with two projects active it flips back and forth, its voice changes
+   with the persona, and the user has to remember which look is which.
+   Several pets on the desktop at once, one per project, stays possible
+   later, since that at least does not flip.
 9. Desktop life. Done: throw it (fling physics, bounces off the work
    area), it steps away from a cursor that lingers beside it and sizes
    up one that hovers, files dropped on it get a line; it lands on

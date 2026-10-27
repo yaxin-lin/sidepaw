@@ -20,6 +20,7 @@ built in is in [roadmap.md](roadmap.md).
 | System notifications (level 3+), level picker in the setup window | built |
 | Allow / Deny from the bubble (level 4, per-host `act`), `approvals` audit | built |
 | Prompt queue in the bubble (count, countdown) and global shortcuts while a prompt is held | built |
+| Project names in the label, permission bubble, notifications and event lines (level 1 and up, not stored) | built |
 | Chinese UI: web views, tray, notifications follow `[ui] language` or the system | built |
 | Idle behaviour: walks, dozing, click hop | built |
 | Desktop life: fling physics, flinch from a near cursor, hover look, file drop | built, no OS permissions |

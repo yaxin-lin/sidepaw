@@ -9,10 +9,16 @@ level wins.
 | Level | Name | Stored from each event | Pet may |
 | --- | --- | --- | --- |
 | 0 | observe | `kind`, `ts`, `tool.category` | animate, local lines |
-| 1 | record | level 0 plus `tool.name`, `error.type`, `tokens`, durations | daily report, counters, reminders |
+| 1 | record | level 0 plus `tool.name`, `error.type`, `tokens`, durations | daily report, counters, reminders; name the project folder of a session on screen |
 | 2 | read | level 1 plus `cwd`, `text`, `error.message`, `raw` (all redacted) | answer questions about what happened |
 | 3 | notify | same as 2 | system notifications, open a file or URL on click, write the report to a folder |
 | 4 | act | same as 2 | send a message to an agent, per host, each confirmed unless allow-listed |
+
+From level 1 the last segment of `cwd` (the project folder's name) is
+kept in memory for the session so the label, the permission bubble and
+notifications can say which project an agent is in. It is worked out
+before the filter runs and is never stored; the full path is stored
+only from level 2.
 
 Always, at every level:
 

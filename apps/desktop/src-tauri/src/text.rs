@@ -161,16 +161,20 @@ pub fn host(key: &str) -> &str {
 }
 
 /// Notification body for a state that warrants one, `None` otherwise.
-pub fn notification(key: &str, state: State) -> Option<String> {
+/// "Claude Code in sidepaw needs your approval": with several projects
+/// open, which one is the point of the notification.
+pub fn notification(key: &str, project: Option<&str>, state: State) -> Option<String> {
     let what = match state {
         State::Waiting => pick("needs your approval", "等你批准"),
         State::Error => pick("hit an error", "出错了"),
         State::Done => pick("finished a turn", "完成了一轮"),
         _ => return None,
     };
-    Some(match lang() {
-        Lang::En => format!("{} {what}", host(key)),
-        Lang::ZhCn => format!("{}{what}", host(key)),
+    Some(match (lang(), project) {
+        (Lang::En, Some(p)) => format!("{} in {p} {what}", host(key)),
+        (Lang::En, None) => format!("{} {what}", host(key)),
+        (Lang::ZhCn, Some(p)) => format!("{p} 里的 {}{what}", host(key)),
+        (Lang::ZhCn, None) => format!("{}{what}", host(key)),
     })
 }
 

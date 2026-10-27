@@ -9,17 +9,11 @@ import { initLang, onLangChange, t } from "../i18n";
 import { IdleBehaviour } from "./idle";
 import { activePack, FALLBACK_PACK } from "../brain/files";
 import { loadLines, loadPack, LOOP_MS, type Pack, ROW } from "../pack";
+import { label as describe } from "./label";
 import { SpriteRenderer } from "./renderer";
 import { Scheduler } from "./scheduler";
 
 const POLL_MS = 500;
-
-function describe(snap: Snapshot): string {
-  const s = snap.overall;
-  const detail = s.state === "tool" ? ` ${s.detail}` : "";
-  const n = snap.sessions.length;
-  return `${t(`state.${s.state}`)}${detail}${n > 1 ? ` (${n})` : ""}`;
-}
 
 async function main() {
   const canvas = document.getElementById("pet") as HTMLCanvasElement;
@@ -140,7 +134,8 @@ async function main() {
           keysFor = pending.id;
           keys = await invoke<ApprovalKeys>("approval_keys").catch(() => ({}));
         }
-        bubble.askApproval(pending, snap.pending.length - 1, keys, (allow) => {
+        const project = snap.sessions.find((s) => s.key === pending.key)?.project ?? null;
+        bubble.askApproval(pending, snap.pending.length - 1, keys, project, (allow) => {
           bubble.clearApproval();
           void invoke("decide", { id: pending.id, allow });
         });

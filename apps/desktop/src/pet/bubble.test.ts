@@ -77,19 +77,20 @@ describe("Bubble", () => {
   it("shows the oldest prompt, the queue behind it and the shortcuts", () => {
     const answers: boolean[] = [];
     const p = { id: 1, key: "claude-code:a", tool: "Bash", summary: "rm -rf build", expires_in_ms: 15_000 };
-    bubble.askApproval(p, 2, { allow: "⌃⌥Y", deny: null }, (a) => answers.push(a));
+    bubble.askApproval(p, 2, { allow: "⌃⌥Y", deny: null }, "sidepaw", (a) => answers.push(a));
+    expect(el.querySelector(".q span")?.textContent).toBe("Claude Code in sidepaw wants to run Bash");
     expect(el.querySelector(".more")?.textContent).toBe("+2 waiting");
     expect(el.querySelector("code")?.textContent).toBe("rm -rf build");
     const [allow, deny] = Array.from(el.querySelectorAll("button"));
     expect(allow.querySelector("kbd")?.textContent).toBe("⌃⌥Y");
     expect(deny.querySelector("kbd")).toBeNull();
     // Same prompt on the next poll: only the count changes.
-    bubble.askApproval(p, 0, {}, () => {});
+    bubble.askApproval(p, 0, {}, null, () => {});
     expect(el.querySelector(".more")?.textContent).toBe("");
     expect(el.querySelector("kbd")?.textContent).toBe("⌃⌥Y");
     deny.click();
     expect(answers).toEqual([false]);
-    bubble.askApproval({ ...p, id: 2, summary: "npm publish" }, 0, {}, () => {});
+    bubble.askApproval({ ...p, id: 2, summary: "npm publish" }, 0, {}, null, () => {});
     expect(el.querySelector("code")?.textContent).toBe("npm publish");
     bubble.clearApproval();
   });

@@ -601,6 +601,12 @@ fn ingest(shared: &Shared, mut event: Event) -> (StatusCode, Option<String>) {
         return (StatusCode::NO_CONTENT, None);
     }
     let level = app.config.effective_level(event.host, event.cwd.as_deref());
+    // The folder name is worked out before the filter drops `cwd`, so
+    // the pet can say which project needs you at level 1 too. It stays
+    // in memory for display and is never stored; level 0 gets none.
+    let project = (level >= Level::Record)
+        .then(|| event.cwd.as_deref().and_then(crate::registry::project_name))
+        .flatten();
     redact::event(&mut event);
     level.filter(&mut event);
     if event
@@ -619,6 +625,9 @@ fn ingest(shared: &Shared, mut event: Event) -> (StatusCode, Option<String>) {
         if let Err(e) = app.store.insert_state_change(&key, &event.ts, state) {
             tracing::error!("store: {e}");
         }
+    }
+    if let Some(name) = project {
+        app.registry.set_project(&key, name);
     }
     let wants_origin = event.kind != Kind::SessionEnd && app.registry.origin(&key).is_none();
     (StatusCode::ACCEPTED, wants_origin.then_some(key))
@@ -719,6 +728,36 @@ mod tests {
         let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(v["overall"]["state"], "tool");
         assert_eq!(v["sessions"][0]["key"], "claude-code:s1");
+    }
+
+    #[tokio::test]
+    async fn project_name_is_shown_from_level_1_but_never_stored_below_2() {
+        let payload = r#"{"hook_event_name":"PreToolUse","session_id":"s1","cwd":"/work/sidepaw",
+                          "tool_name":"Bash","tool_input":{"command":"ls"}}"#;
+        for (level, shown) in [(0, None), (1, Some("sidepaw"))] {
+            let shared = shared_with(Config::parse(&format!("[pet]\nlevel = {level}\n")).unwrap());
+            let res = router(shared.clone())
+                .oneshot(req(
+                    "POST",
+                    "/v1/native/claude-code",
+                    Some("t0k3n"),
+                    payload,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::ACCEPTED);
+            let snap = shared.snapshot();
+            assert_eq!(snap.sessions[0].project.as_deref(), shown, "level {level}");
+            let stored: Option<String> = shared
+                .app
+                .lock()
+                .unwrap()
+                .store
+                .conn_for_tests()
+                .query_row("SELECT cwd FROM sessions", [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(stored, None, "level {level} keeps no cwd in the store");
+        }
     }
 
     /// Regression: approving a permission prompt used to leave the pet in

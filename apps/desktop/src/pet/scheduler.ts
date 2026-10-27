@@ -10,12 +10,21 @@ import type { Snapshot } from "../generated/Snapshot";
 import type { TriggerStat } from "../generated/TriggerStat";
 import type { Lines } from "../lines";
 import type { Bubble } from "./bubble";
+import { t } from "../i18n";
 
 const EVAL_MS = 5000;
 const CURSOR_MS = 2000;
 
 function localDay(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** With more than one session going, a line about one of them says
+ *  which project it is about. */
+export function withProject(id: TriggerId, snap: Snapshot, line: string): string {
+  if (snap.sessions.length < 2) return line;
+  const about = id === "waiting_long" ? snap.sessions.find((s) => s.state === "waiting") : id === "errors" || id === "long_done" ? snap.sessions[0] : undefined;
+  return about?.project ? t("nudge.about", { project: about.project, line }) : line;
 }
 
 export class Scheduler {
@@ -78,7 +87,7 @@ export class Scheduler {
       if (id === "chatter" && Math.random() > 0.3) continue;
       const line = this.lines().pick(id);
       if (line === null) continue; // this pack has nothing to say here
-      const text = id === "report" ? fill(line, await this.counters()) : line;
+      const text = withProject(id, snap, id === "report" ? fill(line, await this.counters()) : line);
       if (!this.bubble.nudge(text, (answered) => void this.react(id, answered))) return;
       this.watcher.consume(id, now);
       this.spoken.push(now);

@@ -70,7 +70,8 @@ pub fn spawn_watcher(app: AppHandle) {
                 if !changed || !allowed {
                     continue;
                 }
-                let Some(body) = crate::text::notification(&s.key, s.state) else {
+                let Some(body) = crate::text::notification(&s.key, s.project.as_deref(), s.state)
+                else {
                     continue;
                 };
                 let slot = (s.key.clone(), s.state);

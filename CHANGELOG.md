@@ -113,6 +113,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   up a cursor that hovers, says a line (`drop`, falling back to
   `click`) when a file is dropped on it, and hides while the app in
   front is full screen. macOS and Windows; no OS permission is asked.
+- The pet says which project: the label reads "sidepaw · waiting",
+  permission bubbles and notifications name the project, and lines
+  about a waiting or failing agent carry it when several sessions run.
+  Works from level 1; only the folder name is kept, in memory.
 - Pet packs: Setup > Look shows every pet with a preview and switches
   between them at once. Install from a zip or folder, bring over pets
   from Codex's or petdex's folders, search and install from the petdex
