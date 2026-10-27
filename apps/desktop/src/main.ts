@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Snapshot } from "./generated/Snapshot";
 import { Bubble } from "./bubble";
+import { DesktopLife } from "./desktop";
 import { HitMaskSource } from "./hitmask";
 import { t } from "./i18n";
 import { IdleBehaviour } from "./idle";
@@ -63,6 +64,8 @@ async function main() {
       idle.onClick();
     }
   });
+  await new DesktopLife(renderer, idle, bubble, canvas).attach();
+
   canvas.addEventListener("contextmenu", (e) => {
     e.preventDefault();
     void invoke("open_setup");

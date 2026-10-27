@@ -158,6 +158,16 @@ fn audit_recent(server: State<'_, Running>, limit: u32) -> Result<Vec<AuditRow>,
     server.shared.audit_recent(limit).map_err(|e| e.to_string())
 }
 
+/// Global cursor position in physical pixels, for the pet's reactions
+/// to a cursor that is near but not over it (the web view only sees
+/// the cursor while it is over opaque pixels).
+#[tauri::command]
+fn cursor_position(app: AppHandle) -> Result<(f64, f64), String> {
+    app.cursor_position()
+        .map(|p| (p.x, p.y))
+        .map_err(|e| e.to_string())
+}
+
 /// The setup window is created on demand and reused while open.
 #[tauri::command]
 fn open_setup(app: AppHandle) -> Result<(), String> {
@@ -240,6 +250,7 @@ pub fn run() {
             pet_file_write,
             audit_call,
             audit_recent,
+            cursor_position,
             open_setup
         ])
         .run(tauri::generate_context!())

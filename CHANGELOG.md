@@ -94,6 +94,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Installing Claude Code hooks also exempts loopback from proxies via
   `env.NO_PROXY` in `settings.json`; a global-mode system proxy would
   otherwise swallow every hook request ("socket hang up").
+- Desktop life: throw the pet and it flies, bounces off the edges of
+  the work area and lands on the bottom; a gentle release leaves it
+  where it was put. It steps away from a cursor that lingers next to
+  it, sizes up a cursor that hovers, and says a line (`drop`, falling
+  back to `click`) when a file is dropped on it.
 - Model provider: `[model]` in `config.toml` (DeepSeek, OpenAI,
   Anthropic, Ollama or any OpenAI-compatible URL, one at a time per
   ADR 5) with the API key in the OS credential store or

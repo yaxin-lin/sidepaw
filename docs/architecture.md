@@ -20,6 +20,7 @@ built in is in [roadmap.md](roadmap.md).
 | Allow / Deny from the bubble (level 4, per-host `act`), `approvals` audit | built |
 | Chinese UI (system language): web views, tray, notifications | built |
 | Idle behaviour: walks, dozing, click hop | built |
+| Desktop life: fling physics, flinch from a near cursor, hover look, file drop | built, no OS permissions |
 | Speech bubble with local lines from the pack | built (0.4) |
 | Persona compiler (sliders, tags, free text to system prompt), persona editor in the setup window | built (0.4) |
 | Model provider (`[model]`, key in the OS credential store), LLM client with preview before send and `audit` rows | built (0.4) |
@@ -130,6 +131,15 @@ command. The pet is its own drag handle. `src-tauri` embeds
 Shared types (`State`, `Snapshot`, `Event`, ...) are generated from the
 Rust definitions with ts-rs into `src/generated` (`pnpm gen:types`), so
 the renderer cannot drift from the model.
+
+`desktop.ts` gives the pet a life on the desktop with nothing but the
+window APIs: a drag's last samples become a release velocity, and a
+fast release plays out in `physics.ts` (gravity, wall and floor
+bounces, floor friction) until the pet rests on the work area's bottom
+edge, while a gentle release leaves it where it was put. The same OS
+cursor the click-through poller reads (`cursor_position` command)
+drives a flinch when the cursor lingers beside the pet; the hover look
+and file drops come from the web view's own events.
 
 Click-through works per pixel: after each drawn frame the renderer
 sends a 4 by 4 logical-pixel opacity mask to Rust (`hit.rs`), and a

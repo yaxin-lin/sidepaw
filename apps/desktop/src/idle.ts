@@ -10,6 +10,8 @@ export class IdleBehaviour {
   private walking = false;
   private nextWalkAt = 0;
   private state: State["state"] = "idle";
+  /** Set while something else moves the window (a throw). */
+  hold = false;
 
   constructor(
     private renderer: SpriteRenderer,
@@ -28,22 +30,32 @@ export class IdleBehaviour {
   }
 
   onClick() {
-    if (this.walking) return;
+    if (this.walking || this.hold) return;
     this.renderer.play(ROW.jumping, LOOP_MS);
+  }
+
+  isIdle(): boolean {
+    return this.state === "idle";
   }
 
   /** Call often; it decides on its own when to wander. */
   async tick(now = Date.now()) {
-    if (this.walking || now < this.nextWalkAt || this.state !== "idle") return;
+    if (this.walking || this.hold || now < this.nextWalkAt || this.state !== "idle") return;
     this.scheduleWalk(now);
     await this.walk();
+  }
+
+  /** A quick step away from something, further and faster than a stroll. */
+  async flee(dir: -1 | 1) {
+    if (this.walking || this.hold || this.state !== "idle") return;
+    await this.walk(dir, 120 + this.random() * 60, 160);
   }
 
   private scheduleWalk(now = Date.now()) {
     this.nextWalkAt = now + 20_000 + this.random() * 40_000;
   }
 
-  private async walk() {
+  private async walk(forced?: -1 | 1, logicalDistance?: number, logicalSpeed = 60) {
     const win = getCurrentWindow();
     const monitor = await currentMonitor();
     if (!monitor) return;
@@ -53,12 +65,12 @@ export class IdleBehaviour {
     const minX = monitor.workArea.position.x;
     const maxX = monitor.workArea.position.x + monitor.workArea.size.width - size.width;
 
-    let dir = this.random() < 0.5 ? -1 : 1;
-    const distance = (40 + this.random() * 80) * scale;
+    let dir: -1 | 1 = forced ?? (this.random() < 0.5 ? -1 : 1);
+    const distance = (logicalDistance ?? 40 + this.random() * 80) * scale;
     // Turn around rather than walk off the screen.
-    if (start.x + dir * distance < minX || start.x + dir * distance > maxX) dir = -dir;
+    if (start.x + dir * distance < minX || start.x + dir * distance > maxX) dir = dir === 1 ? -1 : 1;
     const target = Math.max(minX, Math.min(maxX, start.x + dir * distance));
-    const speed = 60 * scale; // physical px per second
+    const speed = logicalSpeed * scale; // physical px per second
     const duration = (Math.abs(target - start.x) / speed) * 1000;
     if (duration < 200) return;
 

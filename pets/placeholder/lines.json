@@ -13,6 +13,7 @@
   "error": ["That broke.", "Something went wrong.", "Oops. Not my fault."],
   "click": ["Yes?", "Poke me again and see what happens.", "I'm working. Sort of."],
   "drag": ["Careful!", "Where are we going?"],
+  "drop": ["A file? For me?", "I'll hold this. Briefly.", "Is this edible?"],
   "morning": ["Morning, boss.", "Coffee first."],
   "night": ["It's late.", "Sleep is a feature too."]
 }

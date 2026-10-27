@@ -18,6 +18,7 @@ export const LINE_KEYS: ReadonlyArray<{ key: string; when: string }> = [
   { key: "error", when: "an agent just hit an error" },
   { key: "click", when: "the user clicked you" },
   { key: "drag", when: "the user is dragging you around the screen" },
+  { key: "drop", when: "the user dropped a file on you" },
   { key: "morning", when: "the first time the user shows up in the morning" },
   { key: "night", when: "it is late at night and the user is still working" },
 ];

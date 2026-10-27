@@ -92,10 +92,13 @@ export class Bubble {
     this.say(line);
   }
 
-  /** A click or drag always gets an answer when the pack has one. */
-  onInteraction(kind: "click" | "drag") {
-    const line = this.lines.pick(kind);
-    if (line !== null) this.say(line);
+  /** A click, drag or file drop always gets an answer when the pack
+   *  has one; a drop without its own lines borrows the click ones and
+   *  shows the file name so the user knows it landed. */
+  onInteraction(kind: "click" | "drag" | "drop", detail?: string) {
+    const line = this.lines.pick(kind === "drop" ? ["drop", "click"] : kind);
+    if (line !== null) this.say(detail ? `${detail}\n${line}` : line);
+    else if (detail) this.say(detail);
   }
 
   say(line: string) {
