@@ -3,6 +3,7 @@
 //! renderer never touches HTTP.
 
 mod hit;
+mod keys;
 mod notify;
 mod prefs;
 mod shelf;
@@ -38,6 +39,12 @@ fn server_port(server: State<'_, Running>) -> u16 {
 #[tauri::command]
 fn set_hit_mask(mask: State<'_, HitMask>, cell: u32, rows: Vec<u64>) {
     *mask.mask.lock().unwrap() = Mask { cell, rows };
+}
+
+/// The keyboard shortcuts in effect for the prompt on screen.
+#[tauri::command]
+fn approval_keys(active: State<'_, keys::Active>) -> keys::Labels {
+    active.labels()
 }
 
 #[tauri::command]
@@ -290,6 +297,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(keys::on_shortcut)
+                .build(),
+        )
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
@@ -306,6 +318,7 @@ pub fn run() {
             let size = running.shared.pet_prefs().size;
             app.manage(running);
             app.manage(HitMask::default());
+            app.manage(keys::Active::default());
             prefs::apply_size(app.handle(), size);
             if let Some(window) = app.get_webview_window("pet") {
                 hit::spawn_poller(app.handle().clone(), window);
@@ -315,6 +328,7 @@ pub fn run() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             tray::install(app.handle())?;
             notify::spawn_watcher(app.handle().clone());
+            keys::spawn_watcher(app.handle().clone());
             if let Some(window) = app.get_webview_window("pet") {
                 shelf::spawn_fullscreen_watcher(window);
             }
@@ -343,6 +357,7 @@ pub fn run() {
             test_notification,
             set_hit_mask,
             pet_prefs,
+            approval_keys,
             host_status,
             host_install,
             host_remove,

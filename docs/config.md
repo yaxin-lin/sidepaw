@@ -5,7 +5,7 @@ file is valid; an unknown key is an error so typos do not pass silently.
 The setup wizard will write `[model]` and `[hosts]`; the rest is for
 people who like editing files.
 
-Read today: `[ui]`, `[model]` (the setup window writes both), `[pet]`
+Read today: `[ui]`, `[keys]`, `[model]` (the setup window writes both), `[pet]`
 `level`, `size`, `dnd`, `mini` (the tray writes the last three),
 `[hosts.*]`, `[projects.*]`, `[daemon] port`. The effective level for an
 event is the lowest of the global level, the host's `level`, and the
@@ -17,6 +17,10 @@ yet.
 ```toml
 [ui]
 language = "system"          # system | en | zh-CN: windows, tray, notifications
+
+[keys]                       # level 4 with act: answer the oldest held prompt
+allow = "Control+Alt+Y"      # registered only while a prompt waits; "" turns it off
+deny  = "Control+Alt+N"
 
 [model]
 provider = "deepseek"        # deepseek | openai | anthropic | ollama | custom

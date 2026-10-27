@@ -28,6 +28,12 @@ Level 4 details:
   prompts from the pet: the prompt is held for `act_window_s` seconds
   (default 15), a click is the confirmation, and every answer is written
   to the `approvals` table.
+- several held prompts queue oldest first; the bubble shows the oldest
+  with a count of the rest and the time left before the terminal's
+  own prompt takes over. `[keys] allow` and `deny` (default
+  Control+Alt+Y and Control+Alt+N) answer the oldest one from any
+  app; they are registered only while a prompt is held, and a
+  shortcut another app already owns is skipped and not shown.
 - each outgoing message shows a confirmation with the exact text unless
   it matches an entry in `[hosts.<host>].allow` (exact string match)
 - voice input cannot trigger level 4 without a visible confirmation

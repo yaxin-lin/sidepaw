@@ -11,7 +11,7 @@
 
 use crate::adapters;
 use crate::clock::{now_ms, now_rfc3339, start_of_today_rfc3339};
-use crate::config::{Config, ModelConfig, PetPrefs, UiLanguage};
+use crate::config::{Config, Keys, ModelConfig, PetPrefs, UiLanguage};
 use crate::home::{self, DaemonState};
 use crate::origin::{self, Origin};
 use crate::redact;
@@ -139,6 +139,17 @@ impl Shared {
             },
         );
         (id, rx)
+    }
+
+    /// The oldest held prompt, which keyboard answers go to, and how
+    /// many are waiting. Cheaper than a full snapshot for a fast poll.
+    pub fn first_pending(&self) -> Option<(u64, usize)> {
+        let app = self.app.lock().unwrap();
+        app.pending.keys().min().map(|id| (*id, app.pending.len()))
+    }
+
+    pub fn keys(&self) -> Keys {
+        self.app.lock().unwrap().config.keys.clone()
     }
 
     pub fn set_host_act(&self, host: Host, act: bool) -> Result<()> {

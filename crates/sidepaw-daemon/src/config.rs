@@ -14,12 +14,33 @@ use std::path::Path;
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
     pub ui: Ui,
+    pub keys: Keys,
     pub model: ModelConfig,
     pub pet: Pet,
     pub quiet: Quiet,
     pub hosts: BTreeMap<String, HostConfig>,
     pub projects: BTreeMap<String, ProjectConfig>,
     pub daemon: Daemon,
+}
+
+/// `[keys]`: global shortcuts for answering a held permission prompt
+/// (level 4 with `act`). They are registered only while a prompt waits,
+/// so they never shadow another app's shortcut otherwise. Empty turns
+/// one off.
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Keys {
+    pub allow: String,
+    pub deny: String,
+}
+
+impl Default for Keys {
+    fn default() -> Self {
+        Keys {
+            allow: "Control+Alt+Y".into(),
+            deny: "Control+Alt+N".into(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Default, PartialEq)]
@@ -519,6 +540,15 @@ port = 4242
         assert!(Config::parse("[pet]\nsize = \"xl\"\n").is_err());
         assert_eq!(PetSize::S.zoom() * 4.0, 3.0);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn keys_default_and_can_be_turned_off() {
+        assert_eq!(Config::default().keys.allow, "Control+Alt+Y");
+        let c = Config::parse("[keys]\ndeny = \"\"\n").unwrap();
+        assert_eq!(c.keys.deny, "");
+        assert_eq!(c.keys.allow, "Control+Alt+Y");
+        assert!(Config::parse("[keys]\napprove = \"x\"\n").is_err());
     }
 
     #[test]

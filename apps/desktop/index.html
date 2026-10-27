@@ -26,6 +26,11 @@
       #bubble.ask { pointer-events: auto; text-align: left; }
       #bubble.ask .q { font-size: 11px; color: #6e6e73; margin-bottom: 2px; }
       #bubble.ask code { display: block; font: 11.5px ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-all; max-height: 48px; overflow: hidden; }
+      #bubble.ask .q { display: flex; justify-content: space-between; gap: 6px; }
+      #bubble.ask .more { white-space: nowrap; }
+      #bubble.ask .clock { height: 2px; margin-top: 6px; border-radius: 1px; background: rgba(127,127,127,.2); overflow: hidden; }
+      #bubble.ask .clock i { display: block; height: 100%; width: 100%; background: #b26a00; transition-property: width; transition-timing-function: linear; }
+      #bubble.ask kbd { font: 500 10px ui-monospace, Menlo, monospace; opacity: .8; margin-left: 5px; }
       #bubble.ask .btns { display: flex; gap: 6px; margin-top: 7px; }
       #bubble.ask button { flex: 1; font: 600 12px system-ui, sans-serif; padding: 5px 0; border-radius: 8px; border: 0; cursor: pointer; color: #fff; }
       #bubble.ask button.allow { background: #2e7d32; }

@@ -108,6 +108,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   up a cursor that hovers, says a line (`drop`, falling back to
   `click`) when a file is dropped on it, and hides while the app in
   front is full screen. macOS and Windows; no OS permission is asked.
+- Permission prompts held by the pet queue oldest first: the bubble
+  shows a count of the rest and a countdown to the terminal's own
+  prompt. Control+Option+Y / Control+Option+N (Ctrl+Alt on Windows and
+  Linux, `[keys]` in config.toml) answer from any app; they are
+  registered only while a prompt waits.
 - Usage history (Tray > Usage History): totals, tool calls per day and
   a per-project table for the last 7, 30 or 90 days, from the local
   store only. Days are local days; projects are folder names, so

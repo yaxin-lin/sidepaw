@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { PetPrefs } from "../generated/PetPrefs";
 import type { Snapshot } from "../generated/Snapshot";
-import { Bubble } from "./bubble";
+import { Bubble, type ApprovalKeys } from "./bubble";
 import { DesktopLife } from "./desktop";
 import { HitMaskSource } from "./hitmask";
 import { initLang, onLangChange, t } from "../i18n";
@@ -91,14 +91,24 @@ async function main() {
     void invoke("open_setup");
   });
 
+  // The shortcuts register a moment after the first prompt arrives, so
+  // they are asked for once per prompt rather than once at startup.
+  let keysFor = -1;
+  let keys: ApprovalKeys = {};
   const poll = async () => {
     try {
       const snap = await invoke<Snapshot>("snapshot");
       latest = snap;
       renderer.setState(snap.overall);
+      // Prompts queue oldest first; the bubble shows the head and a count,
+      // and the keyboard shortcuts answer the same one (keys.rs).
       const pending = snap.pending[0];
       if (pending) {
-        bubble.askApproval(pending, (allow) => {
+        if (keysFor !== pending.id) {
+          keysFor = pending.id;
+          keys = await invoke<ApprovalKeys>("approval_keys").catch(() => ({}));
+        }
+        bubble.askApproval(pending, snap.pending.length - 1, keys, (allow) => {
           bubble.clearApproval();
           void invoke("decide", { id: pending.id, allow });
         });

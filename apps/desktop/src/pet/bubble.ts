@@ -1,4 +1,10 @@
 import type { PendingApproval } from "../generated/PendingApproval";
+
+/** Mirrors `Labels` in src-tauri/src/keys.rs. */
+export interface ApprovalKeys {
+  allow?: string | null;
+  deny?: string | null;
+}
 import type { State } from "../generated/State";
 import { t } from "../i18n";
 import { keysFor, Lines } from "../lines";
@@ -42,10 +48,16 @@ export class Bubble {
     this.lines = lines;
   }
 
-  /** Show a held permission prompt with Allow and Deny. Replaces any
-   *  line and stays until `clearApproval` or a different prompt. */
-  askApproval(p: PendingApproval, answer: (allow: boolean) => void) {
-    if (this.asking === p.id) return;
+  /** Show the oldest held permission prompt with Allow and Deny, how
+   *  many more wait behind it, how long until the terminal's own prompt
+   *  takes over, and the keyboard shortcuts when they are registered.
+   *  Replaces any line and stays until `clearApproval`; called on every
+   *  poll, it only rebuilds for a different prompt. */
+  askApproval(p: PendingApproval, queued: number, keys: ApprovalKeys, answer: (allow: boolean) => void) {
+    if (this.asking === p.id) {
+      this.setQueued(queued);
+      return;
+    }
     this.asking = p.id;
     clearTimeout(this.timer);
     clearTimeout(this.fade);
@@ -53,22 +65,48 @@ export class Bubble {
     this.el.replaceChildren();
     const q = document.createElement("div");
     q.className = "q";
-    q.textContent = `${t("ask.wants", { host })}${p.tool ? ` ${p.tool}` : ""}`;
+    const what = document.createElement("span");
+    what.textContent = `${t("ask.wants", { host })}${p.tool ? ` ${p.tool}` : ""}`;
+    const more = document.createElement("span");
+    more.className = "more";
+    q.append(what, more);
     const code = document.createElement("code");
     code.textContent = p.summary ?? "";
+    // Shrinks to nothing as the hold runs out; a CSS transition does
+    // the animation, so it costs nothing per frame.
+    const clock = document.createElement("div");
+    clock.className = "clock";
+    const fill = document.createElement("i");
+    clock.append(fill);
     const row = document.createElement("div");
     row.className = "btns";
-    for (const [label, allow] of [[t("ask.allow"), true], [t("ask.deny"), false]] as const) {
+    for (const [label, allow, key] of [
+      [t("ask.allow"), true, keys.allow],
+      [t("ask.deny"), false, keys.deny],
+    ] as const) {
       const b = document.createElement("button");
       b.textContent = label;
+      if (key) {
+        const k = document.createElement("kbd");
+        k.textContent = key;
+        b.append(k);
+      }
       b.className = allow ? "allow" : "deny";
       b.addEventListener("click", () => answer(allow));
       row.append(b);
     }
-    this.el.append(q, code, row);
+    this.el.append(q, code, clock, row);
+    this.setQueued(queued);
+    fill.style.transitionDuration = `${p.expires_in_ms}ms`;
+    requestAnimationFrame(() => requestAnimationFrame(() => (fill.style.width = "0%")));
     this.el.classList.add("ask");
     this.el.hidden = false;
     requestAnimationFrame(() => requestAnimationFrame(() => this.el.classList.add("show")));
+  }
+
+  private setQueued(queued: number) {
+    const more = this.el.querySelector<HTMLElement>(".more");
+    if (more) more.textContent = queued > 0 ? t("ask.more", { n: queued }) : "";
   }
 
   clearApproval() {

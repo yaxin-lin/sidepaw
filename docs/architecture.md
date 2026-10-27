@@ -19,6 +19,7 @@ built in is in [roadmap.md](roadmap.md).
 | SSE state stream | not needed in-process; `GET /v1/state` snapshot stays for the headless path |
 | System notifications (level 3+), level picker in the setup window | built |
 | Allow / Deny from the bubble (level 4, per-host `act`), `approvals` audit | built |
+| Prompt queue in the bubble (count, countdown) and global shortcuts while a prompt is held | built |
 | Chinese UI: web views, tray, notifications follow `[ui] language` or the system | built |
 | Idle behaviour: walks, dozing, click hop | built |
 | Desktop life: fling physics, flinch from a near cursor, hover look, file drop | built, no OS permissions |
