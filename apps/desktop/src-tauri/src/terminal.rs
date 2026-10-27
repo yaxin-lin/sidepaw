@@ -10,9 +10,10 @@ pub fn focus(origin: &Origin) -> Result<(), String> {
     imp::focus(origin)
 }
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 const NO_WINDOW: &str = "no window found for the session's terminal";
 
-#[cfg(unix)]
+#[cfg(target_os = "macos")]
 fn ancestors(pid: u32) -> Vec<u32> {
     let mut out = Vec::new();
     let mut cur = pid;
@@ -194,7 +195,8 @@ mod imp {
         let mut pid = 0u32;
         unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
         if let Some(i) = find.pids.iter().position(|p| *p == pid) {
-            if find.best.is_none_or(|(best, _)| i < best) {
+            // `Option::is_none_or` would need Rust 1.82; the MSRV is 1.80.
+            if !matches!(find.best, Some((best, _)) if best <= i) {
                 find.best = Some((i, hwnd));
             }
         }

@@ -3,7 +3,6 @@
 //! `~/.local/bin` on macOS and Linux, a one-line `sidepaw.cmd` in the
 //! per-user WindowsApps folder on Windows, which is on PATH by default.
 
-use crate::home;
 use anyhow::{Context, Result};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -29,7 +28,7 @@ fn link_path() -> Result<PathBuf> {
     }
     #[cfg(not(windows))]
     {
-        Ok(home::user_home()
+        Ok(crate::home::user_home()
             .context("cannot find home directory")?
             .join(".local")
             .join("bin")
