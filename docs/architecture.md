@@ -133,7 +133,12 @@ SQLite and the adapters.
 - `install`: writes, checks and removes hook configuration in a host's
   settings file
 - `clock`: the only place that asks what time it is
-- `store`: SQLite via rusqlite, schema in `contracts/schema.sql`
+- `store`: SQLite via rusqlite. `migrate` applies the numbered files in
+  `crates/sidepaw-daemon/migrations/` once each, recorded in
+  `schema_version`, after copying an existing database to
+  `sidepaw.sqlite.v<old>.bak`; a database from a newer build is refused.
+  `contracts/schema.sql` is the result written out in full, kept equal
+  to the migrations by a test
 - `adapters/`: one module per host
 - `origin`: which process sent a session's hooks and which tty it
   runs on, found through the loopback connection's client port with
@@ -449,5 +454,3 @@ adds optional files for animation layers and personality. See
 
 - `raw` above 64 KB is dropped rather than stored (Claude Code's `Edit`
   and `Write` payloads carry whole files). The rest of the event stays.
-- `schema.sql` mentions a `migrations/` directory that does not exist
-  yet; the schema is applied once with `IF NOT EXISTS`.

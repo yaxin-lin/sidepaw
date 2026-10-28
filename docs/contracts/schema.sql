@@ -1,10 +1,8 @@
--- sidepaw SQLite schema, version 2. Every statement is idempotent, so
--- re-running the file upgrades an older database in place.
--- Applied by sidepaw-daemon on first run; migrations append new
--- numbered files under crates/sidepaw-daemon/migrations/.
-
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
+-- sidepaw SQLite schema, version 2, written out in full for readers.
+-- The daemon does not run this file: it applies the numbered files in
+-- crates/sidepaw-daemon/migrations/ (see src/migrate.rs), and a test
+-- checks that they produce exactly these tables and indexes. Change
+-- both together. Connections use WAL and foreign keys.
 
 CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER NOT NULL
@@ -73,7 +71,7 @@ CREATE TABLE IF NOT EXISTS trigger_stats (
 );
 
 -- Permission prompts the pet answered on the user's behalf (level 4).
--- One row per click; `decision` is allow or deny. Added in version 2.
+-- One row per click; `decision` is allow or deny.
 CREATE TABLE IF NOT EXISTS approvals (
     id          INTEGER PRIMARY KEY,
     ts          TEXT NOT NULL,
@@ -94,6 +92,3 @@ CREATE TABLE IF NOT EXISTS audit (
     level       INTEGER NOT NULL
 );
 
-INSERT INTO schema_version (version)
-SELECT 2 WHERE NOT EXISTS (SELECT 1 FROM schema_version);
-UPDATE schema_version SET version = 2 WHERE version < 2;

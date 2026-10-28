@@ -79,9 +79,8 @@ and one fixture directory; if not, fix the abstraction now.
 
 Done: permission level resolved per host and per project before the
 filter runs, `raw` capped at 64 KB, `config.toml` loaded, tray icon,
-daily report from counters. Remaining: `migrations/` directory and
-first migration; macOS signing and
-notarization in CI. Exit criterion: fully usable with no API key.
+daily report from counters, numbered migrations with a backup before
+each upgrade. Remaining: macOS signing and notarization in CI. Exit criterion: fully usable with no API key.
 
 ## 0.4 It talks
 

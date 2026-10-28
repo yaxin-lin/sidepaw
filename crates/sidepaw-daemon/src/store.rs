@@ -1,6 +1,7 @@
 //! SQLite store. Schema lives in `docs/contracts/schema.sql` and is
 //! embedded at build time so the binary and the document cannot drift.
 
+use crate::migrate;
 use anyhow::Result;
 use rusqlite::{params, Connection};
 use serde::Serialize;
@@ -162,7 +163,8 @@ pub struct TriggerStat {
 /// toward the base.
 const COOLDOWN_MAX_S: u64 = 7 * 86_400;
 
-const SCHEMA: &str = include_str!("../../../docs/contracts/schema.sql");
+/// Per connection, so not part of any migration.
+const PRAGMAS: &str = "PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;";
 
 pub struct Store {
     conn: Connection,
@@ -173,15 +175,17 @@ impl Store {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let conn = Connection::open(path)?;
-        conn.execute_batch(SCHEMA)?;
+        let mut conn = Connection::open(path)?;
+        conn.execute_batch(PRAGMAS)?;
+        migrate::run(&mut conn, Some(path))?;
         Ok(Store { conn })
     }
 
     #[cfg(test)]
     pub fn in_memory() -> Result<Self> {
-        let conn = Connection::open_in_memory()?;
-        conn.execute_batch(SCHEMA)?;
+        let mut conn = Connection::open_in_memory()?;
+        conn.execute_batch(PRAGMAS)?;
+        migrate::run(&mut conn, None)?;
         Ok(Store { conn })
     }
 
@@ -787,9 +791,12 @@ mod tests {
     }
 
     #[test]
-    fn schema_is_idempotent_and_versioned() {
-        let s = Store::in_memory().unwrap();
-        s.conn.execute_batch(SCHEMA).unwrap();
+    fn reopening_does_not_migrate_again() {
+        let dir = std::env::temp_dir().join(format!("sidepaw-reopen-{}", std::process::id()));
+        let db = dir.join("sidepaw.sqlite");
+        let _ = std::fs::remove_dir_all(&dir);
+        drop(Store::open(&db).unwrap());
+        let s = Store::open(&db).unwrap();
         let (rows, version): (i64, i64) = s
             .conn
             .query_row(
@@ -798,7 +805,10 @@ mod tests {
                 |r| Ok((r.get(0)?, r.get(1)?)),
             )
             .unwrap();
-        assert_eq!((rows, version), (1, 2));
+        assert_eq!((rows, version), (1, i64::from(migrate::latest())));
+        // A fresh database has nothing to back up.
+        assert!(!dir.join("sidepaw.sqlite.v0.bak").exists());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

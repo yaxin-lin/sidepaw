@@ -23,6 +23,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The database is upgraded by numbered migrations
+  (`crates/sidepaw-daemon/migrations/`), each applied once and recorded,
+  instead of re-running the whole schema with `IF NOT EXISTS`. Before
+  an upgrade the old database is copied to `sidepaw.sqlite.v<n>.bak`,
+  and a database written by a newer sidepaw is refused rather than
+  changed. Existing databases are already at the latest version.
 - Minimum Rust is 1.88 (was 1.80), for zip 9: older zip releases have
   extraction advisories, and pet packs are untrusted downloads.
 
