@@ -103,6 +103,11 @@ fn host_status(server: State<'_, Running>, host_name: String) -> Result<Report, 
 }
 
 #[tauri::command]
+fn host_found(host_name: String) -> Result<bool, String> {
+    Ok(install::host_found(host(&host_name)?))
+}
+
+#[tauri::command]
 fn host_install(server: State<'_, Running>, host_name: String) -> Result<Report, String> {
     install::apply(host(&host_name)?, server.port, server.shared.token()).map_err(|e| e.to_string())
 }
@@ -465,6 +470,21 @@ fn open_history(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn open_welcome(app: AppHandle) -> Result<(), String> {
+    open_window(&app, "welcome", "welcome.html", "sidepaw", (480.0, 720.0))
+}
+
+/// Finished or skipped: the welcome does not open by itself again.
+#[tauri::command]
+fn finish_welcome(app: AppHandle, server: State<'_, Running>) -> Result<(), String> {
+    server.shared.set_welcomed().map_err(|e| e.to_string())?;
+    if let Some(w) = app.get_webview_window("welcome") {
+        let _ = w.close();
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn open_chat(app: AppHandle) -> Result<(), String> {
     open_window(&app, "chat", "chat.html", "sidepaw", (380.0, 540.0))
 }
@@ -523,8 +543,10 @@ pub fn run() {
                 Ok(None) => {}
                 Err(e) => tracing::warn!("could not refresh hooks: {e:#}"),
             }
-            if install::is_first_run(running.port, running.shared.token()) {
-                let _ = open_setup(app.handle().clone(), None);
+            if !running.shared.welcomed()
+                && install::is_first_run(running.port, running.shared.token())
+            {
+                let _ = open_welcome(app.handle().clone());
             }
             Ok(())
         })
@@ -542,6 +564,7 @@ pub fn run() {
             pet_prefs,
             approval_keys,
             host_status,
+            host_found,
             host_install,
             host_remove,
             get_ui_language,
@@ -584,6 +607,8 @@ pub fn run() {
             usage,
             set_live_lines,
             open_chat,
+            open_welcome,
+            finish_welcome,
             open_history
         ])
         .run(tauri::generate_context!())

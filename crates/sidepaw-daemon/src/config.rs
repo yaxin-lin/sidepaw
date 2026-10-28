@@ -47,6 +47,8 @@ impl Default for Keys {
 #[serde(default, deny_unknown_fields)]
 pub struct Ui {
     pub language: UiLanguage,
+    /// The first-run welcome window was finished or skipped.
+    pub welcomed: bool,
 }
 
 /// The language of everything sidepaw itself says: windows, tray,
@@ -304,6 +306,16 @@ impl Config {
         })
     }
 
+    /// Set `[ui] welcomed` the same way `write_level` does.
+    pub fn write_welcomed(dir: &Path) -> Result<()> {
+        edit(dir, |doc| {
+            if !doc.contains_table("ui") {
+                doc["ui"] = toml_edit::table();
+            }
+            doc["ui"]["welcomed"] = toml_edit::value(true);
+        })
+    }
+
     /// Set `[hosts.<host>] act` the same way `write_level` does.
     pub fn write_host_act(dir: &Path, host: Host, act: bool) -> Result<()> {
         edit(dir, |doc| {
@@ -527,6 +539,18 @@ port = 4242
         let text = std::fs::read_to_string(dir.join("config.toml")).unwrap();
         assert!(!text.contains("base_url"), "{text}");
         assert_eq!(Config::load(&dir).unwrap().model.provider, "deepseek");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn welcomed_is_written_beside_the_language() {
+        let dir = scratch("welcomed");
+        Config::write_ui_language(&dir, UiLanguage::En).unwrap();
+        assert!(!Config::load(&dir).unwrap().ui.welcomed);
+        Config::write_welcomed(&dir).unwrap();
+        let config = Config::load(&dir).unwrap();
+        assert!(config.ui.welcomed);
+        assert_eq!(config.ui.language, UiLanguage::En);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

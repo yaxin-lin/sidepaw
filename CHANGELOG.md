@@ -6,6 +6,13 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- A welcome window on first run, in place of the full setup window:
+  connect Claude Code in one click, pick level 1, 2 or 3, then start a
+  session and watch the first event arrive. Finishing or skipping it
+  sets `[ui] welcomed`; Setup has a link to open it again.
+
 ### Changed
 
 - Minimum Rust is 1.88 (was 1.80), for zip 9: older zip releases have

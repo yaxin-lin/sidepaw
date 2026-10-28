@@ -111,6 +111,28 @@ pub fn settings_path(host: Host) -> Option<PathBuf> {
     }
 }
 
+/// Whether the host looks installed: its settings folder exists or its
+/// command is on PATH. Only used to word the welcome window; install
+/// works either way.
+pub fn host_found(host: Host) -> bool {
+    let (dir, cmd) = match host {
+        Host::ClaudeCode => (
+            settings_path(host).and_then(|p| p.parent().map(Path::to_path_buf)),
+            "claude",
+        ),
+        _ => return false,
+    };
+    dir.is_some_and(|d| d.is_dir()) || on_path(cmd)
+}
+
+fn on_path(cmd: &str) -> bool {
+    let Some(path) = std::env::var_os("PATH") else {
+        return false;
+    };
+    std::env::split_paths(&path)
+        .any(|d| d.join(cmd).is_file() || (cfg!(windows) && d.join(format!("{cmd}.exe")).is_file()))
+}
+
 fn is_ours(handler: &Value) -> bool {
     handler.get("type").and_then(Value::as_str) == Some("http")
         && handler.get("url").and_then(Value::as_str).is_some_and(|u| {
@@ -300,7 +322,7 @@ pub fn status(host: Host, port: u16, token: &str) -> Result<Report> {
     Ok(report(host, &path, status, &block))
 }
 
-/// Nothing is hooked up yet: the desktop app shows the setup window
+/// Nothing is hooked up yet: the desktop app shows the welcome window
 /// instead of a pet that never moves. Only Claude Code counts until
 /// another host can be installed from the app.
 pub fn is_first_run(port: u16, token: &str) -> bool {

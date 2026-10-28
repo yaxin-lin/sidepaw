@@ -141,6 +141,10 @@ async function main() {
       (e) => note("level-msg", String(e), true),
     );
   });
+  el("welcome-open").addEventListener("click", (e) => {
+    e.preventDefault();
+    void invoke("open_welcome");
+  });
   await run("host_status", "");
   const act = el<HTMLInputElement>("cc-act");
   act.checked = await invoke<boolean>("get_host_act", { hostName: HOST });

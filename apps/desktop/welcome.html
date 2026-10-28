@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>sidepaw</title>
+    <style>
+      :root { color-scheme: light dark; --fg: #1d1d1f; --bg: #f5f5f7; --card: #fff; --muted: #6e6e73; --line: #d2d2d7; --ok: #2e7d32; --bad: #c62828; --accent: #2962ff; }
+      @media (prefers-color-scheme: dark) { :root { --fg: #f5f5f7; --bg: #1c1c1e; --card: #2c2c2e; --muted: #98989d; --line: #3a3a3c; } }
+      html, body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, -apple-system, sans-serif; }
+      main { padding: 22px 24px 24px; }
+      header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+      h1 { font-size: 19px; margin: 0; }
+      .sub { color: var(--muted); margin: 4px 0 18px; }
+      select { font: inherit; font-size: 12px; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--fg); }
+      ol { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+      li { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; transition: opacity .2s; }
+      li.later { opacity: .45; }
+      li.ok { border-color: var(--ok); }
+      h2 { font-size: 15px; margin: 0 0 6px; display: flex; align-items: center; gap: 10px; }
+      .num { width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--accent); color: #fff; flex: none; }
+      li.ok .num { background: var(--ok); }
+      p { margin: 0 0 8px; }
+      .msg { color: var(--muted); font-size: 13px; }
+      .msg.err { color: var(--bad); }
+      .msg.ok { color: var(--ok); }
+      .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      button { font: inherit; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; }
+      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      button:disabled { opacity: .5; cursor: default; }
+      details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+      pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 11px; max-height: 160px; overflow: auto; margin: 0 0 8px; }
+      .path { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: var(--muted); word-break: break-all; }
+      .choice { display: grid; grid-template-columns: max-content 1fr; gap: 0 8px; padding: 5px 0; cursor: pointer; }
+      .choice b { font-weight: 600; }
+      .choice .msg { grid-column: 2; }
+      footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+      footer .spacer { flex: 1; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1 data-i18n="welcome.title">Hi, I'm sidepaw</h1>
+        <select id="lang" aria-label="Language"></select>
+      </header>
+      <p class="sub" data-i18n="welcome.sub">Three steps to hook the pet up to your coding agent. Nothing leaves this machine.</p>
+      <ol>
+        <li id="step-connect">
+          <h2><span class="num">1</span><span data-i18n="welcome.connect">Connect Claude Code</span></h2>
+          <p class="msg" id="w-cc-text"></p>
+          <details>
+            <summary data-i18n="cc.preview">What will be written</summary>
+            <div class="path" id="w-cc-path"></div>
+            <pre id="w-cc-preview"></pre>
+          </details>
+          <div class="row">
+            <button class="primary" id="w-install" data-i18n="welcome.install">Connect</button>
+            <span class="msg" id="w-cc-msg"></span>
+          </div>
+        </li>
+        <li id="step-level">
+          <h2><span class="num">2</span><span data-i18n="welcome.level">How much the pet may see</span></h2>
+          <div id="w-levels"></div>
+          <p class="msg" id="w-level-msg" data-i18n="welcome.level.more">You can change this any time in Setup, where levels 0 and 4 are too.</p>
+        </li>
+        <li id="step-try" class="later">
+          <h2><span class="num">3</span><span data-i18n="welcome.try">Try it</span></h2>
+          <p class="msg" data-i18n="welcome.try.text">Start a new Claude Code session and say anything. A session that was already open needs a restart to pick up the hooks.</p>
+          <p class="msg" id="w-try-msg"></p>
+        </li>
+      </ol>
+      <footer>
+        <button id="w-later" data-i18n="welcome.later">Later</button>
+        <span class="spacer"></span>
+        <button id="w-setup" data-i18n="welcome.setup">Full setup</button>
+        <button class="primary" id="w-done" data-i18n="welcome.done">Done</button>
+      </footer>
+    </main>
+    <script type="module" src="/src/welcome/main.ts"></script>
+  </body>
+</html>

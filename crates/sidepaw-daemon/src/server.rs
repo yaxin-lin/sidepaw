@@ -216,6 +216,16 @@ impl Shared {
         Ok(())
     }
 
+    pub fn welcomed(&self) -> bool {
+        self.app.lock().unwrap().config.ui.welcomed
+    }
+
+    pub fn set_welcomed(&self) -> Result<()> {
+        Config::write_welcomed(&home::dir()?)?;
+        self.app.lock().unwrap().config.ui.welcomed = true;
+        Ok(())
+    }
+
     pub fn model(&self) -> ModelConfig {
         self.app.lock().unwrap().config.model.clone()
     }

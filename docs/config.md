@@ -17,6 +17,7 @@ the proactive lines.
 ```toml
 [ui]
 language = "system"          # system | en | zh-CN: windows, tray, notifications
+welcomed = false             # set once the first-run welcome is finished or skipped
 
 [keys]                       # level 4 with act: answer the oldest held prompt
 allow = "Control+Alt+Y"      # registered only while a prompt waits; "" turns it off
