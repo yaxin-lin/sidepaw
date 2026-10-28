@@ -54,6 +54,9 @@ function progress(now: number, start: number, ms: number): number | null {
 export const CROUCH_MS = 120;
 const LAND_MS = 220;
 const SWAY_MAX = 14;
+/** Breathing alone is slow; 20 updates a second look the same as 60
+ *  and let the window server composite a third as often. */
+const CALM_FRAME_MS = 50;
 
 export class Juice {
   private born = performance.now();
@@ -63,6 +66,8 @@ export class Juice {
   private swayTarget = 0;
   private sway = 0;
   private raf = 0;
+  private lastApplied = 0;
+  private lastTransform = "";
   breathing: Motion["breathing"] = "awake";
 
   constructor(private el: HTMLElement) {
@@ -70,8 +75,11 @@ export class Juice {
   }
 
   start() {
-    const tick = () => {
-      this.apply();
+    const tick = (now: number) => {
+      if (!this.calm(now) || now - this.lastApplied >= CALM_FRAME_MS) {
+        this.lastApplied = now;
+        this.apply();
+      }
       this.raf = requestAnimationFrame(tick);
     };
     this.raf = requestAnimationFrame(tick);
@@ -101,6 +109,12 @@ export class Juice {
     this.swayTarget = Math.max(-SWAY_MAX, Math.min(SWAY_MAX, -vx / 60));
   }
 
+  /** Nothing but breathing: no squash, lean or sway under way. */
+  private calm(now: number): boolean {
+    const squashing = now - this.squashAt < Math.max(LAND_MS, CROUCH_MS);
+    return !squashing && this.leanDir === 0 && this.swayTarget === 0 && Math.abs(this.sway) < 0.05;
+  }
+
   private apply() {
     const now = performance.now();
     // Ease the sway toward its target so it swings rather than snaps.
@@ -113,6 +127,9 @@ export class Juice {
       lean: this.leanDir,
       sway: Math.abs(this.sway) < 0.05 ? 0 : this.sway,
     });
-    this.el.style.transform = `rotate(${p.rot.toFixed(2)}deg) scale(${p.sx.toFixed(4)}, ${p.sy.toFixed(4)})`;
+    const transform = `rotate(${p.rot.toFixed(2)}deg) scale(${p.sx.toFixed(4)}, ${p.sy.toFixed(4)})`;
+    if (transform === this.lastTransform) return;
+    this.lastTransform = transform;
+    this.el.style.transform = transform;
   }
 }

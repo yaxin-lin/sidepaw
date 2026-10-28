@@ -275,10 +275,14 @@ transform on the canvas anchored at the feet: breathing at rest
 (slower and deeper asleep), a crouch before a hop and a squash on any
 landing, a five-degree lean while walking, and a sway against the
 direction of a drag. It is a few percent, which the hit mask ignores.
+Breathing alone updates 20 times a second, anything else every frame.
+Standing on the floor, the pet looks at other windows about once a
+second; riding one, several times a second so it moves with it.
 
 Click-through works per pixel: after each drawn frame the renderer
 sends a 4 by 4 logical-pixel opacity mask to Rust (`hit.rs`), and a
-poller reads the OS cursor position every 40 ms and toggles
+poller reads the OS cursor position every 40 ms while the cursor is
+within a window size of the pet, every 200 ms otherwise, and toggles
 `set_ignore_cursor_events`. The cursor has to come from the OS because
 the web view receives no mouse events while the window is ignoring
 them.

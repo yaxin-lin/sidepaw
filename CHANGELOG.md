@@ -23,6 +23,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The pet uses about a quarter less CPU at rest (9.3 % to 7.0 % for the
+  app and its web view in a debug build, parked in mini mode). The
+  click-through check slows from 40 ms to 200 ms while the cursor is
+  far away, breathing alone redraws 20 times a second instead of 60,
+  and on the floor the pet reads the window list once a second instead
+  of every 150 ms.
 - The database is upgraded by numbered migrations
   (`crates/sidepaw-daemon/migrations/`), each applied once and recorded,
   instead of re-running the whole schema with `IF NOT EXISTS`. Before

@@ -75,37 +75,47 @@ pub fn cursor_relative(app: &AppHandle, window: &WebviewWindow) -> Option<Cursor
     })
 }
 
+/// Fast enough that the pet takes a click the moment the cursor is on
+/// it. While the cursor is more than a window size away it cannot get
+/// there within `POLL_FAR`, so the check can wait.
 pub const POLL: Duration = Duration::from_millis(40);
+const POLL_FAR: Duration = Duration::from_millis(200);
 
-/// Decide for the current cursor position. Returns the new
-/// ignore-cursor-events value, or `None` when it cannot be determined
-/// (cursor API unavailable, window hidden) and nothing should change.
-pub fn should_ignore(
-    app: &AppHandle,
-    window: &WebviewWindow,
-    mask: &Mask,
-    zoom: f64,
-) -> Option<bool> {
-    let c = cursor_relative(app, window)?;
+/// How long to wait before the next check, from where the cursor is.
+pub fn next_poll(c: Option<&CursorRelative>) -> Duration {
+    let Some(c) = c else { return POLL_FAR };
+    let near = c.x > -c.width && c.x < 2.0 * c.width && c.y > -c.height && c.y < 2.0 * c.height;
+    if near {
+        POLL
+    } else {
+        POLL_FAR
+    }
+}
+
+/// The new ignore-cursor-events value for this cursor position.
+pub fn should_ignore(c: &CursorRelative, mask: &Mask, zoom: f64) -> bool {
     if c.x < 0.0 || c.y < 0.0 || c.x >= c.width || c.y >= c.height {
         // Outside the window entirely: ignoring costs nothing and means
         // the first re-entry is already in the right mode.
-        return Some(true);
+        return true;
     }
-    Some(!mask.opaque_at(c.x / zoom, c.y / zoom))
+    !mask.opaque_at(c.x / zoom, c.y / zoom)
 }
 
 pub fn spawn_poller(app: AppHandle, window: WebviewWindow) {
     tauri::async_runtime::spawn(async move {
         let mut ignoring: Option<bool> = None;
+        let mut wait = POLL;
         loop {
-            tokio::time::sleep(POLL).await;
+            tokio::time::sleep(wait).await;
+            let c = cursor_relative(&app, &window);
+            wait = next_poll(c.as_ref());
+            // Unknown (cursor API unavailable, window hidden): change nothing.
+            let Some(c) = c else { continue };
             let state = app.state::<HitMask>();
             let mask = state.mask.lock().unwrap().clone();
             let zoom = *state.zoom.lock().unwrap();
-            let Some(next) = should_ignore(&app, &window, &mask, zoom) else {
-                continue;
-            };
+            let next = should_ignore(&c, &mask, zoom);
             if ignoring != Some(next) && window.set_ignore_cursor_events(next).is_ok() {
                 ignoring = Some(next);
             }
@@ -128,6 +138,21 @@ mod tests {
         assert!(mask.opaque_at(11.9, 7.9));
         assert!(!mask.opaque_at(12.0, 5.0));
         assert!(!mask.opaque_at(5.0, 8.0));
+    }
+
+    #[test]
+    fn polls_fast_only_while_the_cursor_is_near() {
+        let at = |x, y| CursorRelative {
+            x,
+            y,
+            width: 100.0,
+            height: 150.0,
+        };
+        assert_eq!(next_poll(Some(&at(50.0, 50.0))), POLL);
+        assert_eq!(next_poll(Some(&at(-90.0, 200.0))), POLL);
+        assert_eq!(next_poll(Some(&at(-150.0, 50.0))), POLL_FAR);
+        assert_eq!(next_poll(Some(&at(50.0, 400.0))), POLL_FAR);
+        assert_eq!(next_poll(None), POLL_FAR);
     }
 
     #[test]

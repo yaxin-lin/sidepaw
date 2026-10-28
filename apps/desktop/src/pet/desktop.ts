@@ -49,6 +49,9 @@ const CLICK_MS = 250;
 const DOUBLE_CLICK_MS = 350;
 /** Often enough that the pet keeps up with a window being dragged. */
 const SUPPORT_MS = 150;
+/** On the floor nothing can move or vanish underneath, so the look
+ *  around that costs a window list can be rarer. */
+const FLOOR_CHECK_MS = 1000;
 const HOVER_MS = 1500;
 const NEAR_MS = 700;
 const FLEE_COOLDOWN_MS = 6000;
@@ -72,6 +75,7 @@ export class DesktopLife {
   private riding: { id: number; x: number; y: number } | null = null;
   private lastWorld: World | null = null;
   private checking = false;
+  private nextFloorCheck = 0;
 
   constructor(
     private renderer: SpriteRenderer,
@@ -219,7 +223,8 @@ export class DesktopLife {
     return { minX: (l.x1 - pw / 3) * w.scale, maxX: (l.x2 - (pw * 2) / 3) * w.scale };
   }
 
-  /** The last look around, refreshed several times a second. */
+  /** The last look around: several times a second while riding a
+   *  window, about once a second on the floor. */
   world0(): World | null {
     return this.lastWorld;
   }
@@ -249,6 +254,8 @@ export class DesktopLife {
     });
     this.renderer.stopOverride();
     this.idle.hold = false;
+    // Look at once: it may have landed on a window.
+    this.nextFloorCheck = 0;
   }
 
   /** The pet and what it can land on, in logical pixels. Other apps'
@@ -291,12 +298,14 @@ export class DesktopLife {
    *  is under it any more, it falls. Not while a walk or a throw is
    *  moving the window. */
   private async checkSupport() {
-    if (this.checking) return;
+    const now = performance.now();
+    if (this.checking || (!this.riding && now < this.nextFloorCheck)) return;
     this.checking = true;
     try {
       await this.followSupport();
     } finally {
       this.checking = false;
+      if (!this.riding) this.nextFloorCheck = now + FLOOR_CHECK_MS;
     }
   }
 
