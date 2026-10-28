@@ -168,9 +168,9 @@ async function main() {
         lastApp = app;
       }
       bubble.onState(snap.overall);
-      idle.onState(snap.overall);
+      idle.onState(snap.overall, scheduler.isAway());
       // Breathing is for a pet at rest; a busy or failed one has its own row.
-      juice.breathing = snap.overall.state === "sleeping" ? "asleep" : snap.overall.state === "idle" || snap.overall.state === "done" ? "awake" : "none";
+      juice.breathing = idle.isDozing() ? "asleep" : snap.overall.state === "idle" || snap.overall.state === "done" ? "awake" : "none";
       life.setAttention(snap.sessions.some((s) => s.state === "waiting"));
       void scheduler.onSnapshot(snap);
       label.textContent = prefs.dnd ? `${describe(snap)} · ${t("dnd")}` : describe(snap);

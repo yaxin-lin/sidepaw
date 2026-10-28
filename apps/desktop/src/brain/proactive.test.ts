@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { State } from "../generated/State";
 import type { SessionView } from "../generated/SessionView";
-import { fill, type Gate, inQuietHours, mayFire, type Observation, shouldOfferLevel, Watcher } from "./proactive";
+import { backKeys, fill, type Gate, inQuietHours, mayFire, type Observation, shouldOfferLevel, Watcher } from "./proactive";
 
 const MIN = 60_000;
 const t0 = Date.UTC(2026, 9, 27, 2, 0);
@@ -49,6 +49,34 @@ describe("Watcher", () => {
     // 20 minutes without the cursor moving, then it moves.
     v.observe(obs(t0 + 20 * MIN, { state: "idle" }, { userActiveAt: t0 }));
     expect(v.observe(obs(t0 + 20 * MIN, { state: "idle" }))).toContain("back");
+  });
+
+  it("tells the user coming back what finished, failed or waits", () => {
+    const w = new Watcher();
+    const s = (state: SessionView["state"], key = "c:1"): SessionView => ({ key, state, for_ms: 0, quiet_ms: 0 } as SessionView);
+    w.observe(obs(t0, { state: "thinking" }, { sessions: [s("thinking"), s("thinking", "c:2")] }));
+    // Away from t0: one session finishes, the other ends up waiting.
+    w.observe(obs(t0 + 10 * MIN, { state: "done" }, { userActiveAt: t0, sessions: [s("done"), s("thinking", "c:2")] }));
+    w.observe(obs(t0 + 30 * MIN, { state: "waiting" }, { userActiveAt: t0, sessions: [s("done"), s("waiting", "c:2")] }));
+    expect(w.backNews).toBeNull();
+    expect(w.observe(obs(t0 + 40 * MIN, { state: "waiting" }, { sessions: [s("done"), s("waiting", "c:2")] }))).toContain("back");
+    expect(w.backNews).toEqual({ minutes: 40, done: 1, errors: 0, waiting: 1 });
+    expect(backKeys(w.backNews)).toEqual(["back.waiting", "back"]);
+    w.consume("back", t0 + 40 * MIN);
+    expect(w.backNews).toBeNull();
+  });
+
+  it("forgets what happened while the user was only briefly gone", () => {
+    const w = new Watcher();
+    const s = (state: SessionView["state"]): SessionView => ({ key: "c:1", state, for_ms: 0, quiet_ms: 0 } as SessionView);
+    w.observe(obs(t0, { state: "thinking" }, { sessions: [s("thinking")] }));
+    w.observe(obs(t0 + 2 * MIN, { state: "error" }, { userActiveAt: t0, sessions: [s("error")] }));
+    w.observe(obs(t0 + 3 * MIN, { state: "error" }, { sessions: [s("error")] }));
+    // Then a long absence with nothing new: plain hello.
+    w.observe(obs(t0 + 30 * MIN, { state: "error" }, { sessions: [s("error")] }));
+    expect(w.backNews).toEqual({ minutes: 27, done: 0, errors: 0, waiting: 0 });
+    expect(backKeys(w.backNews)).toEqual(["back"]);
+    expect(backKeys(null)).toEqual(["back"]);
   });
 
   it("puts what needs the user first", () => {

@@ -12,6 +12,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
   connect Claude Code in one click, pick level 1, 2 or 3, then start a
   session and watch the first event arrive. Finishing or skipping it
   sets `[ui] welcomed`; Setup has a link to open it again.
+- The pet knows when you are away from the OS idle counter (macOS and
+  Windows, no permission; Linux still watches the cursor), so typing
+  without touching the mouse counts as being there. After five minutes
+  without input and nothing running it dozes; when you are back after
+  fifteen minutes it waves and says what finished, failed or is
+  waiting for you (`back.waiting`, `back.errors`, `back.done` lines,
+  with `{minutes}`, `{waiting}`, `{errors}`, `{done}`). The welcome
+  back now speaks from chattiness 2.
 
 ### Changed
 

@@ -44,9 +44,10 @@ three-step welcome window on first run.
    up one that hovers, files dropped on it get a line; it lands on
    other apps' windows and falls when they move or close, and hides
    while the app in front is full screen (macOS and Windows, no
-   permission needed). Next, still without OS permissions: system
-   idle time (lands with 0.5, where it is used). Last, opt-in and
-   gated by level: global input and screen reading.
+   permission needed). It knows when the user is away from the
+   OS idle counter (macOS, Windows), dozes then, and on their return
+   says what finished, failed or waits. Last, opt-in and gated by
+   level: global input and screen reading.
 10. Signing, notarization, Homebrew.
 11. Done: proactive chat and the memory list (0.5).
 

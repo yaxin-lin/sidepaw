@@ -113,6 +113,10 @@ to `click`; other missing keys are silent.
 `docs/architecture.md`, proactive lines). `report` lines may use
 `{tools}`, `{turns}`, `{errors}`, `{sessions}` and `{waited}` (minutes),
 filled from today's counters.
+`back.waiting`, `back.errors` and `back.done` are said instead of
+`back` when that happened while the user was away (the first that
+applies, in that order); they may use `{minutes}` away, `{waiting}`,
+`{errors}` and `{done}`. A pack without them says `back`.
 
 ```json
 {
@@ -136,6 +140,9 @@ filled from today's counters.
   "report": ["Today: {tools} tool calls, {errors} errors."],
   "break": ["…"],
   "back": ["…"],
+  "back.waiting": ["Back. {waiting} waiting for you."],
+  "back.errors": ["Back. {errors} failed while you were out."],
+  "back.done": ["{minutes} min away, {done} done."],
   "chatter": ["…"],
   "hop": ["…"],
   "offer_level": ["…"],

@@ -6,6 +6,7 @@ mod hit;
 mod keys;
 mod notify;
 mod prefs;
+mod presence;
 mod shelf;
 mod terminal;
 mod text;
@@ -353,6 +354,13 @@ fn cursor_global(app: AppHandle) -> Option<(f64, f64)> {
     app.cursor_position().ok().map(|p| (p.x, p.y))
 }
 
+/// Seconds since the last keyboard, mouse or trackpad input, where the
+/// OS says; the pet watches the cursor instead when this is null.
+#[tauri::command]
+fn idle_seconds() -> Option<f64> {
+    presence::idle_seconds()
+}
+
 #[tauri::command]
 fn history(server: State<'_, Running>, days: u32) -> Result<History, String> {
     server.shared.history(days).map_err(|e| e.to_string())
@@ -597,6 +605,7 @@ pub fn run() {
             record_trigger,
             quiet_hours,
             cursor_global,
+            idle_seconds,
             cursor_relative,
             scene,
             focus_session,

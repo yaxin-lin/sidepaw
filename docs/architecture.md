@@ -195,12 +195,17 @@ stored below level 2 have no folder and show as one row) over the last
 a per-day tooltip and table view, and a project table.
 
 `brain/proactive.ts` decides when the pet speaks unprompted. A
-`Watcher` follows snapshots and cursor activity and offers moments:
+`Watcher` follows snapshots and the user's presence (the OS idle
+counter on macOS and Windows, `presence.rs`, no permission; cursor
+movement on Linux) and offers moments:
 an agent waiting over three minutes, two errors in a row, a task over
 twenty minutes finishing, the end of the working day (with today's
 counters filled into the line), a morning greeting, a late night with
 agents running, two hours without a pause, coming back after fifteen
-minutes away, and idle small talk. `mayFire` gates each by `[pet]
+minutes away (saying what finished, failed or waits since, when
+anything did), and idle small talk. After five minutes without input
+and with nothing running the pet dozes, and waves when the user is
+back. `mayFire` gates each by `[pet]
 chatty` (0 to 5, from the tray), do-not-disturb, `[quiet]` hours (only
 "needs you" triggers pass), a two-minute spacing between lines, once
 a day for daily ones, and the trigger's cooldown in `trigger_stats`,

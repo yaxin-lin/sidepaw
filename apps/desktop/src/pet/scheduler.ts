@@ -8,7 +8,7 @@ import { activePack, loadPersona } from "../brain/files";
 import { complete, resolve } from "../brain/llm";
 import { cleanLine, DAILY_CAP, LIVE, nudgeRequest, TIMEOUT_MS } from "../brain/nudge";
 import { compileSystemPrompt } from "../brain/persona";
-import { type Gate, fill, inQuietHours, mayFire, OFFER_AGAIN_MS, shouldOfferLevel, type TriggerId, TRIGGERS, Watcher } from "../brain/proactive";
+import { backKeys, DOZE_MS, type Gate, fill, inQuietHours, mayFire, OFFER_AGAIN_MS, shouldOfferLevel, type TriggerId, TRIGGERS, Watcher } from "../brain/proactive";
 import type { EventRow } from "../generated/EventRow";
 import type { ModelConfig } from "../generated/ModelConfig";
 import type { Usage } from "../generated/Usage";
@@ -24,7 +24,7 @@ const EVAL_MS = 5000;
 const OFFER_CHECK_MS = 3600_000;
 const OFFER = "offer_level";
 const LIVE_COUNT_KEY = "live-lines";
-const CURSOR_MS = 2000;
+const PRESENCE_MS = 2000;
 
 function localDay(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -70,16 +70,27 @@ export class Scheduler {
     } catch (e) {
       console.warn(`scheduler: ${String(e)}`);
     }
-    setInterval(() => void this.watchCursor(), CURSOR_MS);
+    setInterval(() => void this.watchPresence(), PRESENCE_MS);
   }
 
-  /** The cursor moving anywhere on screen means someone is there. No
-   *  keyboard watching: that would need an OS permission. */
-  private async watchCursor() {
+  /** The OS's idle counter where it has one (macOS, Windows; no
+   *  permission needed), so typing counts; otherwise the cursor moving
+   *  anywhere on screen means someone is there. */
+  private async watchPresence() {
+    const idle = await invoke<number | null>("idle_seconds").catch(() => null);
+    if (idle !== null) {
+      this.userActiveAt = Math.max(this.userActiveAt, Date.now() - idle * 1000);
+      return;
+    }
     const p = await invoke<[number, number] | null>("cursor_global").catch(() => null);
     if (!p) return;
     if (this.lastCursor && (p[0] !== this.lastCursor[0] || p[1] !== this.lastCursor[1])) this.userActiveAt = Date.now();
     this.lastCursor = p;
+  }
+
+  /** Long enough without input that the pet may nod off. */
+  isAway(now = Date.now()): boolean {
+    return now - this.userActiveAt >= DOZE_MS;
   }
 
   /** Call on every poll; it evaluates every few seconds. */
@@ -147,12 +158,14 @@ export class Scheduler {
       if (!mayFire(id, { ...gate, stat: this.stats.get(id) })) continue;
       // Small talk is a chance, not a schedule.
       if (id === "chatter" && Math.random() > 0.3) continue;
-      const key = id === "app" ? `app.${this.watcher.switchedTo}` : id;
+      const news = this.watcher.backNews;
+      const key = id === "app" ? `app.${this.watcher.switchedTo}` : id === "back" ? backKeys(news) : id;
       const packLine = this.lines().pick(key);
       const live = LIVE.has(id) ? await this.liveLine(id, snap) : null;
       const line = live ?? packLine;
       if (line === null) continue; // this pack has nothing to say here
-      const text = live ? live : withProject(id, snap, id === "report" ? fill(line, await this.counters()) : line);
+      const vars = id === "report" ? await this.counters() : id === "back" && news ? { ...news } : null;
+      const text = live ? live : withProject(id, snap, vars ? fill(line, vars) : line);
       if (!this.bubble.nudge(text, (answered) => void this.react(id, answered, this.onAnswer))) return;
       this.watcher.consume(id, now);
       this.spoken.push(now);

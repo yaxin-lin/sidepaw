@@ -4,12 +4,14 @@ import { LOOP_MS, ROW } from "../pack";
 import type { SpriteRenderer } from "./renderer";
 
 /** Idle flourishes within what the Codex sheet can show: short walks
- *  on the running rows, a slower dimmer loop while asleep, a hop on
- *  click. Anything the agents do cancels a walk at once. */
+ *  on the running rows, a slower dimmer loop while asleep or while the
+ *  user is away, a wave when they come back, a hop on click. Anything
+ *  the agents do cancels a walk at once. */
 export class IdleBehaviour {
   private walking = false;
   private nextWalkAt = 0;
   private state: State["state"] = "idle";
+  private dozing = false;
   /** Set while something else moves the window (a throw). */
   hold = false;
   /** Told when a walk starts (-1 left, 1 right) and ends (0). */
@@ -26,12 +28,21 @@ export class IdleBehaviour {
     this.scheduleWalk();
   }
 
-  onState(state: State) {
+  /** `away`: no input for a while. A pet with nothing to watch nods
+   *  off then, and waves when the user is back. */
+  onState(state: State, away = false) {
     this.state = state.state;
-    const dozing = state.state === "sleeping";
+    const resting = state.state === "idle" || state.state === "done";
+    const dozing = state.state === "sleeping" || (away && resting);
+    if (this.dozing && !dozing && !away && resting && !this.hold) this.renderer.play(ROW.waving, 2 * LOOP_MS);
+    this.dozing = dozing;
     this.renderer.speed = dozing ? 0.5 : 1;
     this.canvas.style.opacity = dozing ? "0.75" : "1";
     if (state.state !== "idle" && state.state !== "sleeping") this.walking = false;
+  }
+
+  isDozing(): boolean {
+    return this.dozing;
   }
 
   onClick() {
@@ -39,8 +50,9 @@ export class IdleBehaviour {
     this.renderer.play(ROW.jumping, LOOP_MS);
   }
 
+  /** Awake with nothing to do: free to walk, hop and look around. */
   isIdle(): boolean {
-    return this.state === "idle";
+    return this.state === "idle" && !this.dozing;
   }
 
   isWalking(): boolean {
@@ -49,14 +61,14 @@ export class IdleBehaviour {
 
   /** Call often; it decides on its own when to wander. */
   async tick(now = Date.now()) {
-    if (this.walking || this.hold || now < this.nextWalkAt || this.state !== "idle") return;
+    if (this.walking || this.hold || now < this.nextWalkAt || !this.isIdle()) return;
     this.scheduleWalk(now);
     await this.walk();
   }
 
   /** A quick step away from something, further and faster than a stroll. */
   async flee(dir: -1 | 1) {
-    if (this.walking || this.hold || this.state !== "idle") return;
+    if (this.walking || this.hold || !this.isIdle()) return;
     await this.walk({ dir, distance: 120 + this.random() * 60, speed: 160 });
   }
 

@@ -30,7 +30,7 @@ export const TRIGGERS: Record<TriggerId, TriggerDef> = {
   morning: { chatty: 3, baseS: 3600, daily: true },
   night: { chatty: 3, baseS: 3600, daily: true },
   break: { chatty: 3, baseS: 7200 },
-  back: { chatty: 3, baseS: 3600 },
+  back: { chatty: 2, baseS: 3600 },
   /** Switching to a kind of app (`app` in the observation). */
   app: { chatty: 3, baseS: 900 },
   /** A line with one of the pet's own small hops (`pet/roam.ts`). */
@@ -46,6 +46,27 @@ export const BREAK_AFTER_MS = 2 * 3600_000;
 /** No input and no agent activity for this long ends a stretch of work. */
 export const PAUSE_MS = 10 * 60_000;
 export const AWAY_MS = 15 * 60_000;
+/** No input for this long and nothing running: the pet nods off. */
+export const DOZE_MS = 5 * 60_000;
+
+/** What happened while the user was away, for the `back` line. */
+export interface AwayNews {
+  minutes: number;
+  /** Sessions that finished or failed while nobody was there. */
+  done: number;
+  errors: number;
+  /** Sessions waiting for the user now. */
+  waiting: number;
+}
+
+/** The `back` line to use: the most pressing news, then plain hello. */
+export function backKeys(n: AwayNews | null): string[] {
+  if (!n) return ["back"];
+  if (n.waiting > 0) return ["back.waiting", "back"];
+  if (n.errors > 0) return ["back.errors", "back"];
+  if (n.done > 0) return ["back.done", "back"];
+  return ["back"];
+}
 
 export interface Observation {
   /** ms since epoch */
@@ -54,7 +75,8 @@ export interface Observation {
   hour: number;
   overall: State;
   sessions: SessionView[];
-  /** When the cursor last moved, ms since epoch. */
+  /** Last keyboard, mouse or trackpad input (the cursor where the OS
+   *  does not say), ms since epoch. */
   userActiveAt: number;
   /** The kind of app in front (`pet/apps.ts`), when known. */
   app?: string | null;
@@ -75,6 +97,10 @@ export class Watcher {
   private lastWork = 0;
   private lastUserActive = 0;
   private backAt = 0;
+  private sessionStates = new Map<string, State["state"]>();
+  private news = { done: 0, errors: 0 };
+  /** Filled when the user comes back after `AWAY_MS`. */
+  backNews: AwayNews | null = null;
   private app: string | null = null;
   private appAt = 0;
   /** The kind of app just switched to, for the `app` line's key. */
@@ -107,9 +133,29 @@ export class Watcher {
     }
     if (this.workSince && o.now - this.lastWork < PAUSE_MS && o.now - this.workSince >= BREAK_AFTER_MS) out.push("break");
 
+    // Turns that end between two inputs are news; any input clears them.
+    const seen = new Map<string, State["state"]>();
+    for (const s of o.sessions) {
+      const before = this.sessionStates.get(s.key);
+      if (before !== undefined && before !== s.state) {
+        if (s.state === "done") this.news.done++;
+        if (s.state === "error") this.news.errors++;
+      }
+      seen.set(s.key, s.state);
+    }
+    this.sessionStates = seen;
     if (o.userActiveAt > this.lastUserActive) {
-      if (this.lastUserActive && o.userActiveAt - this.lastUserActive >= AWAY_MS) this.backAt = o.now;
+      const gap = o.userActiveAt - this.lastUserActive;
+      if (this.lastUserActive && gap >= AWAY_MS) {
+        this.backAt = o.now;
+        this.backNews = {
+          minutes: Math.round(gap / 60_000),
+          ...this.news,
+          waiting: o.sessions.filter((s) => s.state === "waiting").length,
+        };
+      }
       this.lastUserActive = o.userActiveAt;
+      this.news = { done: 0, errors: 0 };
     }
     if (this.backAt && o.now - this.backAt < 60_000) out.push("back");
 
@@ -138,7 +184,10 @@ export class Watcher {
     if (id === "errors") this.errorStreak = 0;
     if (id === "long_done") this.longDoneAt = 0;
     if (id === "break") this.workSince = now;
-    if (id === "back") this.backAt = 0;
+    if (id === "back") {
+      this.backAt = 0;
+      this.backNews = null;
+    }
     if (id === "app") this.switchedTo = null;
   }
 }
