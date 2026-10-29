@@ -165,12 +165,14 @@
           <input type="text" id="m-model" />
           <label for="m-url" id="m-url-label" data-i18n="model.base_url">Base URL</label>
           <input type="text" id="m-url" placeholder="http://127.0.0.1:11434/v1" />
-          <label for="m-key" data-i18n="model.key">API key</label>
-          <div>
+          <label for="m-key" id="m-key-label" data-i18n="model.key">API key</label>
+          <div id="m-key-row">
             <input type="password" id="m-key" autocomplete="off" />
             <span class="msg" id="m-key-source"></span>
           </div>
-          <p class="msg full" data-i18n="model.key.hint"></p>
+          <p class="msg full" id="m-key-hint" data-i18n="model.key.hint"></p>
+          <p class="msg full" id="m-cli" hidden></p>
+          <p class="msg full" id="m-cli-hint" data-i18n="model.cli.hint" hidden></p>
           <label class="full" style="display:flex;gap:6px;align-items:baseline;color:var(--fg)">
             <input type="checkbox" id="live-lines" style="width:auto" />
             <span data-i18n="live.label">Let the model write the pet's line when an agent waits, fails twice or finishes a long task</span>

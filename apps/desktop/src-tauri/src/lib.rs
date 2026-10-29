@@ -16,6 +16,7 @@ mod update;
 use hit::{HitMask, Mask};
 use sidepaw_core::event::UnknownHost;
 use sidepaw_core::{Host, Level};
+use sidepaw_daemon::claude_cli;
 use sidepaw_daemon::config::{ModelConfig, PetPrefs, UiLanguage};
 use sidepaw_daemon::install::{self, Report};
 use sidepaw_daemon::pets;
@@ -140,6 +141,24 @@ fn get_model(server: State<'_, Running>) -> ModelConfig {
 #[tauri::command]
 fn set_model(server: State<'_, Running>, model: ModelConfig) -> Result<(), String> {
     server.shared.set_model(model).map_err(|e| e.to_string())
+}
+
+/// The user's own Claude Code as the model (ADR 10).
+#[tauri::command]
+async fn claude_cli_status() -> claude_cli::CliStatus {
+    claude_cli::status().await
+}
+
+#[tauri::command]
+async fn claude_cli_run(
+    req: claude_cli::CliRequest,
+    on_delta: tauri::ipc::Channel<String>,
+) -> Result<claude_cli::CliReply, String> {
+    claude_cli::run(&req, |d| {
+        let _ = on_delta.send(d);
+    })
+    .await
+    .map_err(|e| format!("{e:#}"))
 }
 
 #[tauri::command]
@@ -579,6 +598,8 @@ pub fn run() {
             api_key,
             set_api_key,
             clear_api_key,
+            claude_cli_status,
+            claude_cli_run,
             pet_file_read,
             pet_file_write,
             audit_call,

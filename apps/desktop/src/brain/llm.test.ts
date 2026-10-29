@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { approxTokens, complete, openaiBody, openaiText, preview, resolve, sseDeltas, stream, type Deps } from "./llm";
+import { approxTokens, cliPrompt, complete, HOLD_BACK, openaiBody, openaiText, preview, resolve, sseDeltas, stream, subscriptionUse, type Deps } from "./llm";
+
+const noCli: Deps["cli"] = async () => {
+  throw new Error("no cli in this test");
+};
 
 describe("resolve", () => {
   it("fills provider defaults and rejects what cannot work", () => {
@@ -87,7 +91,7 @@ describe("stream", () => {
         c.close();
       },
     });
-    const deps: Deps = { fetch: async () => new Response(body, { status: 200 }), audit: async (...a) => void audits.push(a) };
+    const deps: Deps = { fetch: async () => new Response(body, { status: 200 }), audit: async (...a) => void audits.push(a), cli: noCli };
     const got: string[] = [];
     const text = await stream({ provider: "deepseek", model: "", base_url: null }, { purpose: "chat", system: "S", user: "U", maxTokens: 5 }, "k", (d) => got.push(d), deps);
     expect(got).toEqual(["a", "b"]);
@@ -109,6 +113,7 @@ describe("complete", () => {
       audit: async (...a) => {
         audits.push(a);
       },
+      cli: noCli,
     };
   }
 
@@ -136,5 +141,50 @@ describe("complete", () => {
   it("surfaces the provider's error message", async () => {
     const res = new Response(JSON.stringify({ error: { message: "insufficient balance" } }), { status: 402 });
     await expect(complete(cfg, req, "k", deps(res))).rejects.toThrow("HTTP 402 insufficient balance");
+  });
+
+  describe("claude-code", () => {
+    const cfg = { provider: "claude-code", model: "", base_url: null };
+
+    it("needs no key or URL and defaults to haiku", () => {
+      expect(resolve(cfg)).toEqual({ provider: "claude-code", model: "haiku", baseUrl: "", local: false });
+      expect(preview(cfg, { purpose: "chat", system: "S", user: "U", maxTokens: 5 }).local).toBe(false);
+    });
+
+    it("folds earlier turns into the one prompt", () => {
+      expect(cliPrompt({ purpose: "chat", system: "S", user: "U", maxTokens: 5 })).toBe("U");
+      const history = [
+        { role: "user" as const, content: "hi" },
+        { role: "assistant" as const, content: "hello" },
+      ];
+      expect(cliPrompt({ purpose: "chat", system: "S", history, user: "U", maxTokens: 5 })).toBe("Earlier in this conversation:\n\nUser: hi\n\nYou: hello\n\nUser: U");
+    });
+
+    it("runs the program, streams its deltas and keeps the window use", async () => {
+      const calls: unknown[] = [];
+      const audits: unknown[] = [];
+      const deps: Deps = {
+        fetch: async () => new Response("", { status: 500 }),
+        audit: async (...a) => void audits.push(a),
+        cli: async (req, onDelta) => {
+          calls.push(req);
+          onDelta("o");
+          onDelta("k");
+          return { text: "ok", five_hour: 0.95, seven_day: 0.1 };
+        },
+      };
+      const got: string[] = [];
+      const text = await stream(cfg, { purpose: "chat", system: "S", user: "U", maxTokens: 5 }, null, (d) => got.push(d), deps);
+      expect(text).toBe("ok");
+      expect(got).toEqual(["o", "k"]);
+      expect(calls[0]).toEqual({ system: "S", prompt: "U", model: "haiku", timeout_s: 120 });
+      expect(audits[0]?.[0]).toBe("claude-code");
+      expect(subscriptionUse()).toBe(0.95);
+      // Near the top of the window a proactive line stands down, a chat does not.
+      expect(0.95).toBeGreaterThanOrEqual(HOLD_BACK);
+      await expect(complete(cfg, { purpose: "nudge", system: "S", user: "U", maxTokens: 5 }, null, deps)).rejects.toThrow("nearly used up");
+      expect(audits).toHaveLength(1);
+      await expect(complete(cfg, { purpose: "chat", system: "S", user: "U", maxTokens: 5 }, null, deps)).resolves.toBe("ok");
+    });
   });
 });

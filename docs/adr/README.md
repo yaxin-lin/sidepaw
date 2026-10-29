@@ -14,3 +14,5 @@ superseded by a new record, not edited in place.
 | [7](0007-brain-in-the-desktop-app.md) | The brain lives in the desktop app, in TypeScript | accepted |
 | [8](0008-standing-consent-for-live-lines.md) | Standing consent for model-written proactive lines | accepted |
 | [9](0009-claude-code-hooks-run-the-shim.md) | Claude Code hooks run the shim, not an HTTP request | accepted |
+| [10](0010-claude-code-as-a-model-provider.md) | The user's own Claude Code as a model provider | accepted |
+| [11](0011-memory-in-three-layers.md) | Memory in three layers: facts, diary, follow-ups | proposed |

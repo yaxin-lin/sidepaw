@@ -24,10 +24,12 @@ allow = "Control+Alt+Y"      # registered only while a prompt waits; "" turns it
 deny  = "Control+Alt+N"
 
 [model]
-provider = "deepseek"        # deepseek | openai | anthropic | ollama | custom
+provider = "deepseek"        # deepseek | openai | anthropic | claude-code | ollama | custom
 model    = ""                # empty picks the provider default:
-                             # deepseek-chat, gpt-5-mini, claude-opus-5-5
+                             # deepseek-chat, gpt-5-mini, claude-opus-5-5, haiku
 # base_url = "http://127.0.0.1:11434/v1"   # ollama / custom only
+# claude-code runs the `claude` you are signed in to (ADR 10): no key,
+# no base_url, usage counts against your plan.
 # The API key is never stored here. It lives in the OS credential store
 # (the setup window puts it there), or in the SIDEPAW_API_KEY
 # environment variable, which wins when set.

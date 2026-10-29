@@ -93,7 +93,9 @@ The pet talks from `lines.json` in its pack, so nothing needs a model.
 To give it a personality of your own, the setup window has a persona
 editor (sliders, tags, free text) and, once a model provider is
 configured there (DeepSeek, OpenAI, Anthropic, Ollama or any
-OpenAI-compatible URL; the key goes to the system credential store),
+OpenAI-compatible URL, with the key in the system credential store; or
+your own Claude Code sign-in, which runs the `claude` program on your
+plan's usage with no key at all),
 "Generate lines" writes a `lines.json` in that voice to
 `~/.sidepaw/pets/<id>/`, and double-clicking the pet opens a chat
 where it answers questions about what the agents did today. Every

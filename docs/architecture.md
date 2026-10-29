@@ -124,6 +124,10 @@ SQLite and the adapters.
 - `config`: `config.toml` and the effective permission level per event
 - `secret`: the model API key, in the OS credential store or
   `SIDEPAW_API_KEY`; the one secret the app holds
+- `claude_cli`: the user's own Claude Code as a model (ADR 10): finds
+  the `claude` program, reports its sign-in, runs it in print mode on
+  a prompt with every per-user input switched off, and streams the
+  reply back
 - `packs`: installed pet packs in `<data dir>/packs/<id>/`: installing
   from a zip or folder (only the files a pack may hold, size-capped,
   checked before anything is written), listing, reading, removing, and
@@ -313,9 +317,12 @@ dropped on the pet is tried as a pack.
 
 The brain is `src/brain/`: `persona.ts` compiles `persona.json` plus
 `persona.md` into the system prompt, `llm.ts` is the only code that
-talks to a model (one provider per ADR 5, OpenAI-compatible endpoints
+talks to a model (one provider per ADR 5: OpenAI-compatible endpoints
 and Anthropic through its SDK, requests through `tauri-plugin-http` so
-the web view's origin rules do not apply), and `linegen.ts` turns the
+the web view's origin rules do not apply; or the user's own Claude
+Code through the `claude_cli_run` command, ADR 10, which also reports
+how much of the plan's five-hour window is used so proactive lines
+stand down above 90%), and `linegen.ts` turns the
 compiled persona into `lines.json` in one call. Every remote call shows
 a preview first and writes an `audit` row through the `audit_call`
 command; local providers (Ollama, loopback URLs) skip the preview. The

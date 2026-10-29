@@ -5,6 +5,7 @@
 //! exposes the same code as a headless daemon and as the hook shim.
 
 pub mod adapters;
+pub mod claude_cli;
 pub mod cli;
 pub mod clock;
 pub mod command;

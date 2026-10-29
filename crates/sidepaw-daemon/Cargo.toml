@@ -28,7 +28,7 @@ rusqlite = { version = "0.41", features = ["bundled"] }
 toml = "1"
 toml_edit = "0.25"
 time = { version = "0.3", features = ["formatting", "macros", "local-offset"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time", "signal"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time", "signal", "process", "io-util"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 ureq = { version = "3", default-features = false, features = ["json"] }

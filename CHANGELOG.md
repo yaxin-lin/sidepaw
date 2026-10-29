@@ -8,6 +8,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- A model provider that is your own Claude Code (`provider =
+  "claude-code"`, ADR 10): the pet runs the `claude` you are signed in
+  to in print mode, so chat and lines use your plan instead of an API
+  key. Each run is a blank slate for Claude Code (no settings, so none
+  of the pet's own hooks fire back; no CLAUDE.md, auto memory, tools or
+  MCP servers; nothing saved to its sessions). Setup > Model shows
+  where `claude` was found, the sign-in and plan, and how much of the
+  five-hour window is used; proactive lines stand down above 90%.
 - A welcome window on first run, in place of the full setup window:
   connect Claude Code in one click, pick level 1, 2 or 3, then start a
   session and watch the first event arrive. Finishing or skipping it

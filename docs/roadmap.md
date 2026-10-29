@@ -50,6 +50,16 @@ three-step welcome window on first run.
    level: global input and screen reading.
 10. Signing, notarization, Homebrew.
 11. Done: proactive chat and the memory list (0.5).
+12. Done: a model provider that is the user's own Claude Code sign-in
+    (ADR 10), so chat and lines cost no API money.
+13. Feeling like someone, not a notifier (ADR 11, proposed, in this
+    order): bubbles open the chat with the line already said and the
+    chat keeps the day's turns; follow-ups the pet comes back to ask
+    about; a diary of what it watched happen, with yesterday in the
+    proactive lines; facts in kinds, updatable and droppable by the
+    model; typing rhythm and a turn toward the user before a line; a
+    small mood carried through the day; more lines written by the
+    model now that they are free.
 
 Not planned: token feeding, levels, achievements, leaderboards.
 

@@ -1,6 +1,7 @@
 /** The model section: provider, model name, base URL and the key. */
 import { invoke } from "@tauri-apps/api/core";
-import { PROVIDERS } from "../brain/llm";
+import { PROVIDERS, subscriptionUse } from "../brain/llm";
+import type { CliStatus } from "../generated/CliStatus";
 import type { KeySource } from "../generated/KeySource";
 import type { ModelConfig } from "../generated/ModelConfig";
 import { t, type Key } from "../i18n";
@@ -18,12 +19,35 @@ export function modelFromForm(): ModelConfig {
   };
 }
 
+/** Whether the user's own Claude Code can be run and is signed in,
+ *  and how much of the plan's window the pet has seen used. */
+async function renderCli() {
+  const box = el("m-cli");
+  box.textContent = t("model.cli.checking");
+  const st = await invoke<CliStatus>("claude_cli_status").catch(() => null);
+  const parts: string[] = [];
+  if (!st?.path) parts.push(t("model.cli.missing"));
+  else {
+    parts.push(t("model.cli.found", { path: st.path }));
+    if (!st.logged_in) parts.push(t("model.cli.nologin"));
+    else parts.push(st.plan ? t("model.cli.plan", { plan: st.plan }) : t("model.cli.login", { auth: st.auth }));
+  }
+  const use = subscriptionUse();
+  if (use !== null) parts.push(t("model.cli.use", { pct: Math.round(use * 100) }));
+  box.textContent = parts.join(" · ");
+}
+
 function reflectProvider() {
   const provider = el<HTMLSelectElement>("m-provider").value;
   const p = PROVIDERS[provider];
   const urlRow = provider === "ollama" || provider === "custom";
+  const cli = provider === "claude-code";
   el("m-url").hidden = !urlRow;
   el("m-url-label").hidden = !urlRow;
+  for (const id of ["m-key-label", "m-key-row", "m-key-hint", "m-key-remove"]) el(id).hidden = cli;
+  el("m-cli").hidden = !cli;
+  el("m-cli-hint").hidden = !cli;
+  if (cli) void renderCli();
   el<HTMLInputElement>("m-model").placeholder = p?.defaultModel ? t("model.default", { model: p.defaultModel }) : "";
   el<HTMLInputElement>("m-key").placeholder = p && !p.needsKey ? t("model.key.optional") : "";
 }
@@ -41,6 +65,7 @@ export function tryLine(msgId: string) {
     const req = { purpose: "persona" as const, system: currentPersonaPrompt(), user: t("model.test.user"), maxTokens: 200 };
     const text = await send(modelFromForm, req, () => void renderAudit());
     if (text !== null) note(msgId, t("model.test.ok", { text: text.trim() }));
+    if (modelFromForm().provider === "claude-code") void renderCli();
   });
 }
 
