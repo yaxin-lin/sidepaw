@@ -29,7 +29,6 @@ const NODE_VERSIONS: [&str; 1] = [".nvm/versions/node"];
 const SYSTEM_BINS: [&str; 2] = ["/opt/homebrew/bin", "/usr/local/bin"];
 
 const AUTH_TIMEOUT: Duration = Duration::from_secs(15);
-const SHELL_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, Default, Serialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
@@ -101,6 +100,7 @@ fn first_in(dirs: &[PathBuf], names: &[&str]) -> Option<PathBuf> {
 /// `.zshrc` and friends).
 #[cfg(unix)]
 async fn ask_shell() -> Option<PathBuf> {
+    const SHELL_TIMEOUT: Duration = Duration::from_secs(5);
     let shell = std::env::var_os("SHELL")?;
     let out = tokio::time::timeout(
         SHELL_TIMEOUT,
