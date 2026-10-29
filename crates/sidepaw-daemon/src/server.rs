@@ -424,13 +424,11 @@ async fn bind_patiently(port: u16) -> std::io::Result<tokio::net::TcpListener> {
     Err(last.unwrap())
 }
 
-/// Headless mode: `start`, refresh hooks that point at an old port,
-/// then block until Ctrl-C.
+/// Headless mode: `start`, refresh hooks another copy of the program
+/// wrote, then block until Ctrl-C.
 pub async fn run(port: u16) -> Result<()> {
-    let running = start(port).await?;
-    if let Ok(Some(r)) =
-        crate::install::refresh_stale(Host::ClaudeCode, running.port, running.shared.token())
-    {
+    start(port).await?;
+    if let Ok(Some(r)) = crate::install::refresh_stale(Host::ClaudeCode) {
         tracing::info!("rewrote stale hooks in {}", r.path);
     }
     tokio::signal::ctrl_c().await?;

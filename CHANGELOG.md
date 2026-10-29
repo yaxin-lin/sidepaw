@@ -29,6 +29,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Claude Code hooks are command hooks that run sidepaw itself
+  (`hook --host claude-code`) instead of HTTP requests (ADR 9). With
+  the pet closed Claude Code no longer prints `ECONNREFUSED` on every
+  event; the port and token are no longer written into
+  `settings.json`, `env.NO_PROXY` is no longer added, and
+  `SessionStart` is hooked too. Existing hooks are replaced at the
+  next start.
+
 - The pet uses about a quarter less CPU at rest (9.3 % to 7.0 % for the
   app and its web view in a debug build, parked in mini mode). The
   click-through check slows from 40 ms to 200 ms while the cursor is

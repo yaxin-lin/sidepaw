@@ -3,7 +3,7 @@
 //! installed app is also the CLI and the hook shim.
 
 use crate::{home, hook, install, packs, run, server};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 use sidepaw_core::Host;
 
@@ -108,12 +108,10 @@ fn dispatch(command: Command) -> Result<i32> {
             remove,
         } => {
             if apply || remove {
-                let state = home::DaemonState::load()
-                    .context("the server has to have run once so the port and token exist")?;
                 let report = if apply {
-                    install::apply(host, state.port, &state.token)?
+                    install::apply(host)?
                 } else {
-                    install::remove(host, state.port, &state.token)?
+                    install::remove(host)?
                 };
                 println!("{}: {:?} ({})", host.as_str(), report.status, report.path);
             } else {

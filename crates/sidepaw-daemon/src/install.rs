@@ -2,7 +2,12 @@
 //! Claude Code has a file we can merge into; hosts that need the
 //! `sidepaw hook` shim get a snippet to paste instead (see `hook.rs`).
 //!
-//! Our handlers are recognised by their URL, so install is idempotent
+//! Claude Code's handlers are command hooks that run this program as
+//! `sidepaw hook --host claude-code` (ADR 9): the shim reads the port
+//! and token from `state.json` and exits 0 when the app is closed, so
+//! a closed pet costs the agent nothing and the transcript stays clean.
+//! Our handlers are recognised by those arguments (and by the URL of
+//! the HTTP handlers earlier versions wrote), so install is idempotent
 //! and remove only touches what we added. Every write first copies the
 //! file to `<name>.sidepaw-backup`.
 
@@ -12,10 +17,9 @@ use serde_json::{json, Map, Value};
 use sidepaw_core::Host;
 use std::path::{Path, PathBuf};
 
-/// Events the pet reacts to; see `adapters/claude_code.rs`. `SessionStart`
-/// is not here because Claude Code only allows `command` and `mcp_tool`
-/// handlers on it; the session is created by its first other event.
-pub const CLAUDE_CODE_EVENTS: [&str; 9] = [
+/// Events the pet reacts to; see `adapters/claude_code.rs`.
+pub const CLAUDE_CODE_EVENTS: [&str; 10] = [
+    "SessionStart",
     "UserPromptSubmit",
     "PreToolUse",
     "PostToolUse",
@@ -27,20 +31,24 @@ pub const CLAUDE_CODE_EVENTS: [&str; 9] = [
     "SessionEnd",
 ];
 
-// Seconds Claude Code waits for our server. It answers in milliseconds;
-// the cap only matters when it is not running. PermissionRequest is the
-// exception: with `act` on, the server holds it open for the user, so
-// its cap has to cover the longest act window anyone would configure.
-const TIMEOUT_S: u32 = 5;
-const PERMISSION_TIMEOUT_S: u32 = 60;
+// Seconds Claude Code waits for the shim. The server answers in
+// milliseconds and the shim gives up sooner (`hook::wait_for`), so the
+// cap is only a backstop. PermissionRequest is the exception: with
+// `act` on, the server holds it open for the user, so its cap has to
+// cover the longest act window anyone would configure.
+pub(crate) const TIMEOUT_S: u64 = 5;
+pub(crate) const PERMISSION_TIMEOUT_S: u64 = 60;
+
+const SHIM_ARGS: [&str; 3] = ["hook", "--host", "claude-code"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub enum Status {
-    /// Every event has our handler with the current port and token.
+    /// Every event has our handler, running this program.
     Installed,
-    /// Our handler is there but points at another port or token.
+    /// Our handler is there but runs another copy of the program, or is
+    /// the HTTP handler earlier versions wrote.
     Stale,
     /// The settings file exists and has none of our handlers.
     Absent,
@@ -58,40 +66,53 @@ pub struct Report {
     pub preview: String,
 }
 
-fn url(port: u16) -> String {
-    format!("http://127.0.0.1:{port}/v1/native/claude-code")
+/// This program, which the hooks run. The desktop app and the `sidepaw`
+/// binary both answer `hook`; whichever wrote the hooks last is used.
+pub fn exe() -> Result<String> {
+    let exe = std::env::current_exe()
+        .context("cannot find this program's path")?
+        .display()
+        .to_string();
+    check_lasting(&exe)?;
+    Ok(exe)
 }
 
-fn handler(event: &str, port: u16, token: &str) -> Value {
+/// macOS runs an unsigned app opened from where it was downloaded from
+/// a random read-only copy that is gone after a restart; hooks pointing
+/// there would fail on every event.
+fn check_lasting(exe: &str) -> Result<()> {
+    if exe.contains("/AppTranslocation/") {
+        bail!("sidepaw is running from a temporary copy macOS made; move it to Applications and open it again");
+    }
+    Ok(())
+}
+
+/// Exec form (`args` set): Claude Code spawns `exe` directly, with no
+/// shell to quote a path for, on Windows without Git Bash as well.
+fn handler(event: &str, exe: &str) -> Value {
     let timeout = if event == "PermissionRequest" {
         PERMISSION_TIMEOUT_S
     } else {
         TIMEOUT_S
     };
     json!({
-        "type": "http",
-        "url": url(port),
+        "type": "command",
+        "command": exe,
+        "args": SHIM_ARGS,
         "timeout": timeout,
-        "headers": { "Authorization": format!("Bearer {token}") }
     })
 }
 
 /// The `{"hooks": {...}}` object for a host, or `None` when the host
-/// has no settings file we merge into. `env.NO_PROXY` is shown in the
-/// block because `merge` adds it; see `ensure_no_proxy`.
-pub fn hook_block(host: Host, port: u16, token: &str) -> Option<Value> {
+/// has no settings file we merge into.
+pub fn hook_block(host: Host, exe: &str) -> Option<Value> {
     match host {
         Host::ClaudeCode => {
             let hooks: Map<String, Value> = CLAUDE_CODE_EVENTS
                 .iter()
-                .map(|e| {
-                    (
-                        e.to_string(),
-                        json!([{ "hooks": [handler(e, port, token)] }]),
-                    )
-                })
+                .map(|e| (e.to_string(), json!([{ "hooks": [handler(e, exe)] }])))
                 .collect();
-            Some(json!({ "env": { "NO_PROXY": "127.0.0.1,localhost" }, "hooks": hooks }))
+            Some(json!({ "hooks": hooks }))
         }
         _ => None,
     }
@@ -134,20 +155,24 @@ fn on_path(cmd: &str) -> bool {
 }
 
 fn is_ours(handler: &Value) -> bool {
-    handler.get("type").and_then(Value::as_str) == Some("http")
-        && handler.get("url").and_then(Value::as_str).is_some_and(|u| {
+    match handler.get("type").and_then(Value::as_str) {
+        Some("command") => handler.get("args") == Some(&json!(SHIM_ARGS)),
+        // What versions before ADR 9 wrote; still ours to replace.
+        Some("http") => handler.get("url").and_then(Value::as_str).is_some_and(|u| {
             u.starts_with("http://127.0.0.1:") && u.ends_with("/v1/native/claude-code")
-        })
+        }),
+        _ => false,
+    }
 }
 
 /// Current means identical to what install would write now, so a
-/// changed timeout or header also reads as stale.
-fn is_current(event: &str, found: &Value, port: u16, token: &str) -> bool {
-    *found == handler(event, port, token)
+/// changed timeout or path also reads as stale.
+fn is_current(event: &str, found: &Value, exe: &str) -> bool {
+    *found == handler(event, exe)
 }
 
 /// Classify a parsed settings document.
-pub fn detect(settings: &Value, port: u16, token: &str) -> Status {
+pub fn detect(settings: &Value, exe: &str) -> Status {
     let mut ours = 0;
     let mut current = 0;
     for event in CLAUDE_CODE_EVENTS {
@@ -161,7 +186,7 @@ pub fn detect(settings: &Value, port: u16, token: &str) -> Status {
             .filter(|h| is_ours(h));
         for h in handlers {
             ours += 1;
-            if is_current(event, h, port, token) {
+            if is_current(event, h, exe) {
                 current += 1;
             }
         }
@@ -205,51 +230,12 @@ pub fn strip(settings: &mut Value) -> bool {
     removed
 }
 
-/// Hosts that honour `HTTP_PROXY` would send our loopback request to the
-/// proxy, which cannot reach it (a global-mode Clash answers 502, Claude
-/// Code reports "socket hang up"). Claude Code applies `env` from its
-/// settings to every session, so make sure loopback is exempt there.
-/// Returns whether anything changed.
-pub fn ensure_no_proxy(settings: &mut Value) -> bool {
-    const NEEDED: [&str; 2] = ["127.0.0.1", "localhost"];
-    let Some(root) = settings.as_object_mut() else {
-        return false;
-    };
-    let env = root.entry("env").or_insert_with(|| json!({}));
-    if !env.is_object() {
-        return false;
-    }
-    let env = env.as_object_mut().expect("object");
-    let current = env
-        .get("NO_PROXY")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
-    let mut parts: Vec<&str> = current
-        .split(',')
-        .map(str::trim)
-        .filter(|p| !p.is_empty())
-        .collect();
-    let before = parts.len();
-    for n in NEEDED {
-        if !parts.iter().any(|p| p.eq_ignore_ascii_case(n)) {
-            parts.push(n);
-        }
-    }
-    if parts.len() == before {
-        return false;
-    }
-    env.insert("NO_PROXY".into(), Value::String(parts.join(",")));
-    true
-}
-
 /// Replace our handlers with `block`'s, leaving everything else as is.
 pub fn merge(settings: &mut Value, block: &Value) {
     strip(settings);
     if !settings.is_object() {
         *settings = json!({});
     }
-    ensure_no_proxy(settings);
     let root = settings.as_object_mut().expect("object");
     let hooks = root.entry("hooks").or_insert_with(|| json!({}));
     if !hooks.is_object() {
@@ -303,20 +289,21 @@ fn report(host: Host, path: &Path, status: Status, block: &Value) -> Report {
     }
 }
 
-fn target(host: Host, port: u16, token: &str) -> Result<(PathBuf, Value)> {
+fn target(host: Host, exe: &str) -> Result<(PathBuf, Value)> {
     let Some(path) = settings_path(host) else {
         bail!("{} has no settings file to merge into", host.as_str());
     };
-    let Some(block) = hook_block(host, port, token) else {
+    let Some(block) = hook_block(host, exe) else {
         bail!("{} has no settings file to merge into", host.as_str());
     };
     Ok((path, block))
 }
 
-pub fn status(host: Host, port: u16, token: &str) -> Result<Report> {
-    let (path, block) = target(host, port, token)?;
+pub fn status(host: Host) -> Result<Report> {
+    let exe = exe()?;
+    let (path, block) = target(host, &exe)?;
     let status = match read(&path)? {
-        Some(settings) => detect(&settings, port, token),
+        Some(settings) => detect(&settings, &exe),
         None => Status::NoFile,
     };
     Ok(report(host, &path, status, &block))
@@ -325,33 +312,34 @@ pub fn status(host: Host, port: u16, token: &str) -> Result<Report> {
 /// Nothing is hooked up yet: the desktop app shows the welcome window
 /// instead of a pet that never moves. Only Claude Code counts until
 /// another host can be installed from the app.
-pub fn is_first_run(port: u16, token: &str) -> bool {
-    status(Host::ClaudeCode, port, token)
+pub fn is_first_run() -> bool {
+    status(Host::ClaudeCode)
         .map(|r| matches!(r.status, Status::Absent | Status::NoFile))
         .unwrap_or(false)
 }
 
-/// Hooks we installed earlier that point at an old port or token are
-/// ours to fix: rewrite them. Returns the report when something was
-/// rewritten. Hosts without a settings file or without our hooks are
-/// left alone; that is the user's call.
-pub fn refresh_stale(host: Host, port: u16, token: &str) -> Result<Option<Report>> {
-    match status(host, port, token)?.status {
-        Status::Stale => apply(host, port, token).map(Some),
+/// Hooks we installed earlier that run another copy of the program, or
+/// are the old HTTP handlers, are ours to fix: rewrite them. Returns
+/// the report when something was rewritten. Hosts without a settings
+/// file or without our hooks are left alone; that is the user's call.
+pub fn refresh_stale(host: Host) -> Result<Option<Report>> {
+    match status(host)?.status {
+        Status::Stale => apply(host).map(Some),
         _ => Ok(None),
     }
 }
 
-pub fn apply(host: Host, port: u16, token: &str) -> Result<Report> {
-    let (path, block) = target(host, port, token)?;
+pub fn apply(host: Host) -> Result<Report> {
+    let exe = exe()?;
+    let (path, block) = target(host, &exe)?;
     let mut settings = read(&path)?.unwrap_or_else(|| json!({}));
     merge(&mut settings, &block);
     write(&path, &settings)?;
-    Ok(report(host, &path, detect(&settings, port, token), &block))
+    Ok(report(host, &path, detect(&settings, &exe), &block))
 }
 
-pub fn remove(host: Host, port: u16, token: &str) -> Result<Report> {
-    let (path, block) = target(host, port, token)?;
+pub fn remove(host: Host) -> Result<Report> {
+    let (path, block) = target(host, &exe()?)?;
     let status = match read(&path)? {
         Some(mut settings) => {
             if strip(&mut settings) {
@@ -368,22 +356,47 @@ pub fn remove(host: Host, port: u16, token: &str) -> Result<Report> {
 mod tests {
     use super::*;
 
+    const EXE: &str = "/Applications/sidepaw.app/Contents/MacOS/sidepaw-desktop";
+
     fn block() -> Value {
-        hook_block(Host::ClaudeCode, 4000, "tok").unwrap()
+        hook_block(Host::ClaudeCode, EXE).unwrap()
     }
 
     #[test]
-    fn block_covers_every_event_with_a_plain_http_handler() {
+    fn block_covers_every_event_with_an_exec_form_shim() {
         let b = block();
         for e in CLAUDE_CODE_EVENTS {
             let h = &b["hooks"][e][0]["hooks"][0];
-            assert_eq!(h["type"], "http");
-            assert_eq!(h["url"], "http://127.0.0.1:4000/v1/native/claude-code");
-            assert_eq!(h["headers"]["Authorization"], "Bearer tok");
-            assert!(h.get("async").is_none(), "async is command-only");
+            assert_eq!(h["type"], "command");
+            assert_eq!(h["command"], EXE);
+            assert_eq!(h["args"], json!(["hook", "--host", "claude-code"]));
+            assert!(
+                h.get("async").is_none(),
+                "a held permission needs the answer"
+            );
             let expected = if e == "PermissionRequest" { 60 } else { 5 };
             assert_eq!(h["timeout"], expected, "{e}");
         }
+        assert!(
+            b.get("env").is_none(),
+            "the shim never goes through a proxy"
+        );
+    }
+
+    #[test]
+    fn old_http_handlers_are_ours_and_stale() {
+        let old = json!({
+            "type": "http",
+            "url": "http://127.0.0.1:59785/v1/native/claude-code",
+            "timeout": 5,
+            "headers": { "Authorization": "Bearer tok" }
+        });
+        let mut s = json!({ "hooks": { "Stop": [{ "hooks": [old] }] } });
+        assert_eq!(detect(&s, EXE), Status::Stale);
+        merge(&mut s, &block());
+        assert_eq!(detect(&s, EXE), Status::Installed);
+        let stop = s["hooks"]["Stop"].as_array().unwrap();
+        assert_eq!(stop.len(), 1, "the HTTP handler was replaced, not kept");
     }
 
     #[test]
@@ -400,22 +413,37 @@ mod tests {
         let pre = s["hooks"]["PreToolUse"].as_array().unwrap();
         assert_eq!(pre.len(), 2, "user group plus one of ours, not two of ours");
         assert_eq!(pre[0]["hooks"][0]["command"], "lint");
-        assert_eq!(detect(&s, 4000, "tok"), Status::Installed);
+        assert_eq!(detect(&s, EXE), Status::Installed);
     }
 
     #[test]
-    fn stale_when_port_or_token_changed() {
+    fn stale_when_another_copy_wrote_them() {
         let mut s = json!({});
         merge(&mut s, &block());
-        assert_eq!(detect(&s, 4001, "tok"), Status::Stale);
-        assert_eq!(detect(&s, 4000, "other"), Status::Stale);
+        assert_eq!(
+            detect(&s, "/tmp/target/debug/sidepaw-desktop"),
+            Status::Stale
+        );
         s["hooks"]["PermissionRequest"][0]["hooks"][0]["timeout"] = json!(5);
         assert_eq!(
-            detect(&s, 4000, "tok"),
+            detect(&s, EXE),
             Status::Stale,
             "an older handler shape is stale"
         );
-        assert_eq!(detect(&json!({"hooks": {}}), 4000, "tok"), Status::Absent);
+        assert_eq!(detect(&json!({"hooks": {}}), EXE), Status::Absent);
+    }
+
+    #[test]
+    fn a_translocated_copy_is_refused() {
+        assert!(check_lasting(EXE).is_ok());
+        let temp = "/private/var/folders/x/T/AppTranslocation/1F2E/d/sidepaw.app/Contents/MacOS/sidepaw-desktop";
+        assert!(check_lasting(temp).is_err());
+    }
+
+    #[test]
+    fn a_users_own_command_hook_is_not_ours() {
+        let mine = json!({ "type": "command", "command": EXE, "args": ["pack", "x.zip"] });
+        assert!(!is_ours(&mine));
     }
 
     #[test]
@@ -433,37 +461,22 @@ mod tests {
     }
 
     #[test]
-    fn strip_removes_empty_hooks_key_but_keeps_env() {
-        let mut s = json!({ "theme": "dark" });
+    fn strip_removes_empty_hooks_key() {
+        let mut s = json!({ "theme": "dark", "env": { "NO_PROXY": "127.0.0.1,localhost" } });
         merge(&mut s, &block());
         strip(&mut s);
         assert_eq!(
             s,
-            json!({ "theme": "dark", "env": { "NO_PROXY": "127.0.0.1,localhost" } })
+            json!({ "theme": "dark", "env": { "NO_PROXY": "127.0.0.1,localhost" } }),
+            "an env an earlier version added stays; it is harmless"
         );
-    }
-
-    #[test]
-    fn no_proxy_is_added_or_extended_once() {
-        let mut s = json!({});
-        assert!(ensure_no_proxy(&mut s));
-        assert_eq!(s["env"]["NO_PROXY"], "127.0.0.1,localhost");
-        assert!(!ensure_no_proxy(&mut s));
-
-        let mut s = json!({ "env": { "NO_PROXY": "LOCALHOST, .corp" , "FOO": "1" } });
-        assert!(ensure_no_proxy(&mut s));
-        assert_eq!(s["env"]["NO_PROXY"], "LOCALHOST,.corp,127.0.0.1");
-        assert_eq!(s["env"]["FOO"], "1");
-
-        let mut s = json!({ "env": "not an object" });
-        assert!(!ensure_no_proxy(&mut s));
     }
 
     #[test]
     fn merge_into_non_object_settings() {
         let mut s = json!([1, 2]);
         merge(&mut s, &block());
-        assert_eq!(detect(&s, 4000, "tok"), Status::Installed);
+        assert_eq!(detect(&s, EXE), Status::Installed);
     }
 
     #[test]

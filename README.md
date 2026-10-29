@@ -102,16 +102,14 @@ to the model".
 
 ## Troubleshooting
 
-- Claude Code prints `PreToolUse:Bash hook error` / `socket hang up`:
-  the request to `127.0.0.1` went through a system proxy. The setup
-  window adds `NO_PROXY=127.0.0.1,localhost` to the `env` section of
-  `settings.json`; if you set proxies elsewhere, exempt loopback there
-  too. Start a new Claude Code session afterwards; hooks are read at
-  startup.
-- Claude Code prints `connect ECONNREFUSED 127.0.0.1:<port>`: the hooks
-  point at a port the app no longer listens on. sidepaw rewrites its
-  own hooks at startup when that happens, so restart it (or click
-  Update in the setup window), then start a new Claude Code session.
+- Claude Code prints `connect ECONNREFUSED 127.0.0.1:<port>` or
+  `socket hang up` on every event: those are the HTTP hooks older
+  versions wrote. Start sidepaw once and it replaces them with command
+  hooks that stay quiet when the pet is closed; then start a new
+  Claude Code session, since hooks are read at startup.
+- Claude Code reports that a hook command was not found: the app was
+  moved or deleted. Open it from where it is now (or click Remove in
+  the setup window if you uninstalled it).
 
 ## Contributing
 

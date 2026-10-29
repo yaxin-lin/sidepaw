@@ -50,7 +50,7 @@ built in is in [roadmap.md](roadmap.md).
 
 ```
 hosts            Claude Code   Codex   OpenCode   DSH   Kimi
-                 http hook     hook    SSE        log   hook
+                 cmd hook      hook    SSE        log   hook
                       \          |       |        tail   |
                        \         |       |         |     |
                         v        v       v         v     v

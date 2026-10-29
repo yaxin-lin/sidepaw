@@ -98,9 +98,8 @@ fn host(name: &str) -> Result<Host, String> {
 }
 
 #[tauri::command]
-fn host_status(server: State<'_, Running>, host_name: String) -> Result<Report, String> {
-    install::status(host(&host_name)?, server.port, server.shared.token())
-        .map_err(|e| e.to_string())
+fn host_status(host_name: String) -> Result<Report, String> {
+    install::status(host(&host_name)?).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -109,14 +108,13 @@ fn host_found(host_name: String) -> Result<bool, String> {
 }
 
 #[tauri::command]
-fn host_install(server: State<'_, Running>, host_name: String) -> Result<Report, String> {
-    install::apply(host(&host_name)?, server.port, server.shared.token()).map_err(|e| e.to_string())
+fn host_install(host_name: String) -> Result<Report, String> {
+    install::apply(host(&host_name)?).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn host_remove(server: State<'_, Running>, host_name: String) -> Result<Report, String> {
-    install::remove(host(&host_name)?, server.port, server.shared.token())
-        .map_err(|e| e.to_string())
+fn host_remove(host_name: String) -> Result<Report, String> {
+    install::remove(host(&host_name)?).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -546,14 +544,12 @@ pub fn run() {
             update::check_in_background(app.handle().clone());
 
             let running = app.state::<Running>();
-            match install::refresh_stale(Host::ClaudeCode, running.port, running.shared.token()) {
+            match install::refresh_stale(Host::ClaudeCode) {
                 Ok(Some(r)) => tracing::info!("rewrote stale hooks in {}", r.path),
                 Ok(None) => {}
                 Err(e) => tracing::warn!("could not refresh hooks: {e:#}"),
             }
-            if !running.shared.welcomed()
-                && install::is_first_run(running.port, running.shared.token())
-            {
+            if !running.shared.welcomed() && install::is_first_run() {
                 let _ = open_welcome(app.handle().clone());
             }
             Ok(())

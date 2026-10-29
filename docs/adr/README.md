@@ -13,3 +13,4 @@ superseded by a new record, not edited in place.
 | [6](0006-embed-server-in-desktop-app.md) | Embed the server in the desktop app | accepted |
 | [7](0007-brain-in-the-desktop-app.md) | The brain lives in the desktop app, in TypeScript | accepted |
 | [8](0008-standing-consent-for-live-lines.md) | Standing consent for model-written proactive lines | accepted |
+| [9](0009-claude-code-hooks-run-the-shim.md) | Claude Code hooks run the shim, not an HTTP request | accepted |
