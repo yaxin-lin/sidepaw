@@ -20,6 +20,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
   waiting for you (`back.waiting`, `back.errors`, `back.done` lines,
   with `{minutes}`, `{waiting}`, `{errors}`, `{done}`). The welcome
   back now speaks from chattiness 2.
+- A petdex store in Setup > Look in place of the name search: a grid
+  of thumbnails that play on hover, sorted by popular, most installed,
+  newest or picks, filtered by kind and by name or tag, with more
+  pages on demand. Adopt downloads, installs and switches to the pet
+  in one click. Nothing is fetched from petdex until the store is
+  opened.
 
 ### Changed
 

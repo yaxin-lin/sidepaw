@@ -62,8 +62,10 @@ pnpm --filter sidepaw-desktop tauri dev # the pet window
 ```
 
 The window starts with the placeholder pack from `pets/`; Setup > Look
-installs others from a zip, from Codex's pets or from the
-[petdex](https://petdex.dev) gallery, and switches between them. On first run, or on
+installs others from a zip or from Codex's pets, has a store for browsing
+the [petdex](https://petdex.dev) gallery by thumbnail (popular, newest,
+by kind, by name) and adopting a pet in one click, and switches between
+them. On first run, or on
 right-click, a setup window offers to install the Claude Code hooks into
 `~/.claude/settings.json` (a backup is written next to it). The same
 thing from a terminal: `sidepaw install --host claude-code --apply`.

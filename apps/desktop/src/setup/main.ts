@@ -9,6 +9,7 @@ import { mountCli } from "./cli";
 import { mountLive } from "./live";
 import { mountMemory } from "./memory";
 import { mountPacks } from "./packs";
+import { mountStore } from "./store";
 import { mountModel } from "./model";
 import { mountPet } from "./pet";
 import { renderAudit } from "./audit";
@@ -159,6 +160,7 @@ async function main() {
   await mountCli();
   await mountModel();
   await mountLive();
+  mountStore();
   await mountPacks();
   await mountPet();
   await mountMemory();

@@ -44,7 +44,7 @@ built in is in [roadmap.md](roadmap.md).
 | Tray toggles: do not disturb, mini mode (parked at the screen edge), size S/M/L, start at login | built |
 | Daily report from counters (`GET /v1/report/today`, setup window) | built (0.3) |
 | Bundled pet packs | `pets/placeholder`, a generated stand-in |
-| Installing packs: zip, folder, from Codex's or petdex's folders, from the petdex gallery; choosing one | built (Setup > Look, `sidepaw pack`) |
+| Installing packs: zip, folder, from Codex's or petdex's folders; the petdex store (browse by thumbnail, adopt in one click); choosing one | built (Setup > Look, `sidepaw pack`) |
 
 ## Overview
 
@@ -301,9 +301,14 @@ share (`i18n`, `lines`, `pack`, `generated/`).
 
 Setup > Look (`setup/packs.ts`) shows every pack with its first idle
 frame and saves the choice in `[pet] active`; the pet window swaps the
-sheet and lines on `pack-active-changed`. The petdex gallery is read
-from `petdex.dev/api/manifest` and zips downloaded through the Rust
-HTTP client, then handed to `packs::install_zip` as raw bytes. A zip
+sheet and lines on `pack-active-changed`. The petdex store
+(`setup/store.ts`) contacts petdex only once it is opened: pages come
+from `petdex.dev/api/pets/search` (sort, kind, name, cursor), falling
+back to the static `petdex.dev/api/manifest` filtered locally when the
+search API is down; thumbnails and the hover preview strip load from
+`assets.petdex.dev`. Zips are downloaded through the Rust HTTP client
+and handed to `packs::install_zip` as raw bytes; adopting also makes
+the pet active. A zip
 dropped on the pet is tried as a pack.
 
 The brain is `src/brain/`: `persona.ts` compiles `persona.json` plus

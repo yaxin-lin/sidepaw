@@ -33,7 +33,7 @@
       .form { display: grid; grid-template-columns: max-content 1fr; gap: 8px 12px; align-items: center; }
       .form label { color: var(--muted); }
       .form .full { grid-column: 1 / -1; }
-      input[type=text], input[type=password], select, textarea { font: inherit; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); width: 100%; box-sizing: border-box; }
+      input[type=text], input[type=search], input[type=password], select, textarea { font: inherit; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); width: 100%; box-sizing: border-box; }
       textarea { min-height: 64px; resize: vertical; }
       .slider { display: grid; grid-template-columns: 1fr; gap: 2px; }
       .slider span { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
@@ -54,6 +54,18 @@
       .card .acts { display: flex; gap: 4px; }
       .card button { font-size: 12px; padding: 3px 8px; }
       .sub3 { font-size: 13px; margin: 14px 0 6px; }
+      #store { margin-top: 14px; }
+      #store summary { font-size: 13px; color: var(--fg); font-weight: 600; }
+      .store-bar { margin: 10px 0; flex-wrap: nowrap; }
+      .store-bar input { flex: 1; min-width: 0; }
+      .store-bar select { width: auto; }
+      #store-grid { max-height: 460px; overflow: auto; }
+      .card .art { width: 80px; height: 87px; background-size: 480px 87px; background-repeat: no-repeat; }
+      /* petdex's thumbnails carry a few opaque black columns at each side. */
+      .card .art img { width: 80px; height: 80px; clip-path: inset(0 4px); }
+      .card:hover .art.plays { animation: strip 0.9s steps(6) infinite; }
+      .card:hover .art.plays img { visibility: hidden; }
+      @keyframes strip { to { background-position: -480px 0; } }
       .results { list-style: none; padding: 0; margin: 8px 0 0; max-height: 260px; overflow: auto; }
       .results li { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); }
       .results li span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -182,12 +194,19 @@
           <span class="msg" id="pack-msg"></span>
         </div>
         <div id="pack-found"></div>
-        <h3 class="sub3" data-i18n="packs.petdex">From petdex</h3>
-        <div class="row">
-          <input type="text" id="petdex-q" style="flex:1" />
-          <button id="petdex-search" data-i18n="packs.search">Search</button>
-        </div>
-        <div id="petdex-results"></div>
+        <details id="store">
+          <summary data-i18n="store.open">Browse the petdex store</summary>
+          <div class="row store-bar">
+            <input type="search" id="store-q" />
+            <select id="store-sort"></select>
+            <select id="store-kind"></select>
+          </div>
+          <div class="cards" id="store-grid"></div>
+          <div class="row" style="margin-top:10px">
+            <button id="store-more" data-i18n="store.more" hidden>More</button>
+            <span class="msg" id="store-msg"></span>
+          </div>
+        </details>
         <p class="msg" data-i18n="packs.rights"></p>
       </section>
 
