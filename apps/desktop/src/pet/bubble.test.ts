@@ -43,8 +43,7 @@ describe("Bubble", () => {
     expect(bubble.nudge("two errors in a row", () => {})).toBe(true);
     bubble.onState({ state: "thinking" });
     bubble.onInteraction("click");
-    expect(el.textContent).toContain("two errors in a row");
-    expect(el.textContent).not.toContain("t");
+    expect(el.textContent).toBe("two errors in a row×");
     vi.advanceTimersByTime(9_500);
     expect(el.hidden).toBe(true);
     bubble.onState({ state: "waiting" });
