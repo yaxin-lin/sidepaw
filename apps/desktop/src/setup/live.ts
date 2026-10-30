@@ -13,11 +13,11 @@ import { loadPack } from "../pack";
 import { compileSystemPrompt } from "../brain/persona";
 import type { DayReport } from "../generated/DayReport";
 import type { EventRow } from "../generated/EventRow";
-import type { ModelConfig } from "../generated/ModelConfig";
 import type { PetPrefs } from "../generated/PetPrefs";
 import type { Snapshot } from "../generated/Snapshot";
 import { detectLang, t } from "../i18n";
 import { el, note } from "./dom";
+import { modelFromForm } from "./model";
 import { ask } from "./send";
 
 async function sampleRequest() {
@@ -51,12 +51,16 @@ export async function mountLive() {
     }
     box.checked = false;
     try {
-      const cfg = await invoke<ModelConfig>("get_model");
+      // The provider chosen above counts even before Save: the preview
+      // names the model, and accepting it saves the choice as well, so
+      // the switch never fails on a form that is filled in but unsaved.
+      const cfg = modelFromForm();
       resolve(cfg);
       const req = await sampleRequest();
       const pv = preview(cfg, req);
       const ok = await ask(t("live.title"), t("live.summary", { tokens: pv.approxTokens, cap: dailyCap(resolve(cfg)), model: pv.model }), pv.text, t("live.accept"), true);
       if (!ok) return;
+      await invoke("set_model", { model: cfg });
       await invoke("set_live_lines", { on: true, shape: LIVE_SHAPE });
       box.checked = true;
       note("live-msg", t("live.on"));
