@@ -39,6 +39,18 @@ describe("Bubble", () => {
     expect(el.classList.contains("show")).toBe(false);
   });
 
+  it("keeps an unprompted line up through state chatter until it fades", () => {
+    expect(bubble.nudge("two errors in a row", () => {})).toBe(true);
+    bubble.onState({ state: "thinking" });
+    bubble.onInteraction("click");
+    expect(el.textContent).toContain("two errors in a row");
+    expect(el.textContent).not.toContain("t");
+    vi.advanceTimersByTime(9_500);
+    expect(el.hidden).toBe(true);
+    bubble.onState({ state: "waiting" });
+    expect(el.textContent).toBe("needs you");
+  });
+
   it("does not repeat for the same state on every poll", () => {
     bubble.onState({ state: "waiting" });
     el.textContent = "";

@@ -42,6 +42,9 @@ export class Bubble {
 
   /** The prompt currently shown with buttons, if any. */
   private asking: number | null = null;
+  /** An unprompted line is up: state chatter and click lines wait,
+   *  since they come every few seconds and would wipe it unread. */
+  private nudging = false;
 
   constructor(private el: HTMLElement, private lines: Lines, private now: () => number = Date.now) {}
 
@@ -158,7 +161,9 @@ export class Bubble {
    *  Returns false when a permission prompt holds the bubble. */
   nudge(line: string, react: (answered: boolean) => void): boolean {
     if (this.asking !== null) return false;
+    this.nudging = false;
     this.say(line, NUDGE_MS);
+    this.nudging = true;
     this.el.classList.add("nudge");
     const close = document.createElement("button");
     close.className = "x";
@@ -181,7 +186,7 @@ export class Bubble {
   }
 
   say(line: string, hold = holdMs(line)) {
-    if (this.asking !== null) return; // a prompt outranks chatter
+    if (this.asking !== null || this.nudging) return; // a prompt or a nudge outranks chatter
     clearTimeout(this.timer);
     clearTimeout(this.fade);
     this.el.classList.remove("ask", "nudge");
@@ -194,6 +199,7 @@ export class Bubble {
   }
 
   private hide() {
+    this.nudging = false;
     this.el.onclick = null;
     this.el.classList.remove("show");
     this.fade = window.setTimeout(() => {
