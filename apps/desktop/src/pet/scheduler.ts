@@ -128,6 +128,7 @@ export class Scheduler {
       if (line === null) return;
       if (!this.bubble.nudge(line, (answered) => void this.react(id, answered, this.onAnswer))) return;
       this.spoken.push(now);
+      this.keep(line);
       await this.record(id, "fired", TRIGGERS[id].baseS);
     } finally {
       this.evaluating = false;
@@ -169,6 +170,7 @@ export class Scheduler {
       if (!this.bubble.nudge(text, (answered) => void this.react(id, answered, this.onAnswer))) return;
       this.watcher.consume(id, now);
       this.spoken.push(now);
+      this.keep(text);
       await this.record(id, "fired", TRIGGERS[id].baseS);
       return;
     }
@@ -176,6 +178,14 @@ export class Scheduler {
       this.lastOfferCheck = now;
       await this.maybeOfferLevel(now);
     }
+  }
+
+  /** An unprompted line joins the chat's log (ADR 11), so a click on
+   *  it opens a chat that already shows it, and the next chat knows
+   *  what was said. The offer to read more is a question to Setup,
+   *  not a line, and stays out. */
+  private keep(line: string) {
+    void invoke("add_chat_turn", { role: "pet", channel: "bubble", body: line }).catch((e: unknown) => console.warn(`keep line: ${String(e)}`));
   }
 
   /** Asks once, in character, whether it may read more (ADR 4); a click

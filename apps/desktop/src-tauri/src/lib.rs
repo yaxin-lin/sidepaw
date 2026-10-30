@@ -23,7 +23,9 @@ use sidepaw_daemon::pets;
 use sidepaw_daemon::registry::Snapshot;
 use sidepaw_daemon::secret::{self, KeySource};
 use sidepaw_daemon::server::{self, Running};
-use sidepaw_daemon::store::{AuditRow, DayReport, EventRow, History, Memory, TriggerStat};
+use sidepaw_daemon::store::{
+    AuditRow, ChatTurn, DayReport, EventRow, History, Memory, TriggerStat,
+};
 use sidepaw_daemon::{command, packs};
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
@@ -343,6 +345,35 @@ fn delete_memory(server: State<'_, Running>, id: i64) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn chat_turns(server: State<'_, Running>, hours: f64) -> Result<Vec<ChatTurn>, String> {
+    server.shared.chat_turns(hours).map_err(|e| e.to_string())
+}
+
+/// An open chat window hears about a line said elsewhere (the bubble)
+/// through `chat-turn`, so it appears there without a reload.
+#[tauri::command]
+fn add_chat_turn(
+    app: AppHandle,
+    server: State<'_, Running>,
+    role: String,
+    channel: String,
+    body: String,
+) -> Result<ChatTurn, String> {
+    let turn = server
+        .shared
+        .add_chat_turn(&role, &channel, &body)
+        .map_err(|e| e.to_string())?;
+    use tauri::Emitter;
+    let _ = app.emit_to("chat", "chat-turn", &turn);
+    Ok(turn)
+}
+
+#[tauri::command]
+fn clear_chat_turns(server: State<'_, Running>) -> Result<(), String> {
+    server.shared.clear_chat_turns().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn trigger_stats(server: State<'_, Running>) -> Result<Vec<TriggerStat>, String> {
     server.shared.trigger_stats().map_err(|e| e.to_string())
 }
@@ -618,6 +649,9 @@ pub fn run() {
             add_memory,
             update_memory,
             delete_memory,
+            chat_turns,
+            add_chat_turn,
+            clear_chat_turns,
             trigger_stats,
             record_trigger,
             quiet_hours,

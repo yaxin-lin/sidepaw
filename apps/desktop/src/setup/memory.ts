@@ -1,6 +1,7 @@
 /** The memory section: everything the pet remembers, each editable,
  *  deletable, and kept forever, for a month or for a week. */
 import { invoke } from "@tauri-apps/api/core";
+import type { ChatTurn } from "../generated/ChatTurn";
 import type { Memory } from "../generated/Memory";
 import { t, type Key } from "../i18n";
 import { busy, el, note } from "./dom";
@@ -21,7 +22,18 @@ function retentionSelect(value: string, onChange: (v: string) => void, s = docum
   return s;
 }
 
+const WEEK_HOURS = 24 * 7;
+
+/** The chat log is memory too (ADR 11), so it is counted here and can
+ *  be forgotten here, not only from the chat window. */
+async function renderChat() {
+  const turns = await invoke<ChatTurn[]>("chat_turns", { hours: WEEK_HOURS }).catch(() => [] as ChatTurn[]);
+  el("mem-chat").textContent = t("mem.chat", { n: turns.length });
+  el("mem-chat-clear").hidden = turns.length === 0;
+}
+
 async function render() {
+  await renderChat();
   const list = await invoke<Memory[]>("memories");
   const body = el<HTMLTableSectionElement>("mem-rows");
   body.replaceChildren();
@@ -77,6 +89,12 @@ export async function mountMemory() {
       await render();
     });
   el("mem-add").addEventListener("click", () => void add());
+  el("mem-chat-clear").addEventListener("click", () =>
+    busy("mem-msg", async () => {
+      await invoke("clear_chat_turns");
+      await renderChat();
+    }),
+  );
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.isComposing) void add();
   });

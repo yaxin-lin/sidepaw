@@ -1,13 +1,18 @@
 /** The chat window: talk to the pet about what the agents did. Each
  *  message carries the current context (sessions, today's counters,
  *  recent events); the line under the log says how much, and opens to
- *  show the exact text, as the permissions contract promises. */
+ *  show the exact text, as the permissions contract promises. The
+ *  last day of turns, bubble lines included, is back when the window
+ *  opens (ADR 11), so a bubble line can be answered here. */
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { bubbleBlock, RELOAD_HOURS, toHistory } from "../brain/chatlog";
 import { buildContext, CONTEXT_EVENTS } from "../brain/context";
 import { activePack, loadPersona } from "../brain/files";
 import { approxTokens, resolve, stream, type Turn } from "../brain/llm";
 import { directRemember, extractRemember, hidePartialMarker, memoryBlock } from "../brain/memory";
 import { compileSystemPrompt } from "../brain/persona";
+import type { ChatTurn } from "../generated/ChatTurn";
 import type { Memory } from "../generated/Memory";
 import type { DayReport } from "../generated/DayReport";
 import type { EventRow } from "../generated/EventRow";
@@ -21,10 +26,16 @@ const CONTEXT_REFRESH_MS = 5000;
 
 const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
-function add(kind: "user" | "pet" | "err" | "note", text: string): HTMLDivElement {
+function add(kind: "user" | "pet" | "err" | "note", text: string, viaBubble = false): HTMLDivElement {
   const div = document.createElement("div");
   div.className = `turn ${kind}`;
-  div.textContent = text;
+  if (viaBubble) {
+    div.classList.add("bubble");
+    const via = document.createElement("span");
+    via.className = "via";
+    via.textContent = t("chat.via_bubble");
+    div.append(via, document.createTextNode(text));
+  } else div.textContent = text;
   const log = el("log");
   log.append(div);
   log.scrollTop = log.scrollHeight;
@@ -58,7 +69,28 @@ async function main() {
 
   const { persona, md } = await loadPersona(await activePack());
   const personaPrompt = compileSystemPrompt(persona, md, detectLang());
-  const history: Turn[] = [];
+  // What was said in the last day, in the window and in the bubble.
+  let turns = await invoke<ChatTurn[]>("chat_turns", { hours: RELOAD_HOURS }).catch((e: unknown) => {
+    console.warn(`chat turns: ${String(e)}`);
+    return [] as ChatTurn[];
+  });
+  for (const turn of turns) add(turn.role === "user" ? "user" : "pet", turn.body, turn.channel === "bubble");
+  const history: Turn[] = toHistory(turns);
+  // Stored redacted; the model saw the original once. A failure only
+  // loses the continuation, not the reply.
+  const keep = async (role: "user" | "pet", channel: "chat" | "bubble", body: string) => {
+    try {
+      turns.push(await invoke<ChatTurn>("add_chat_turn", { role, channel, body }));
+    } catch (e) {
+      console.warn(`keep turn: ${String(e)}`);
+    }
+  };
+  // A line said in the bubble while this window is open lands here too.
+  await listen<ChatTurn>("chat-turn", (e) => {
+    if (e.payload.channel !== "bubble") return;
+    turns.push(e.payload);
+    add("pet", e.payload.body, true);
+  });
   let ctx = "";
   let memories = "";
   let busy = false;
@@ -70,7 +102,7 @@ async function main() {
     el("status-line").textContent = t("chat.sending", { n, tokens: approxTokens(personaPrompt + memories + ctx) });
     el("status-text").textContent = `[system]\n${system()}`;
   };
-  const system = () => `${personaPrompt}\n\n${memories}\n\nWhat you can see right now:\n${ctx}`;
+  const system = () => [personaPrompt, memories, bubbleBlock(turns), `What you can see right now:\n${ctx}`].filter((p) => p.length > 0).join("\n\n");
   const remembered = (fact: string) => {
     const note = add("note", t("chat.remembered", { fact }));
     note.title = t("chat.remembered.manage");
@@ -78,6 +110,18 @@ async function main() {
   };
   await refresh();
   setInterval(() => void refresh(), CONTEXT_REFRESH_MS);
+  el("forget").addEventListener("click", () =>
+    void invoke("clear_chat_turns").then(
+      () => {
+        turns = [];
+        history.length = 0;
+        el("log").replaceChildren();
+        add("note", t("chat.forgot"));
+        void refresh();
+      },
+      (e: unknown) => add("err", t("chat.failed", { error: String(e) })),
+    ),
+  );
 
   const input = el<HTMLTextAreaElement>("input");
   input.placeholder = t("chat.placeholder");
@@ -108,6 +152,7 @@ async function main() {
       el<HTMLButtonElement>("send").disabled = false;
       return;
     }
+    await keep("user", "chat", text);
     const reply = add("pet", "…");
     let got = "";
     try {
@@ -131,6 +176,7 @@ async function main() {
       const { reply: shown, facts } = extractRemember(full);
       reply.textContent = shown;
       history.push({ role: "user", content: text }, { role: "assistant", content: shown });
+      await keep("pet", "chat", shown);
       // Observed facts fade after a month unless the user keeps them.
       for (const fact of facts) {
         await invoke("add_memory", { source: "observed", body: fact, retention: "30d" }).then(

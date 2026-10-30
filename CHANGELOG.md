@@ -8,6 +8,13 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The chat remembers (ADR 11, first step): what was said in the chat
+  window and every line the pet said on its own in its bubble are kept
+  for a week (`chat_turns`, redacted like memories). The window shows
+  the last day of them when it opens, so clicking a bubble line opens
+  a chat that already has it and you can just reply; the pet sees its
+  recent bubble lines in the prompt and does not repeat them. "Forget
+  this chat" in the window, or Setup > What it remembers, clears it.
 - A model provider that is your own Claude Code (`provider =
   "claude-code"`, ADR 10): the pet runs the `claude` you are signed in
   to in print mode, so chat and lines use your plan instead of an API

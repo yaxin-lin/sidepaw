@@ -16,7 +16,7 @@ use crate::home::{self, DaemonState};
 use crate::origin::{self, Origin};
 use crate::redact;
 use crate::registry::{PendingApproval, Registry, Snapshot};
-use crate::store::{AuditRow, DayReport, EventRow, History, Memory, Store, TriggerStat};
+use crate::store::{AuditRow, ChatTurn, DayReport, EventRow, History, Memory, Store, TriggerStat};
 use anyhow::{Context, Result};
 use axum::extract::{ConnectInfo, FromRequestParts, Path, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -319,6 +319,30 @@ impl Shared {
 
     pub fn delete_memory(&self, id: i64) -> Result<()> {
         self.app.lock().unwrap().store.delete_memory(id)
+    }
+
+    pub fn chat_turns(&self, hours: f64) -> Result<Vec<ChatTurn>> {
+        self.app
+            .lock()
+            .unwrap()
+            .store
+            .chat_turns(&now_rfc3339(), hours)
+    }
+
+    /// Stored redacted, like memories: a key pasted into chat reaches
+    /// the model once but is never kept.
+    pub fn add_chat_turn(&self, role: &str, channel: &str, body: &str) -> Result<ChatTurn> {
+        let body = redact::text(body.trim());
+        anyhow::ensure!(!body.is_empty(), "nothing was said");
+        self.app
+            .lock()
+            .unwrap()
+            .store
+            .add_chat_turn(&now_rfc3339(), role, channel, &body)
+    }
+
+    pub fn clear_chat_turns(&self) -> Result<()> {
+        self.app.lock().unwrap().store.clear_chat_turns()
     }
 
     /// How many local days had any event, and the first event's time;

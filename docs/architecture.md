@@ -36,6 +36,7 @@ built in is in [roadmap.md](roadmap.md).
 | Chat window: streamed replies, context from sessions, counters and recent events, shown before it is sent | built (0.4) |
 | Proactive lines: nine triggers gated by chattiness 0-5, quiet hours, do-not-disturb and learned cooldowns | built (0.5) |
 | Memory list: shown and edited in setup, used in chat, added by the user or noticed in chat | built (0.5) |
+| Chat log: the last day of turns and bubble lines back when the chat opens, a bubble line answerable in chat, forgettable in one click | built |
 | `apps/desktop`: transparent always-on-top window, spritesheet renderer, embedded server, TS types from Rust | built (0.1) |
 | Click-through of transparent pixels, self-update, release workflow | built (0.2) |
 | Setup window: install, update, remove Claude Code hooks | built (0.2) |
@@ -240,6 +241,18 @@ the user is stored as is, forever, with no model call. Bodies go
 through the redactor. The list is in Setup > What it remembers, where
 each can be edited, deleted or kept forever, a month or a week;
 expired ones are dropped whenever the list is read.
+
+The chat also keeps its own short-term memory (ADR 11): every turn of
+the window and every unprompted bubble line go into `chat_turns`
+(redacted, kept a week). When the window opens it shows the last 24
+hours, bubble lines marked as such, and `brain/chatlog.ts` turns them
+into the request: chat turns as the model's history (consecutive
+turns of one role joined, a leading pet turn dropped), bubble lines as
+a system-prompt list with their age, so "yes, that one" has a
+referent and the pet does not say the same line twice. A line said
+while the window is open arrives by the `chat-turn` event. "Forget
+this chat" in the window, or the count in Setup > What it remembers,
+clears it.
 
 Size, do-not-disturb and mini mode live in `[pet]` and are changed from
 the tray (`prefs.rs`), which saves them and emits `prefs-changed`.

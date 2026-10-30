@@ -13,12 +13,17 @@
       .turn { max-width: 86%; padding: 8px 12px; border-radius: 14px; white-space: pre-wrap; word-break: break-word; }
       .turn.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
       .turn.pet { align-self: flex-start; background: var(--pet); border-bottom-left-radius: 4px; }
+      .turn.pet.bubble { background: transparent; border: 1px dashed var(--line); }
+      .via { display: block; font-size: 11px; color: var(--muted); margin-bottom: 2px; }
       .turn.err { align-self: flex-start; color: var(--bad); font-size: 13px; }
       .turn.note { align-self: center; color: var(--muted); font-size: 12px; cursor: pointer; padding: 2px 8px; }
       .turn.note:hover { text-decoration: underline; }
       #notice { margin: 14px; padding: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
       #notice[hidden] { display: none; }
-      #status { padding: 4px 14px 6px; font-size: 12px; color: var(--muted); }
+      #status { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 4px 14px 6px; font-size: 12px; color: var(--muted); }
+      #status details { flex: 1; min-width: 0; }
+      #forget { background: none; color: var(--muted); padding: 0; font-size: 12px; white-space: nowrap; }
+      #forget:hover { text-decoration: underline; }
       #status summary { cursor: pointer; }
       #status pre { font-size: 11px; max-height: 160px; overflow: auto; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin: 6px 0 0; white-space: pre-wrap; }
       form { display: flex; gap: 8px; padding: 8px 14px 14px; border-top: 1px solid var(--line); background: var(--card); }
@@ -39,6 +44,7 @@
         <summary id="status-line"></summary>
         <pre id="status-text"></pre>
       </details>
+      <button type="button" id="forget" data-i18n="chat.forget">Forget this chat</button>
     </div>
     <form id="form">
       <textarea id="input" rows="1"></textarea>

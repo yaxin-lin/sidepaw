@@ -163,6 +163,8 @@ const STRINGS = {
     "mem.placeholder": "e.g. calls me boss; prefers pnpm",
     "mem.add": "Add",
     "mem.empty": "Nothing yet.",
+    "mem.chat": "Chat and bubble lines from the last 7 days: {n}. The chat window shows the last day of them when it opens and sends them with each message.",
+    "mem.chat.clear": "Forget",
     "mem.saved": "Saved.",
     "mem.delete": "Delete",
     "mem.src.user": "you",
@@ -295,6 +297,9 @@ const STRINGS = {
     "chat.no_model": "No model provider configured. Chat needs one; everything else works without.",
     "chat.open_setup": "Open setup",
     "chat.failed": "That did not go through: {error}",
+    "chat.via_bubble": "Said in its bubble",
+    "chat.forget": "Forget this chat",
+    "chat.forgot": "Forgotten. The next message starts fresh.",
   },
   "zh-CN": {
     "setup.title": "sidepaw 设置",
@@ -423,6 +428,8 @@ const STRINGS = {
     "mem.placeholder": "比如：叫我老板；我用 pnpm",
     "mem.add": "添加",
     "mem.empty": "还没有。",
+    "mem.chat": "最近 7 天的聊天和气泡台词：{n} 条。打开聊天时会接着显示最近一天的，并随每条消息发送。",
+    "mem.chat.clear": "忘掉",
     "mem.saved": "已保存。",
     "mem.delete": "删除",
     "mem.src.user": "你写的",
@@ -555,6 +562,9 @@ const STRINGS = {
     "chat.no_model": "还没配置模型服务商。对话需要它，其他功能不需要。",
     "chat.open_setup": "打开设置",
     "chat.failed": "没发出去：{error}",
+    "chat.via_bubble": "在气泡里说的",
+    "chat.forget": "忘掉这次聊天",
+    "chat.forgot": "忘掉了，下一条从头开始。",
   },
 } as const;
 

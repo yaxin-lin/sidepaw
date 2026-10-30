@@ -80,7 +80,9 @@ while, after two errors in a row, when a long task finishes, at the end
 of the day, and more as you turn up Tray > Chattiness. Close a line
 with its cross and that kind comes less often. Setup > What it
 remembers lists what it knows about you; chat uses it, and you can
-edit or delete any of it.
+edit or delete any of it. Click a line it said and the chat opens with
+that line already in it; the chat keeps the last day of what was said,
+and one click forgets it.
 
 Tray > Usage History shows sessions, turns, tool calls, errors and
 time spent waiting on you, per day and per project, for the last 7, 30

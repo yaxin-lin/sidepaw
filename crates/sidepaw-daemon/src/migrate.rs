@@ -14,6 +14,7 @@ use std::path::Path;
 const MIGRATIONS: &[(u32, &str)] = &[
     (1, include_str!("../migrations/0001_initial.sql")),
     (2, include_str!("../migrations/0002_approvals.sql")),
+    (3, include_str!("../migrations/0003_chat_turns.sql")),
 ];
 
 /// The version this build brings a database to.
@@ -134,7 +135,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(run(&mut conn, Some(&db)).unwrap(), 2);
+        assert_eq!(run(&mut conn, Some(&db)).unwrap(), latest());
         let body: String = conn
             .query_row("SELECT body FROM memories", [], |r| r.get(0))
             .unwrap();

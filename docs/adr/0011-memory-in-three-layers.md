@@ -1,6 +1,7 @@
 # 11. Memory in three layers: facts, diary, follow-ups
 
-Status: proposed, 2026-10-29
+Status: accepted, 2026-10-30 (chat persistence and bubbles that open
+the chat shipped; follow-ups, diary and fact kinds to come)
 
 ## Context
 
@@ -70,6 +71,13 @@ switch exists.
 
 Order of work: chat persistence and bubbles that open the chat first,
 then follow-ups, then the diary, then fact kinds and updates.
+
+Two choices made while building the first step: only unprompted
+(scheduled) lines are stored, not the reactions to clicks, drags and
+state changes, which are frequent and canned; and bubble lines reach
+the model as a dated list in the system prompt rather than as history
+turns, since providers want the user to speak first and the list
+keeps the "do not repeat yourself" use in one place.
 
 ## Consequences
 

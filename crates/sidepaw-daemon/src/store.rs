@@ -133,6 +133,27 @@ pub struct Memory {
 
 pub const RETENTIONS: [&str; 3] = ["forever", "30d", "7d"];
 
+/// One thing said in the chat window, or by the pet in its bubble.
+/// The chat window reloads the recent ones so a conversation goes on
+/// across windows and a bubble line can be answered (ADR 11).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct ChatTurn {
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub id: i64,
+    /// RFC 3339, UTC.
+    pub ts: String,
+    /// `user` or `pet`.
+    pub role: String,
+    /// `chat` for the window, `bubble` for an unprompted line.
+    pub channel: String,
+    pub body: String,
+}
+
+/// Turns older than this are dropped whenever the log is read. A week
+/// covers "what did we talk about yesterday" and the diary to come.
+pub const CHAT_KEEP_DAYS: f64 = 7.0;
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Usage {
@@ -361,6 +382,60 @@ impl Store {
     pub fn delete_memory(&mut self, id: i64) -> Result<()> {
         self.conn
             .execute("DELETE FROM memories WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    /// Turns from the last `hours`, oldest first, after dropping what
+    /// is older than a week.
+    pub fn chat_turns(&mut self, now: &str, hours: f64) -> Result<Vec<ChatTurn>> {
+        self.conn.execute(
+            "DELETE FROM chat_turns WHERE julianday(?1) - julianday(ts) > ?2",
+            params![now, CHAT_KEEP_DAYS],
+        )?;
+        let mut stmt = self.conn.prepare(
+            "SELECT id, ts, role, channel, body FROM chat_turns
+             WHERE julianday(?1) - julianday(ts) <= ?2 ORDER BY id",
+        )?;
+        let rows = stmt.query_map(params![now, hours / 24.0], |r| {
+            Ok(ChatTurn {
+                id: r.get(0)?,
+                ts: r.get(1)?,
+                role: r.get(2)?,
+                channel: r.get(3)?,
+                body: r.get(4)?,
+            })
+        })?;
+        Ok(rows.collect::<std::result::Result<_, _>>()?)
+    }
+
+    pub fn add_chat_turn(
+        &mut self,
+        now: &str,
+        role: &str,
+        channel: &str,
+        body: &str,
+    ) -> Result<ChatTurn> {
+        anyhow::ensure!(matches!(role, "user" | "pet"), "unknown role {role:?}");
+        anyhow::ensure!(
+            matches!(channel, "chat" | "bubble"),
+            "unknown channel {channel:?}"
+        );
+        self.conn.execute(
+            "INSERT INTO chat_turns (ts, role, channel, body) VALUES (?1, ?2, ?3, ?4)",
+            params![now, role, channel, body],
+        )?;
+        Ok(ChatTurn {
+            id: self.conn.last_insert_rowid(),
+            ts: now.to_owned(),
+            role: role.to_owned(),
+            channel: channel.to_owned(),
+            body: body.to_owned(),
+        })
+    }
+
+    /// "Forget this chat": every turn, bubble lines included.
+    pub fn clear_chat_turns(&mut self) -> Result<()> {
+        self.conn.execute("DELETE FROM chat_turns", [])?;
         Ok(())
     }
 
@@ -956,6 +1031,41 @@ mod tests {
         assert_eq!(m[1].body, "works on sidepaw and a blog");
         store.delete_memory(month).unwrap();
         assert_eq!(store.memories(later).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn chat_turns_come_back_in_order_within_the_window_and_expire() {
+        let mut store = Store::in_memory().unwrap();
+        let old = "2026-10-20T09:00:00.000Z";
+        let yesterday = "2026-10-29T20:00:00.000Z";
+        let today = "2026-10-30T09:00:00.000Z";
+        store
+            .add_chat_turn(old, "pet", "bubble", "long ago")
+            .unwrap();
+        store
+            .add_chat_turn(yesterday, "user", "chat", "hi")
+            .unwrap();
+        store
+            .add_chat_turn(yesterday, "pet", "chat", "hello")
+            .unwrap();
+        let said = store
+            .add_chat_turn(today, "pet", "bubble", "the PR is green")
+            .unwrap();
+        assert_eq!(said.channel, "bubble");
+        assert!(store.add_chat_turn(today, "system", "chat", "x").is_err());
+        assert!(store.add_chat_turn(today, "pet", "toast", "x").is_err());
+
+        let now = "2026-10-30T10:00:00.000Z";
+        let last_day = store.chat_turns(now, 24.0).unwrap();
+        assert_eq!(
+            last_day.iter().map(|t| t.body.as_str()).collect::<Vec<_>>(),
+            ["hi", "hello", "the PR is green"],
+            "oldest first"
+        );
+        let week = store.chat_turns(now, 24.0 * 7.0).unwrap();
+        assert_eq!(week.len(), 3, "the week-old line was dropped on read");
+        store.clear_chat_turns().unwrap();
+        assert!(store.chat_turns(now, 24.0).unwrap().is_empty());
     }
 
     #[test]

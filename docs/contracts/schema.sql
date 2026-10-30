@@ -1,4 +1,4 @@
--- sidepaw SQLite schema, version 2, written out in full for readers.
+-- sidepaw SQLite schema, version 3, written out in full for readers.
 -- The daemon does not run this file: it applies the numbered files in
 -- crates/sidepaw-daemon/migrations/ (see src/migrate.rs), and a test
 -- checks that they produce exactly these tables and indexes. Change
@@ -80,6 +80,18 @@ CREATE TABLE IF NOT EXISTS approvals (
     summary     TEXT,                       -- redacted one-line description
     decision    TEXT NOT NULL
 );
+
+-- Turns of the chat window and the lines the pet said unprompted in
+-- its bubble, so a conversation continues across windows and a bubble
+-- line can be answered in chat. Bodies are redacted. Kept a week.
+CREATE TABLE IF NOT EXISTS chat_turns (
+    id          INTEGER PRIMARY KEY,
+    ts          TEXT NOT NULL,
+    role        TEXT NOT NULL,              -- user|pet
+    channel     TEXT NOT NULL DEFAULT 'chat', -- chat|bubble
+    body        TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS chat_turns_ts ON chat_turns(ts);
 
 -- Every call to a remote model. The payload itself is not stored.
 CREATE TABLE IF NOT EXISTS audit (
