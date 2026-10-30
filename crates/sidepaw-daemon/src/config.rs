@@ -97,9 +97,13 @@ pub struct Pet {
     pub dnd: bool,
     /// Parked at the screen edge, sliding out when the cursor comes.
     pub mini: bool,
-    /// Let the model write proactive lines about specific events
-    /// (ADR 8). Off until the user accepts the preview.
+    /// Let the model write the pet's unprompted lines (ADR 8). Off
+    /// until the user accepts the preview.
     pub live_lines: bool,
+    /// The request shape the preview was accepted for (`LIVE_SHAPE` in
+    /// `brain/nudge.ts`); when the shape changes, the preview is shown
+    /// again before lines go out.
+    pub live_shape: u32,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
@@ -142,6 +146,7 @@ pub struct PetPrefs {
     /// How often the pet speaks unprompted, 0 (never) to 5.
     pub chatty: u8,
     pub live_lines: bool,
+    pub live_shape: u32,
 }
 
 impl Default for Pet {
@@ -154,6 +159,7 @@ impl Default for Pet {
             dnd: false,
             mini: false,
             live_lines: false,
+            live_shape: 0,
         }
     }
 }
@@ -283,6 +289,7 @@ impl Config {
             doc["pet"]["mini"] = toml_edit::value(prefs.mini);
             doc["pet"]["chatty"] = toml_edit::value(i64::from(prefs.chatty.min(5)));
             doc["pet"]["live_lines"] = toml_edit::value(prefs.live_lines);
+            doc["pet"]["live_shape"] = toml_edit::value(i64::from(prefs.live_shape));
         })
     }
 
@@ -293,6 +300,7 @@ impl Config {
             mini: self.pet.mini,
             chatty: self.pet.chatty.min(5),
             live_lines: self.pet.live_lines,
+            live_shape: self.pet.live_shape,
         }
     }
 
@@ -577,6 +585,7 @@ port = 4242
             mini: false,
             chatty: 4,
             live_lines: true,
+            live_shape: 2,
         };
         Config::write_pet_prefs(&dir, prefs).unwrap();
         let c = Config::load(&dir).unwrap();

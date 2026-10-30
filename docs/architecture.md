@@ -225,11 +225,16 @@ it and speaks lines from the pack's keys of the same names; a pack
 without those keys stays quiet. No model is called for any of this.
 
 With `[pet] live_lines` on (Setup > Model, after accepting a preview of
-the exact request, ADR 8) the waiting, errors and long-task moments ask
-the model for a line instead (`brain/nudge.ts`): persona, the moment,
-and `brain/context.ts` over the last five stored events; at most 20 a
-day, eight seconds before falling back to the pack line, audited as
-`nudge`. After three days of use at level 1 the pet asks once, in
+the exact request, ADR 8) every unprompted moment asks the model for a
+line instead (`brain/nudge.ts`): persona, the moment with its numbers
+(minutes away, today's counters, the app switched to),
+`brain/context.ts` over the last five stored events, the bubble lines
+already said today so it says something new, and the pack's stock
+line for tone; at most 20 a day on a paid API and 120 with Claude Code
+or a local model, eight seconds (fifteen for Claude Code) before
+falling back to the pack line, audited as `nudge`. `LIVE_SHAPE` names
+the request shape; the consent stores it (`[pet] live_shape`), and a
+new shape leaves lines off until the new preview is accepted. After three days of use at level 1 the pet asks once, in
 character, for level 2 (`shouldOfferLevel`, at most twice and a month
 apart); clicking the line opens Setup at the permission levels.
 

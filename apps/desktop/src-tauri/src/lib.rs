@@ -514,10 +514,14 @@ fn usage(server: State<'_, Running>) -> Result<sidepaw_daemon::store::Usage, Str
     server.shared.usage().map_err(|e| e.to_string())
 }
 
-/// Turned on only after the user accepted the preview (ADR 8).
+/// Turned on only after the user accepted the preview (ADR 8); `shape`
+/// says which request shape was shown.
 #[tauri::command]
-fn set_live_lines(app: AppHandle, on: bool) {
-    prefs::change(&app, |p| p.live_lines = on);
+fn set_live_lines(app: AppHandle, on: bool, shape: u32) {
+    prefs::change(&app, |p| {
+        p.live_lines = on;
+        p.live_shape = shape;
+    });
 }
 
 #[tauri::command]

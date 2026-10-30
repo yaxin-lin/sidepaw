@@ -43,7 +43,8 @@ chatty = 2                   # 0..5, tray > Chattiness: 0 only when clicked,
 size   = "m"                 # s | m | l (tray > Size)
 dnd    = false               # do not disturb: no notifications, no unprompted lines
 mini   = false               # parked at the right screen edge
-live_lines = false           # model-written lines for waiting, errors, long tasks (ADR 8)
+live_lines = false           # the model writes the pet's unprompted lines (ADR 8)
+live_shape = 0               # which preview was accepted; a changed request asks again
 
 [quiet]
 from = "23:00"

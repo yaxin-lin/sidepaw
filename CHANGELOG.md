@@ -8,6 +8,15 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Live lines for every unprompted moment, not only waiting, errors and
+  long tasks: welcome back (with how long and what happened meanwhile),
+  the day's report with its numbers, morning, night, breaks, app
+  switches, hops and small talk. The model is told what the pet already
+  said today, so it does not repeat itself, and gets the pack's stock
+  line for tone. The cap is 120 a day with Claude Code or a local model
+  (20 on a paid API), and Claude Code gets fifteen seconds before the
+  pack line is used. Because the request changed, the switch is off
+  until you turn it on again and see the new preview (ADR 8).
 - The chat remembers (ADR 11, first step): what was said in the chat
   window and every line the pet said on its own in its bubble are kept
   for a week (`chat_turns`, redacted like memories). The window shows

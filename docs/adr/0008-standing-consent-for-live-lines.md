@@ -33,3 +33,10 @@ starts, and a one-time preview with explicit consent for the one kind
 of call the pet starts itself. A change to what live lines send is a
 change to this consent and must be shown again; the request is built
 in one function (`brain/nudge.ts`) so that stays visible.
+
+Amended 2026-10-30: live lines cover every unprompted trigger, not
+three, and the request carries the day's bubble lines and the pack's
+stock line. The consent now records the request shape it was given
+for (`[pet] live_shape`, `LIVE_SHAPE` in `brain/nudge.ts`); a build
+that changes the shape bumps the number, and lines stay off until the
+user has seen and accepted the new preview.

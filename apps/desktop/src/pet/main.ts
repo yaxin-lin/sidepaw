@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { PetPrefs } from "../generated/PetPrefs";
 import type { Snapshot } from "../generated/Snapshot";
+import { LIVE_SHAPE } from "../brain/nudge";
 import { Bubble, type ApprovalKeys } from "./bubble";
 import { DesktopLife } from "./desktop";
 import { HitMaskSource } from "./hitmask";
@@ -116,7 +117,7 @@ async function main() {
     bubble.quiet = next.dnd;
     scheduler.dnd = next.dnd;
     scheduler.chatty = next.chatty;
-    scheduler.liveLines = next.live_lines;
+    scheduler.liveLines = next.live_lines && next.live_shape === LIVE_SHAPE;
     if (next.mini !== previous?.mini || (next.mini && next.size !== previous?.size)) await life.setMini(next.mini);
   };
   await applyPrefs(prefs, null);

@@ -54,12 +54,12 @@ three-step welcome window on first run.
     (ADR 10), so chat and lines cost no API money.
 13. Feeling like someone, not a notifier (ADR 11, in this order).
     Done: bubbles open the chat with the line already said and the
-    chat keeps the day's turns. Next: follow-ups the pet comes back to ask
+    chat keeps the day's turns; every unprompted line written by the
+    model, told what it already said. Next: follow-ups the pet comes back to ask
     about; a diary of what it watched happen, with yesterday in the
     proactive lines; facts in kinds, updatable and droppable by the
     model; typing rhythm and a turn toward the user before a line; a
-    small mood carried through the day; more lines written by the
-    model now that they are free.
+    small mood carried through the day.
 
 Not planned: token feeding, levels, achievements, leaderboards.
 

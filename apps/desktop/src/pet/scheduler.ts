@@ -6,9 +6,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { buildContext } from "../brain/context";
 import { activePack, loadPersona } from "../brain/files";
 import { complete, resolve } from "../brain/llm";
-import { cleanLine, DAILY_CAP, LIVE, nudgeRequest, TIMEOUT_MS } from "../brain/nudge";
+import { cleanLine, dailyCap, type Moment, nudgeRequest, timeoutMs } from "../brain/nudge";
 import { compileSystemPrompt } from "../brain/persona";
 import { backKeys, DOZE_MS, type Gate, fill, inQuietHours, mayFire, OFFER_AGAIN_MS, shouldOfferLevel, type TriggerId, TRIGGERS, Watcher } from "../brain/proactive";
+import type { ChatTurn } from "../generated/ChatTurn";
 import type { EventRow } from "../generated/EventRow";
 import type { ModelConfig } from "../generated/ModelConfig";
 import type { Usage } from "../generated/Usage";
@@ -51,8 +52,10 @@ export class Scheduler {
   private evaluating = false;
   chatty = 2;
   dnd = false;
-  /** `[pet] live_lines`, on only after the user accepted the preview. */
+  /** `[pet] live_lines`, on only after the user accepted the preview
+   *  of the current request shape (ADR 8). */
   liveLines = false;
+  private lastSnap: Snapshot | null = null;
 
   /** The kind of app in front, from the pet's last look at the screen. */
   appKind: () => string | null = () => null;
@@ -98,6 +101,7 @@ export class Scheduler {
     // Every snapshot is observed, so no state change is missed while a
     // line is being decided; only the deciding waits its turn.
     const now = Date.now();
+    this.lastSnap = snap;
     const due = this.watcher.observe({
       now,
       hour: new Date(now).getHours(),
@@ -124,7 +128,8 @@ export class Scheduler {
       const now = Date.now();
       const gate = this.gate(now);
       if (!mayFire(id, { ...gate, stat: this.stats.get(id) })) return;
-      const line = this.lines().pick([id, "click"]);
+      const packLine = this.lines().pick([id, "click"]);
+      const line = (await this.liveLine(id, packLine, {})) ?? packLine;
       if (line === null) return;
       if (!this.bubble.nudge(line, (answered) => void this.react(id, answered, this.onAnswer))) return;
       this.spoken.push(now);
@@ -162,10 +167,15 @@ export class Scheduler {
       const news = this.watcher.backNews;
       const key = id === "app" ? `app.${this.watcher.switchedTo}` : id === "back" ? backKeys(news) : id;
       const packLine = this.lines().pick(key);
-      const live = LIVE.has(id) ? await this.liveLine(id, snap) : null;
-      const line = live ?? packLine;
-      if (line === null) continue; // this pack has nothing to say here
       const vars = id === "report" ? await this.counters() : id === "back" && news ? { ...news } : null;
+      const live = await this.liveLine(id, packLine, {
+        app: id === "app" ? this.watcher.switchedTo : null,
+        news: id === "back" ? news : null,
+        counters: id === "report" ? (vars ?? undefined) : undefined,
+        packLine: packLine && vars ? fill(packLine, vars) : packLine,
+      });
+      const line = live ?? packLine;
+      if (line === null) continue; // neither the model nor this pack has anything to say here
       const text = live ? live : withProject(id, snap, vars ? fill(line, vars) : line);
       if (!this.bubble.nudge(text, (answered) => void this.react(id, answered, this.onAnswer))) return;
       this.watcher.consume(id, now);
@@ -206,23 +216,28 @@ export class Scheduler {
 
   /** A line written by the model for this moment (ADR 8), or null for
    *  the pack's: when it is off, over the day's cap, unconfigured, slow
-   *  or unusable. */
-  private async liveLine(id: TriggerId, snap: Snapshot): Promise<string | null> {
-    if (!this.liveLines || !this.underCap()) return null;
+   *  or unusable. The day's bubble lines go along so it says something
+   *  new, the pack line so it keeps the tone. */
+  private async liveLine(id: TriggerId, packLine: string | null, moment: Moment): Promise<string | null> {
+    const snap = this.lastSnap;
+    if (!this.liveLines || !snap) return null;
     try {
       const cfg = await invoke<ModelConfig>("get_model");
-      resolve(cfg);
-      const [report, events, key, persona] = await Promise.all([
+      const r = resolve(cfg);
+      if (!this.underCap(dailyCap(r))) return null;
+      const [report, events, key, persona, turns] = await Promise.all([
         invoke<DayReport>("report_today"),
         invoke<EventRow[]>("recent_events", { limit: 5 }),
         invoke<string | null>("api_key"),
         activePack().then(loadPersona),
+        invoke<ChatTurn[]>("chat_turns", { hours: 24 }).catch(() => [] as ChatTurn[]),
       ]);
-      const req = nudgeRequest(id, compileSystemPrompt(persona.persona, persona.md, detectLang()), buildContext({ snapshot: snap, report, events }, 5));
+      const recent = turns.filter((t) => t.channel === "bubble").map((t) => t.body);
+      const req = nudgeRequest(id, compileSystemPrompt(persona.persona, persona.md, detectLang()), buildContext({ snapshot: snap, report, events }, 5), { packLine, ...moment, recent });
       this.countLive();
       const reply = await Promise.race([
         complete(cfg, req, key),
-        new Promise<null>((r) => setTimeout(() => r(null), TIMEOUT_MS)),
+        new Promise<null>((give) => setTimeout(() => give(null), timeoutMs(r))),
       ]);
       return reply === null ? null : cleanLine(reply);
     } catch (e) {
@@ -233,11 +248,11 @@ export class Scheduler {
 
   // Per day, in this window's storage; a restart within a day only
   // forgets the count, which errs toward the pack's lines.
-  private underCap(): boolean {
+  private underCap(cap: number): boolean {
     const today = localDay(new Date());
     try {
       const [day, n] = (localStorage.getItem(LIVE_COUNT_KEY) ?? "").split(" ");
-      return day !== today || Number(n) < DAILY_CAP;
+      return day !== today || Number(n) < cap;
     } catch {
       return true;
     }
